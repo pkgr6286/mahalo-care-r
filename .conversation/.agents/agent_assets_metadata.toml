@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "7UoJgZbsIvdwX1e31Gjj4"
+uri = "file://.agents/outputs/Mahalo-Care-End-to-End-Execution-Plan.md"
+type = "text"
+title = "Mahalo Care — Full End-to-End Execution Plan"
+description = "Reviewable implementation plan covering full v1 scope, architecture, modern UI, phased delivery, local testing, native-app dependencies, and manual GCP deployment."
+logical_id = "b01fbdf2-90b0-4b09-b675-5a10e7ea670c"
+content_hash = "sha256:95bc57bd1cf0448b07eded82740583f13df5bd245c17a8e975bc8a92089c2e93"
+size = 34053
+mtime_ms = 1794344543222
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/conversation:80b67094-f112-46e4-87be-910cfe7469f3/b01fbdf2-90b0-4b09-b675-5a10e7ea670c/205fa893-f6da-4ab4-ae21-f454f6b90c5e"
+storage_version_token = "1794344552687835"
+content_type = "text/markdown"

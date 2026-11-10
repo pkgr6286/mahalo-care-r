@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Mahalo Care"
+description = "Single-practice care-management demo with clinician and patient workspaces, program enrollment, clinical monitoring, time tracking, evidence-based billing operations and administration."
+version = "1.0.0"
+id = "artifacts/mahalo-care"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19333
+
+[services.development]
+run = "pnpm --filter @workspace/mahalo-care run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/mahalo-care", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/mahalo-care/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19333"
+BASE_PATH = "/"

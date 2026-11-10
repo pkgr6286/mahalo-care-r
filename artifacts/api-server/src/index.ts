@@ -1,21 +1,15 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { config } from "./lib/config";
+import { seedDemo, ensurePatientDemoAccount } from "./lib/seed";
+import { installDemoAuditProtection } from "./lib/audit-protection";
+import { pool } from "@workspace/db";
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
-
-app.listen(port, (err) => {
+await installDemoAuditProtection();
+await seedDemo();
+await ensurePatientDemoAccount();
+const port = config.PORT;
+const server=app.listen(port, "0.0.0.0", (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
@@ -23,3 +17,4 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
 });
+process.on("SIGTERM",()=>server.close(()=>{void pool.end().then(()=>process.exit(0));}));

@@ -1,36 +1,457 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 1.0.0
+  description: Mahalo Care single-practice synthetic-data demo API
 servers:
   - url: /api
-    description: Base API path
-tags:
-  - name: health
-    description: Health operations
+security:
+  - session: []
 paths:
   /healthz:
     get:
       operationId: healthCheck
-      tags: [health]
-      summary: Health check
-      description: Returns server health status
+      security: []
       responses:
         "200":
           description: Healthy
           content:
             application/json:
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+  /auth/login:
+    post:
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginInput" }
+      responses:
+        "200":
+          description: Authenticated user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401":
+          description: Invalid credentials
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401":
+          description: Not signed in
+  /auth/logout:
+    post:
+      operationId: logout
+      responses:
+        "200":
+          description: Signed out
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActionResult" }
+  /dashboard:
+    get:
+      operationId: getDashboard
+      responses:
+        "200":
+          description: Practice overview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+  /patients:
+    get:
+      operationId: listPatients
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: program
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+      responses:
+        "200":
+          description: Patients
+          content:
+            application/json:
               schema:
-                $ref: "#/components/schemas/HealthStatus"
+                type: array
+                items: { $ref: "#/components/schemas/Patient" }
+    post:
+      operationId: createPatient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PatientInput" }
+      responses:
+        "201":
+          description: Patient created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Patient" }
+  /patients/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getPatient
+      responses:
+        "200":
+          description: Patient chart
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PatientDetail" }
+    patch:
+      operationId: updatePatient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PatientInput" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Patient" }
+  /records/{kind}:
+    parameters:
+      - $ref: "#/components/parameters/Kind"
+    get:
+      operationId: listRecords
+      responses:
+        "200":
+          description: Domain records
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CareRecord" }
+    post:
+      operationId: createRecord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecordInput" }
+      responses:
+        "201":
+          description: Record created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CareRecord" }
+  /records/{kind}/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Kind"
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    patch:
+      operationId: updateRecord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecordInput" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CareRecord" }
+  /actions:
+    post:
+      operationId: performAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ActionInput" }
+      responses:
+        "200":
+          description: Action outcome
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActionResult" }
+  /settings:
+    get:
+      operationId: getSettings
+      responses:
+        "200":
+          description: Practice settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PracticeSettings" }
+    patch:
+      operationId: updateSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PracticeSettings" }
+      responses:
+        "200":
+          description: Saved settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PracticeSettings" }
+  /reports:
+    get:
+      operationId: getReports
+      responses:
+        "200":
+          description: Operational reporting
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReportData" }
+  /exports/{kind}:
+    get:
+      operationId: exportData
+      parameters:
+        - in: path
+          name: kind
+          required: true
+          schema: { type: string, enum: [billing, patients, audit, configuration] }
+      responses:
+        "200":
+          description: Export
+          content:
+            text/plain:
+              schema: { type: string }
+  /documents/{id}:
+    get:
+      operationId: downloadDocument
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: PDF document
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
 components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: mahalo_session
+  parameters:
+    Kind:
+      in: path
+      name: kind
+      required: true
+      schema:
+        type: string
+        enum: [programs, enrollments, consents, careplans, observations, exceptions, tasks, time, notes, devices, messages, interactions, billing, rules, templates, locations, staff, instruments, responses, education, integrations, drafts, notifications, audit]
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
-        status:
+        status: { type: string }
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1 }
+    User:
+      type: object
+      required: [id, name, email, role, credential]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        role: { type: string }
+        credential: { type: string }
+        patientId: { type: ["string", "null"] }
+    PatientInput:
+      type: object
+      required: [firstName, lastName, dob, location]
+      properties:
+        firstName: { type: string, minLength: 1 }
+        lastName: { type: string, minLength: 1 }
+        dob: { type: string }
+        sex: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        location: { type: string }
+        timezone: { type: string }
+        status: { type: string }
+        conditions:
+          type: array
+          items: { type: string }
+        medications:
+          type: array
+          items: { type: string }
+        payer: { type: string }
+        careManager: { type: string }
+    Patient:
+      allOf:
+        - $ref: "#/components/schemas/PatientInput"
+        - type: object
+          required: [id, mrn, programs, risk, lastContact, minutes, deviceDays, adherence, createdAt]
+          properties:
+            id: { type: string }
+            mrn: { type: string }
+            programs:
+              type: array
+              items: { type: string }
+            risk: { type: string }
+            lastContact: { type: string }
+            minutes: { type: number }
+            deviceDays: { type: integer }
+            adherence: { type: integer }
+            createdAt: { type: string }
+    RecordInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1 }
+        patientId: { type: ["string", "null"] }
+        program: { type: ["string", "null"] }
+        status: { type: string }
+        severity: { type: string }
+        description: { type: string }
+        assignee: { type: string }
+        date: { type: string }
+        value: { type: number }
+        unit: { type: string }
+        metadata:
+          type: object
+          additionalProperties: true
+    CareRecord:
+      allOf:
+        - $ref: "#/components/schemas/RecordInput"
+        - type: object
+          required: [id, kind, status, createdAt, updatedAt, patientName]
+          properties:
+            id: { type: string }
+            kind: { type: string }
+            patientName: { type: string }
+            createdAt: { type: string }
+            updatedAt: { type: string }
+    PatientDetail:
+      type: object
+      required: [patient, records]
+      properties:
+        patient: { $ref: "#/components/schemas/Patient" }
+        records:
+          type: array
+          items: { $ref: "#/components/schemas/CareRecord" }
+    Dashboard:
+      type: object
+      required: [patientCount, activeEnrollments, openExceptions, criticalExceptions, dueToday, atRisk, monthlyMinutes, eligibleLines, exceptions, tasks, activity, programStats, trend]
+      properties:
+        patientCount: { type: integer }
+        activeEnrollments: { type: integer }
+        openExceptions: { type: integer }
+        criticalExceptions: { type: integer }
+        dueToday: { type: integer }
+        atRisk: { type: integer }
+        monthlyMinutes: { type: number }
+        eligibleLines: { type: integer }
+        exceptions:
+          type: array
+          items: { $ref: "#/components/schemas/CareRecord" }
+        tasks:
+          type: array
+          items: { $ref: "#/components/schemas/CareRecord" }
+        activity:
+          type: array
+          items: { $ref: "#/components/schemas/CareRecord" }
+        programStats:
+          type: array
+          items: { $ref: "#/components/schemas/ProgramStat" }
+        trend:
+          type: array
+          items: { $ref: "#/components/schemas/TrendPoint" }
+    ProgramStat:
+      type: object
+      required: [key, name, enrolled, atRisk, minutes, color]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        enrolled: { type: integer }
+        atRisk: { type: integer }
+        minutes: { type: number }
+        color: { type: string }
+    TrendPoint:
+      type: object
+      required: [label, readings, completed, enrolled]
+      properties:
+        label: { type: string }
+        readings: { type: integer }
+        completed: { type: integer }
+        enrolled: { type: integer }
+    ActionInput:
+      type: object
+      required: [action]
+      properties:
+        action:
           type: string
-      required:
-        - status
-
+          enum: [enroll, pauseEnrollment, discharge, signPlan, signNote, acknowledge, resolve, dismiss, commitTime, voidTime, startTimer, stopTimer, completeTask, submitCheckin, recordAdherence, simulateReading, calculateBilling, closePeriod, reopenPeriod, approveLine, rejectLine, draftSummary, acceptDraft, rejectDraft, syncEhr, testIntegration, createVideo, importConfiguration, importPatients, evaluateRules, testRule, generateTasks, revokeConsent, draftNote, draftMessage, prioritizeQueue, suggestTime]
+        id: { type: string }
+        patientId: { type: string }
+        program: { type: string }
+        reason: { type: string }
+        payload:
+          type: object
+          additionalProperties: true
+    ActionResult:
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        record: { $ref: "#/components/schemas/CareRecord" }
+        records:
+          type: array
+          items: { $ref: "#/components/schemas/CareRecord" }
+        url: { type: string }
+    PracticeSettings:
+      type: object
+      required: [name, supportEmail, supportPhone, timezone, accentColor, patientAppName, notifications, quietHours]
+      properties:
+        name: { type: string }
+        supportEmail: { type: string }
+        supportPhone: { type: string }
+        timezone: { type: string }
+        accentColor: { type: string }
+        patientAppName: { type: string }
+        notifications: { type: boolean }
+        quietHours: { type: string }
+    ReportData:
+      type: object
+      required: [programStats, trend, staffTime, locations, integrationHealth]
+      properties:
+        programStats:
+          type: array
+          items: { $ref: "#/components/schemas/ProgramStat" }
+        trend:
+          type: array
+          items: { $ref: "#/components/schemas/TrendPoint" }
+        staffTime:
+          type: array
+          items: { $ref: "#/components/schemas/CareRecord" }
+        locations:
+          type: array
+          items: { $ref: "#/components/schemas/CareRecord" }
+        integrationHealth:
+          type: array
+          items: { $ref: "#/components/schemas/CareRecord" }

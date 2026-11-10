@@ -1,0 +1,11 @@
+{
+  "name": "Mahalo Care (synthetic demo)",
+  "short_name": "Mahalo Care",
+  "description": "Mahalo Care demo patient app using synthetic data. Requires a network connection; nothing is stored offline.",
+  "start_url": "/patient",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FAFBFD",
+  "theme_color": "#071C3B",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
