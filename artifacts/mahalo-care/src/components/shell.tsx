@@ -2,18 +2,20 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  Activity, BarChart3, ClipboardList, CreditCard, Layers, LogOut, Menu, MessageSquare, Router, Settings2, Smartphone, Sun, Users, X,
+  BarChart3, ClipboardList, CreditCard, Layers, LogOut, Menu, MessageSquare, Router, Settings2, Smartphone, Sun, Users, X,
 } from "lucide-react";
 import { useGetCurrentUser, getGetCurrentUserQueryKey, useGetSettings, useLogout, getGetSettingsQueryKey } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { initials, isUnauthorized } from "@/lib/api";
 import { ErrorState } from "@/components/kit";
 import { PatientApp } from "@/pages/patient-app";
+import { Logo } from "@/components/brand";
+export { Logo, Mark } from "@/components/brand";
 
 export function SyntheticRibbon() {
   return (
-    <div className="relative z-40 flex h-7 items-center justify-center gap-2 bg-[repeating-linear-gradient(135deg,hsl(243_79%_56%)_0_10px,hsl(243_79%_52%)_10px_20px)] px-3 text-[11px] font-medium tracking-wide text-white" data-testid="banner-synthetic">
-      <span className="rounded-sm bg-white/15 px-1.5 font-semibold uppercase tracking-[0.12em]">Synthetic data</span>
+    <div className="relative z-40 flex h-7 items-center justify-center gap-2 border-b border-border bg-[hsl(var(--brand-charcoal))] px-3 text-[11px] text-[hsl(40_12%_80%)]" data-testid="banner-synthetic">
+      <span className="inline-flex items-center gap-1.5 font-semibold uppercase tracking-[0.14em] text-[hsl(var(--background))]"><span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--brand-orange))]" />Synthetic data</span>
       <span className="truncate">Demo environment. No real patient information. EHR, video and notifications are simulated; optional live AI drafts use synthetic charts only.</span>
     </div>
   );
@@ -31,20 +33,6 @@ const NAV = [
   { href: "/admin", label: "Admin", icon: Settings2 },
   { href: "/patient", label: "Patient app", icon: Smartphone },
 ];
-
-export function Logo({ light }: { light?: boolean }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden>
-        <rect x="0.75" y="0.75" width="24.5" height="24.5" rx="7" stroke={light ? "rgba(255,255,255,.35)" : "hsl(243 79% 56% / .35)"} strokeWidth="1.5" />
-        <path d="M6 15.5c2.2 0 2.6-5 4.6-5s2.2 6 4.4 6 2.4-4 4.6-4" stroke={light ? "#fff" : "hsl(243 79% 56%)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <span className={cn("text-[15px] font-semibold tracking-tight", light ? "text-white" : "text-foreground")}>
-        Mahalo<span className={light ? "text-[hsl(243_90%_78%)]" : "text-primary"}> Care</span>
-      </span>
-    </div>
-  );
-}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -66,9 +54,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (me.isLoading) {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <Logo />
-          <div className="h-0.5 w-32 overflow-hidden rounded bg-muted"><div className="h-full w-1/2 animate-pulse bg-primary" /></div>
+        <div className="fade-in flex flex-col items-center gap-5">
+          <Logo height={32} />
+          <div className="h-[3px] w-40 overflow-hidden rounded-full bg-muted"><div className="load-bar h-full w-1/2 rounded-full brand-rule" /></div>
         </div>
       </div>
     );
@@ -95,48 +83,48 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : (
           <div className="p-6"><ErrorState error={new Error("This account is not linked to a patient record.")} /></div>
         )}
-        {!user.patientId && <div className="px-6"><button onClick={doLogout} className="text-sm font-medium text-primary" data-testid="button-patient-signout">Sign out</button></div>}
+        {!user.patientId && <div className="px-6"><button onClick={doLogout} className="text-sm font-medium text-primary underline-offset-4 hover:underline" data-testid="button-patient-signout">Sign out</button></div>}
       </div>
     );
   }
   const isActive = (href: string) => (href === "/" ? location === "/" : location.startsWith(href));
 
   const sidebar = (
-    <aside className="flex h-full w-[232px] flex-col bg-sidebar text-sidebar-foreground">
-      <div className="flex h-14 items-center justify-between px-4">
-        <Logo light />
-        <button className="md:hidden text-white/70" onClick={() => setOpen(false)} aria-label="Close menu"><X className="h-4 w-4" /></button>
+    <aside className="flex h-full w-[248px] flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <div className="flex h-[72px] items-center justify-between px-5">
+        <Logo />
+        <button className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary md:hidden" onClick={() => setOpen(false)} aria-label="Close menu"><X className="h-4 w-4" /></button>
       </div>
-      <div className="px-4 pb-3">
-        <div className="truncate text-[11px] uppercase tracking-[0.14em] text-white/40">Practice</div>
-        <div className="truncate text-[13px] font-medium text-white" data-testid="text-practice-name">{settings.data?.name ?? "Loading…"}</div>
+      <div className="mx-3 mb-4 rounded-xl border border-sidebar-border bg-card px-3 py-2.5">
+        <div className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Practice</div>
+        <div className="mt-0.5 truncate font-serif text-[15px] text-foreground" data-testid="text-practice-name">{settings.data?.name ?? "Loading…"}</div>
       </div>
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3" aria-label="Primary">
         {NAV.map((n, i) => (
           <Link
             key={n.href}
             href={n.href}
             data-testid={`link-nav-${n.label.toLowerCase().replace(/\s/g, "-")}`}
             className={cn(
-              "group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] transition-colors",
-              isActive(n.href) ? "bg-sidebar-accent text-white" : "text-white/65 hover:bg-white/5 hover:text-white",
-              i === 9 && "mt-4",
+              "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] transition-[background-color,color] duration-200",
+              isActive(n.href) ? "bg-card font-medium text-foreground shadow-[var(--shadow-sm)] ring-1 ring-sidebar-border" : "text-foreground/65 hover:bg-[hsl(40_15%_92%)] hover:text-foreground",
+              i === 9 && "mt-5",
             )}
           >
-            {isActive(n.href) && <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r bg-[hsl(243_90%_72%)]" />}
-            <n.icon className="h-4 w-4" strokeWidth={1.6} />
+            {isActive(n.href) && <span className="absolute -left-3 top-2 bottom-2 w-[3px] rounded-r-full bg-[hsl(var(--brand-orange))]" />}
+            <n.icon className={cn("h-[17px] w-[17px] transition-colors", isActive(n.href) ? "text-[hsl(var(--primary))]" : "text-foreground/50 group-hover:text-foreground/80")} strokeWidth={1.5} />
             {n.label}
           </Link>
         ))}
       </nav>
-      <div className="border-t border-sidebar-border p-3">
+      <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(243_79%_56%)] text-[11px] font-semibold text-white">{initials(user.name)}</div>
+          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[hsl(var(--brand-orange))]/40 bg-accent text-[11px] font-semibold text-accent-foreground">{initials(user.name)}</div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-medium text-white" data-testid="text-user-name">{user.name}{user.credential ? `, ${user.credential}` : ""}</div>
-            <div className="truncate text-[11px] text-white/50">{user.role}</div>
+            <div className="truncate text-[13px] font-medium text-foreground" data-testid="text-user-name">{user.name}{user.credential ? `, ${user.credential}` : ""}</div>
+            <div className="truncate text-[11px] capitalize text-muted-foreground">{user.role}</div>
           </div>
-          <button onClick={doLogout} disabled={logout.isPending} className="rounded p-1.5 text-white/60 hover:bg-white/10 hover:text-white" aria-label="Sign out" title="Sign out" data-testid="button-logout">
+          <button onClick={doLogout} disabled={logout.isPending} className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-[hsl(40_15%_92%)] hover:text-foreground" aria-label="Sign out" title="Sign out" data-testid="button-logout">
             <LogOut className="h-4 w-4" strokeWidth={1.6} />
           </button>
         </div>
@@ -151,17 +139,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sticky top-0 hidden h-[calc(100dvh-28px)] md:block">{sidebar}</div>
         {open && (
           <div className="fixed inset-0 z-50 md:hidden">
-            <div className="absolute inset-0 bg-foreground/40" onClick={() => setOpen(false)} />
-            <div className="relative h-full w-fit">{sidebar}</div>
+            <div className="fade-in absolute inset-0 bg-foreground/30 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
+            <div className="sheet-in relative h-full w-fit shadow-[var(--shadow-lg)]">{sidebar}</div>
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <div className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur md:hidden">
-            <button onClick={() => setOpen(true)} aria-label="Open menu" data-testid="button-menu"><Menu className="h-5 w-5" /></button>
+          <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur md:hidden">
+            <button onClick={() => setOpen(true)} aria-label="Open menu" className="rounded-full p-1.5 hover:bg-secondary" data-testid="button-menu"><Menu className="h-5 w-5" strokeWidth={1.5} /></button>
             <Logo />
-            <Activity className="h-4 w-4 text-primary" />
+            <span className="w-8" />
           </div>
-          <main key={location.split("/")[1]} className="mx-auto w-full max-w-[1320px] px-4 py-6 md:px-8 md:py-8">{children}</main>
+          <main key={location.split("/")[1]} className="mx-auto w-full max-w-[1320px] px-4 py-6 md:px-10 md:py-10">{children}</main>
         </div>
       </div>
     </div>

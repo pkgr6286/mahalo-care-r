@@ -6,7 +6,7 @@ import { Btn, ErrorState, PageHeader, Panel, SimLabel, SkeletonRows, StatusPill 
 import { fmtRel, mStr } from "@/lib/api";
 
 type ExportKind = "billing" | "patients" | "audit" | "configuration";
-const axis = { fontSize: 11, fill: "hsl(218 18% 44%)" };
+const axis = { fontSize: 11, fill: "hsl(220 4% 42%)" };
 
 export default function ReportsPage() {
   const r = useGetReports();
@@ -20,16 +20,16 @@ export default function ReportsPage() {
         <div className="grid gap-5 lg:grid-cols-2">
           <Panel title="Enrolled and at risk by program">
             <div className="h-60"><ResponsiveContainer><BarChart data={r.data!.programStats} margin={{ left: -18 }}>
-              <CartesianGrid stroke="hsl(220 24% 93%)" vertical={false} /><XAxis dataKey="key" tick={axis} axisLine={false} tickLine={false} /><YAxis tick={axis} axisLine={false} tickLine={false} />
+              <CartesianGrid stroke="hsl(40 12% 91%)" vertical={false} /><XAxis dataKey="key" tick={axis} axisLine={false} tickLine={false} /><YAxis tick={axis} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} /><Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="enrolled" fill="hsl(243 79% 56%)" radius={[3, 3, 0, 0]} /><Bar dataKey="atRisk" name="at risk" fill="hsl(356 72% 55%)" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="enrolled" fill="hsl(22 88% 42%)" radius={[3, 3, 0, 0]} /><Bar dataKey="atRisk" name="at risk" fill="hsl(356 72% 55%)" radius={[3, 3, 0, 0]} />
             </BarChart></ResponsiveContainer></div>
           </Panel>
           <Panel title="Trend">
             <div className="h-60"><ResponsiveContainer><LineChart data={r.data!.trend} margin={{ left: -18 }}>
-              <CartesianGrid stroke="hsl(220 24% 93%)" vertical={false} /><XAxis dataKey="label" tick={axis} axisLine={false} tickLine={false} /><YAxis tick={axis} axisLine={false} tickLine={false} />
+              <CartesianGrid stroke="hsl(40 12% 91%)" vertical={false} /><XAxis dataKey="label" tick={axis} axisLine={false} tickLine={false} /><YAxis tick={axis} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} /><Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line dataKey="readings" stroke="hsl(243 79% 56%)" strokeWidth={2} dot={false} /><Line dataKey="completed" stroke="hsl(216 79% 13%)" dot={false} /><Line dataKey="enrolled" stroke="hsl(172 60% 38%)" dot={false} />
+              <Line dataKey="readings" stroke="hsl(22 88% 42%)" strokeWidth={2} dot={false} /><Line dataKey="completed" stroke="hsl(220 5% 12%)" dot={false} /><Line dataKey="enrolled" stroke="hsl(189 74% 34%)" dot={false} />
             </LineChart></ResponsiveContainer></div>
           </Panel>
           <Panel title="Staff time" bodyClass="p-0">

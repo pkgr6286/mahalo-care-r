@@ -47,6 +47,7 @@ Staff have a today dashboard, worklists, unified patient chart, five program wor
 
 - Build one complete tenant/practice for demonstration now; defer multi-tenant support.
 - Use React, Node, PostgreSQL and Drizzle.
+- Use Mahalo's official logos and fonts from the supplied brand kit and https://mahalo.health/brand; make the UI modern and aesthetic. See `docs/BRAND-ASSETS.md` for usage constraints and asset sources.
 - Use email/password authentication now; add other authentication systems later.
 - Native mobile is the next step, not part of this build.
 - Ignore GitHub Actions, automatic PR workflows and the document's Claude Code implementation workflow.

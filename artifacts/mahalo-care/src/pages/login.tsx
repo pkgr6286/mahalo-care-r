@@ -40,28 +40,29 @@ export default function LoginPage() {
     <div className="flex min-h-[100dvh] flex-col bg-background">
       <SyntheticRibbon />
       <div className="grid flex-1 lg:grid-cols-[1.05fr_1fr]">
-        <div className="relative hidden overflow-hidden bg-foreground p-12 text-white lg:flex lg:flex-col lg:justify-between">
-          <div className="absolute inset-0 opacity-[0.07] grid-faint" />
-          <svg className="absolute -right-24 bottom-10 w-[680px] opacity-40" viewBox="0 0 600 200" fill="none" aria-hidden>
-            <path d="M0 120 C60 120 70 60 120 60 S180 150 240 150 300 40 360 40 420 130 480 130 540 90 600 90" stroke="hsl(243 90% 72%)" strokeWidth="1.5" />
-            <path d="M0 150 C60 150 80 110 130 110 S190 170 250 170 310 90 370 90 430 160 490 160 550 130 600 130" stroke="hsl(243 79% 56%)" strokeWidth="1" />
+        <div className="relative hidden overflow-hidden bg-[hsl(var(--brand-charcoal))] p-12 text-[hsl(var(--background))] lg:flex lg:flex-col lg:justify-between">
+          <div className="absolute inset-0 grid-faint" />
+          <svg className="pointer-events-none absolute -right-40 -bottom-40 h-[620px] w-[620px]" viewBox="0 0 600 600" fill="none" aria-hidden>
+            <circle cx="300" cy="300" r="290" stroke="#FF7A21" strokeOpacity=".35" />
+            <circle cx="300" cy="300" r="220" stroke="#F44762" strokeOpacity=".3" />
+            <circle cx="300" cy="300" r="150" stroke="#20B5D0" strokeOpacity=".3" />
           </svg>
-          <div className="relative"><Logo light /></div>
-          <div className="relative max-w-md rise">
-            <div className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[hsl(243_90%_78%)]">Exception-first care workspace</div>
-            <h1 className="text-[40px] font-semibold leading-[1.08] tracking-tight">See the three patients who need you, not the three hundred who don't.</h1>
-            <p className="mt-5 text-[15px] leading-relaxed text-white/65">Readings, care plans, contact, time and billing evidence for each patient on one surface, across every site in the practice.</p>
+          <div className="relative"><Logo light height={34} /></div>
+          <div className="relative max-w-lg rise">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[hsl(40_12%_80%)]"><span className="h-1.5 w-1.5 rounded-full bg-[#FF7A21]" />Exception-first care workspace</div>
+            <h1 className="text-[48px] leading-[1.04]">See the three patients who need you, not the three hundred who don't.</h1>
+            <p className="mt-6 max-w-md text-[15px] leading-relaxed text-[hsl(40_12%_76%)]">Readings, care plans, contact, time and billing evidence for each patient on one surface, across every site in the practice.</p>
           </div>
-          <div className="relative grid grid-cols-3 gap-6 text-sm">
+          <div className="relative grid grid-cols-3 gap-6 border-t border-white/10 pt-6 text-sm">
             {[
-              { i: Waves, t: "Readings to exceptions", d: "Rules triage what changed." },
-              { i: ShieldCheck, t: "Audit-ready evidence", d: "Time and consent per line." },
-              { i: KeyRound, t: "One patient record", d: "No program silos." },
+              { i: Waves, t: "Readings to exceptions", d: "Rules triage what changed.", c: "#FF7A21" },
+              { i: ShieldCheck, t: "Audit-ready evidence", d: "Time and consent per line.", c: "#F44762" },
+              { i: KeyRound, t: "One patient record", d: "No program silos.", c: "#20B5D0" },
             ].map((f) => (
               <div key={f.t}>
-                <f.i className="mb-2 h-4 w-4 text-[hsl(243_90%_78%)]" strokeWidth={1.6} />
+                <f.i className="mb-3 h-[18px] w-[18px]" style={{ color: f.c }} strokeWidth={1.5} />
                 <div className="font-medium">{f.t}</div>
-                <div className="text-xs text-white/50">{f.d}</div>
+                <div className="mt-0.5 text-xs text-[hsl(40_12%_70%)]">{f.d}</div>
               </div>
             ))}
           </div>
@@ -69,42 +70,42 @@ export default function LoginPage() {
 
         <div className="flex items-center justify-center p-6">
           <div className="w-full max-w-sm rise">
-            <div className="mb-8 lg:hidden"><Logo /></div>
-            <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Care team and patients sign in with email and password.</p>
+            <div className="mb-10 lg:hidden"><Logo height={30} /></div>
+            <h2 className="text-[34px] leading-tight">Sign in</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Care team and patients sign in with email and password.</p>
 
-            <form onSubmit={submit} className="mt-6 space-y-4">
+            <form onSubmit={submit} className="mt-8 space-y-4">
               <Field label="Work email">
-                <input type="email" autoComplete="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} required data-testid="input-email" />
+                <input type="email" autoComplete="email" className={`${inputCls} !h-11`} value={email} onChange={(e) => setEmail(e.target.value)} required data-testid="input-email" />
               </Field>
               <Field label="Password">
-                <input type="password" autoComplete="current-password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} required data-testid="input-password" />
+                <input type="password" autoComplete="current-password" className={`${inputCls} !h-11`} value={password} onChange={(e) => setPassword(e.target.value)} required data-testid="input-password" />
               </Field>
-              {error && <div className="rounded-md border border-destructive/25 bg-[hsl(356_80%_98%)] px-3 py-2 text-xs text-destructive" data-testid="text-login-error">{error}</div>}
-              <Btn type="submit" variant="primary" className="w-full" disabled={login.isPending} data-testid="button-login">
+              {error && <div className="rounded-lg border border-destructive/25 bg-[hsl(352_80%_97.5%)] px-3 py-2 text-xs text-destructive" data-testid="text-login-error">{error}</div>}
+              <Btn type="submit" variant="primary" className="h-11 w-full" disabled={login.isPending} data-testid="button-login">
                 {login.isPending ? "Signing in…" : <>Sign in <ArrowRight className="h-4 w-4" /></>}
               </Btn>
             </form>
 
-            <div className="mt-6 rounded-lg border border-dashed border-primary/30 bg-accent/60 p-4" data-testid="card-demo-credentials">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent-foreground">Synthetic demo credentials</span>
+            <div className="mt-6 rounded-2xl border border-border bg-secondary/60 p-4" data-testid="card-demo-credentials">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Synthetic demo credentials</span>
               {[
                 { who: "Staff", sub: "Care team workspace", email: DEMO_EMAIL },
                 { who: "Patient", sub: "Patient app, own record only", email: PATIENT_EMAIL },
               ].map((c) => (
-                <div key={c.who} className="mt-3 flex items-center gap-3 border-t border-primary/15 pt-3 first:border-t-0">
+                <div key={c.who} className="mt-3 flex items-center gap-3 border-t border-border pt-3 first:border-t-0">
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-semibold">{c.who} <span className="font-normal text-muted-foreground">· {c.sub}</span></div>
                     <div className="truncate font-mono text-[11px]">{c.email}</div>
                   </div>
-                  <button type="button" className="rounded-md border border-primary/30 bg-card px-2.5 py-1 text-xs font-medium text-primary hover:bg-accent" onClick={() => { setEmail(c.email); setPassword(DEMO_PASS); }} data-testid={`button-fill-${c.who.toLowerCase()}`}>Use {c.who.toLowerCase()}</button>
+                  <button type="button" className="rounded-full border border-input bg-card px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-[hsl(var(--brand-orange))] hover:text-primary" onClick={() => { setEmail(c.email); setPassword(DEMO_PASS); }} data-testid={`button-fill-${c.who.toLowerCase()}`}>Use {c.who.toLowerCase()}</button>
                 </div>
               ))}
               <div className="mt-3 font-mono text-[11px] text-muted-foreground">Password for both: <span className="text-foreground">{DEMO_PASS}</span></div>
             </div>
 
             <div className="mt-6 flex items-center gap-2 text-[11px] text-muted-foreground" data-testid="status-api">
-              <span className={`h-1.5 w-1.5 rounded-full ${health.isSuccess ? "bg-[hsl(162_60%_40%)]" : health.isError ? "bg-destructive" : "bg-muted-foreground pulse-dot"}`} />
+              <span className={`h-1.5 w-1.5 rounded-full ${health.isSuccess ? "bg-[hsl(152_60%_36%)]" : health.isError ? "bg-destructive" : "bg-muted-foreground pulse-dot"}`} />
               {health.isSuccess ? `Service ${health.data.status}` : health.isError ? "Service unreachable" : "Checking service"}
             </div>
           </div>

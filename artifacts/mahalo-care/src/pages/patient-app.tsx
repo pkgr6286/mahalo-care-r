@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CheckCircle2, ClipboardCheck, Dumbbell, Home, LogOut, MessageCircle, Pill as PillIcon, Send, Target, Video } from "lucide-react";
 import { useGetPatient, useGetSettings, useListPatients, useListRecords, getGetPatientQueryKey, getGetSettingsQueryKey, type CareRecord, type Patient } from "@workspace/api-client-react";
+import { Logo, Mark } from "@/components/brand";
 import { Btn, ConfirmButton, EmptyState, ErrorState, PageHeader, SimLabel, SkeletonRows, StatusPill, inputCls } from "@/components/kit";
 import { fmtDate, fmtDateTime, mArr, mStr, useAction, useSaveRecord } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -22,7 +23,7 @@ export default function PatientAppPage() {
       } />
       {patients.isLoading ? <SkeletonRows rows={4} /> : patients.isError ? <ErrorState error={patients.error} onRetry={() => patients.refetch()} /> : id ? (
         <div className="flex justify-center">
-          <div className="w-full max-w-[400px] overflow-hidden rounded-[28px] border-[6px] border-foreground bg-background shadow-[0_20px_60px_-20px_hsl(216_79%_13%/.35)]">
+          <div className="w-full max-w-[400px] overflow-hidden rounded-[36px] border-[7px] border-[hsl(var(--brand-charcoal))] bg-background shadow-[0_30px_70px_-30px_hsl(220_5%_12%/.45)]">
             <PatientApp id={id} key={id} mode="staff" />
           </div>
         </div>
@@ -43,13 +44,15 @@ export function PatientApp({ id, mode, onSignOut, signingOut }: { id: string; mo
   const standalone = mode === "patient";
   return (
     <div className={cn("flex flex-col", standalone ? "min-h-[calc(100dvh-28px)]" : "")}>
-      <div className="sticky top-0 z-20 flex items-center justify-between bg-foreground px-5 py-3 text-white">
-        <span className="text-sm font-semibold">{settings.data?.patientAppName ?? "Mahalo Care"}</span>
+      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/90 px-5 py-3 backdrop-blur">
+        {settings.data?.patientAppName && settings.data.patientAppName !== "Mahalo Care" ? (
+          <span className="flex items-center gap-2"><Mark size={24} /><span className="font-serif text-[15px]">{settings.data.patientAppName}</span></span>
+        ) : <Logo />}
         {standalone ? (
-          <button onClick={onSignOut} disabled={signingOut} className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2.5 py-1 text-xs font-medium hover:bg-white/20" data-testid="button-patient-signout">
-            <LogOut className="h-3.5 w-3.5" />{signingOut ? "Signing out…" : "Sign out"}
+          <button onClick={onSignOut} disabled={signingOut} className="inline-flex items-center gap-1.5 rounded-full border border-input bg-card px-3 py-1 text-xs font-medium transition-colors hover:border-foreground/30" data-testid="button-patient-signout">
+            <LogOut className="h-3.5 w-3.5" strokeWidth={1.6} />{signingOut ? "Signing out…" : "Sign out"}
           </button>
-        ) : <span className="rounded bg-white/15 px-1.5 text-[10px] font-semibold uppercase tracking-wider">Staff preview</span>}
+        ) : <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Staff preview</span>}
       </div>
       <div className={cn("overflow-y-auto p-4", standalone ? "mx-auto w-full max-w-md flex-1 pb-20" : "h-[600px]")}>
         {q.isLoading ? <SkeletonRows rows={4} /> : q.isError || !q.data ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : (
@@ -63,10 +66,10 @@ export function PatientApp({ id, mode, onSignOut, signingOut }: { id: string; mo
           </div>
         )}
       </div>
-      <div className={cn("grid grid-cols-6 border-t border-border bg-card", standalone && "fixed inset-x-0 bottom-0 z-20 pb-[env(safe-area-inset-bottom)]")}>
+      <div className={cn("grid grid-cols-6 border-t border-border bg-card/95 backdrop-blur", standalone && "fixed inset-x-0 bottom-0 z-20 pb-[env(safe-area-inset-bottom)]")}>
         {nav.map((n) => (
-          <button key={n.id} onClick={() => setScreen(n.id)} className={cn("flex flex-col items-center gap-0.5 py-2 text-[10px]", screen === n.id ? "text-primary" : "text-muted-foreground")} data-testid={`pnav-${n.id}`}>
-            <n.icon className="h-4 w-4" strokeWidth={1.7} />{n.label}
+          <button key={n.id} onClick={() => setScreen(n.id)} className={cn("relative flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition-colors", screen === n.id ? "text-foreground" : "text-muted-foreground hover:text-foreground")} data-testid={`pnav-${n.id}`}>
+            {screen === n.id && <span className="absolute top-0 h-[2px] w-6 rounded-full bg-[hsl(var(--brand-orange))]" />}<n.icon className={cn("h-[18px] w-[18px]", screen === n.id && "text-primary")} strokeWidth={1.5} />{n.label}
           </button>
         ))}
       </div>
@@ -83,11 +86,12 @@ function TodayScreen({ p, records, go }: { p: Patient; records: CareRecord[]; go
   const last = cellular[0];
   return (
     <div className="space-y-4">
-      <div><div className="text-xs text-muted-foreground">Aloha,</div><div className="text-xl font-semibold" data-testid="text-patient-greeting">{p.firstName}</div></div>
-      <div className="rounded-2xl bg-primary p-4 text-white">
-        <div className="flex items-center justify-between text-xs text-white/70"><span>Last blood pressure</span><span>From your connected cuff</span></div>
-        <div className="tnum mt-1 text-3xl font-semibold" data-testid="text-last-reading">{last ? `${last.value}/${mStr(last, "diastolic")}` : "—"}</div>
-        <div className="text-xs text-white/70">{last ? fmtDateTime(last.date ?? last.createdAt) : "No device readings yet"}</div>
+      <div><div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Aloha</div><div className="font-serif text-[28px] leading-tight" data-testid="text-patient-greeting">{p.firstName}</div></div>
+      <div className="relative overflow-hidden rounded-3xl bg-[hsl(var(--brand-charcoal))] p-5 text-[hsl(var(--background))]">
+        <div className="absolute inset-x-0 top-0 h-1 brand-rule" />
+        <div className="flex items-center justify-between text-xs text-[hsl(40_12%_76%)]"><span>Last blood pressure</span><span>From your connected cuff</span></div>
+        <div className="tnum mt-2 text-[40px] font-medium leading-none tracking-tight" data-testid="text-last-reading">{last ? `${last.value}/${mStr(last, "diastolic")}` : "—"}</div>
+        <div className="mt-2 text-xs text-[hsl(40_12%_76%)]">{last ? fmtDateTime(last.date ?? last.createdAt) : "No device readings yet"}</div>
       </div>
       {cellular.length > 1 && (
         <div className="rounded-2xl border border-border bg-card p-3">
@@ -98,13 +102,13 @@ function TodayScreen({ p, records, go }: { p: Patient; records: CareRecord[]; go
         </div>
       )}
       <div>
-        <div className="mb-2 text-sm font-semibold">Your to-dos</div>
+        <div className="mb-2 font-serif text-lg">Your to-dos</div>
         {tasks.length ? tasks.map((t) => (
-          <div key={t.id} className="mb-2 flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+          <div key={t.id} className="mb-2 flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 lift">
             <div className="flex-1 text-sm">{t.title}<div className="text-xs text-muted-foreground">{t.date ? `Due ${fmtDate(t.date, "MMM d")}` : ""}</div></div>
             <Btn size="sm" disabled={pending} onClick={() => run({ action: "completeTask", id: t.id })} data-testid={`button-p-task-${t.id}`}>Done</Btn>
           </div>
-        )) : <p className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">You're all caught up.</p>}
+        )) : <p className="rounded-2xl border border-dashed border-border bg-secondary/50 p-5 text-center text-xs text-muted-foreground">You're all caught up.</p>}
       </div>
       <Btn className="w-full" onClick={() => go("checkin")}>Weekly check-in</Btn>
     </div>
@@ -140,17 +144,17 @@ function CheckinScreen({ p }: { p: Patient }) {
   const scale = Array.from({ length: cfg.max - cfg.min + 1 }, (_, i) => cfg.min + i);
   return (
     <div className="space-y-4">
-      <div className="text-lg font-semibold">Check-in</div>
+      <div className="font-serif text-[22px]">Check-in</div>
       {available.length > 1 && (
         <select className={inputCls} value={instrument.id} onChange={(e) => { setIid(e.target.value); setAnswers({}); }} data-testid="select-instrument">{available.map((i) => <option key={i.id} value={i.id}>{i.title}</option>)}</select>
       )}
       {!supplied.length && <p className="rounded-lg border border-dashed border-border bg-muted/40 p-2.5 text-[11px] text-muted-foreground" data-testid="note-synthetic-items">Demo item labels are placeholders. Licensed instrument wording is not reproduced. Scale {cfg.min} to {cfg.max}.</p>}
       {items.map((q, i) => (
-        <div key={i} className="rounded-xl border border-border bg-card p-3">
+        <div key={i} className="rounded-2xl border border-border bg-card p-3.5">
           <div className="text-sm">{q}</div>
           <div className={cn("mt-2 grid gap-1", scale.length > 7 ? "grid-cols-6" : `grid-cols-${scale.length}`)} style={{ gridTemplateColumns: `repeat(${Math.min(scale.length, 6)}, minmax(0,1fr))` }}>
             {scale.map((v) => (
-              <button key={v} onClick={() => setAnswers((a) => ({ ...a, [i]: v }))} className={cn("tnum rounded-md border py-1.5 text-xs", answers[i] === v ? "border-primary bg-primary text-white" : "border-border")} data-testid={`answer-${i}-${v}`}>{v}</button>
+              <button key={v} onClick={() => setAnswers((a) => ({ ...a, [i]: v }))} className={cn("tnum rounded-lg border py-2 text-xs font-medium transition-colors", answers[i] === v ? "border-[hsl(var(--brand-charcoal))] bg-[hsl(var(--brand-charcoal))] text-[hsl(var(--background))]" : "border-border bg-card hover:border-foreground/30")} data-testid={`answer-${i}-${v}`}>{v}</button>
             ))}
           </div>
         </div>
@@ -181,11 +185,11 @@ function AdherenceItem({ p, kind, title, program, sub, records }: { p: Patient; 
     run({ action: "recordAdherence", patientId: p.id, program, payload: { kind, title, status, ...(status === "skipped" && barrier.trim() ? { barrier: barrier.trim() } : {}) } }, () => { setSkipping(false); setBarrier(""); });
   const st = existing ? (existing.status === "skipped" || mStr(existing, "status") === "skipped" ? "skipped" : "done") : null;
   return (
-    <div className="rounded-xl border border-border bg-card p-3" data-testid={`adherence-${kind}-${title}`}>
+    <div className="rounded-2xl border border-border bg-card p-3.5" data-testid={`adherence-${kind}-${title}`}>
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1"><div className="text-sm">{title}</div>{sub && <div className="text-xs text-muted-foreground line-clamp-2">{sub}</div>}</div>
         {st ? (
-          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", st === "done" ? "bg-[hsl(160_50%_93%)] text-[hsl(162_60%_27%)]" : "bg-[hsl(38_95%_93%)] text-[hsl(30_80%_34%)]")} data-testid="status-adherence">{st === "done" ? "Done today" : "Skipped today"}</span>
+          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", st === "done" ? "bg-[hsl(150_40%_93%)] text-[hsl(152_60%_24%)]" : "bg-[hsl(38_95%_93%)] text-[hsl(30_80%_32%)]")} data-testid="status-adherence">{st === "done" ? "Done today" : "Skipped today"}</span>
         ) : (
           <div className="flex gap-1">
             <Btn size="sm" variant="primary" disabled={pending} onClick={() => send("done")} data-testid="button-adherence-done">Done</Btn>
@@ -208,7 +212,7 @@ function ExercisesScreen({ p, records }: { p: Patient; records: CareRecord[] }) 
   const items = (ed.data ?? []).filter((e) => !e.patientId || e.patientId === p.id);
   return (
     <div className="space-y-3">
-      <div className="text-lg font-semibold">Exercises and learning</div>
+      <div className="font-serif text-[22px]">Exercises and learning</div>
       {ed.isLoading ? <SkeletonRows rows={3} /> : ed.isError ? <ErrorState error={ed.error} onRetry={() => ed.refetch()} /> : items.length ? items.map((e) => (
         <AdherenceItem key={e.id} p={p} records={records} kind={mStr(e, "type") === "exercise" || /exercise/i.test(mStr(e, "category")) ? "exercise" : "education"} title={e.title} sub={e.description} program={e.program ?? p.programs[0] ?? "RTM"} />
       )) : <p className="text-xs text-muted-foreground">No exercises assigned.</p>}
@@ -220,7 +224,7 @@ function MedsScreen({ p, records }: { p: Patient; records: CareRecord[] }) {
   const meds = p.medications ?? [];
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-lg font-semibold"><PillIcon className="h-4 w-4 text-primary" strokeWidth={1.7} />Medications</div>
+      <div className="flex items-center gap-2 font-serif text-[22px]"><PillIcon className="h-4 w-4 text-primary" strokeWidth={1.7} />Medications</div>
       {meds.length ? meds.map((m) => <AdherenceItem key={m} p={p} records={records} kind="medication" title={m} program={p.programs.includes("CCM") ? "CCM" : p.programs[0] ?? "CCM"} />) : <p className="text-xs text-muted-foreground">No medications on file.</p>}
       <p className="text-[11px] text-muted-foreground">One confirmation per item per day, based on your local date. Responses are recorded for the care team.</p>
     </div>
@@ -234,11 +238,11 @@ function MessagesScreen({ p, records }: { p: Patient; records: CareRecord[] }) {
   const send = () => text.trim() && save("messages", { title: text.trim().slice(0, 60), description: text.trim(), patientId: p.id, status: "unread", metadata: { direction: "inbound", channel: "app" } }, undefined, () => setText(""));
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-3 flex items-center justify-between"><span className="text-lg font-semibold">Care team</span><VideoRequest p={p} /></div>
+      <div className="mb-3 flex items-center justify-between"><span className="font-serif text-[22px]">Care team</span><VideoRequest p={p} /></div>
       <div className="flex-1 space-y-2">
         {msgs.map((m) => {
           const mine = mStr(m, "direction") === "inbound";
-          return <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}><div className={cn("max-w-[80%] rounded-2xl px-3 py-2 text-sm", mine ? "bg-primary text-white" : "border border-border bg-card")}>{m.description || m.title}</div></div>;
+          return <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}><div className={cn("max-w-[80%] rounded-2xl px-3 py-2 text-sm", mine ? "rounded-br-md bg-[hsl(var(--brand-charcoal))] text-[hsl(var(--background))]" : "rounded-bl-md border border-border bg-card")}>{m.description || m.title}</div></div>;
         })}
         {!msgs.length && <p className="text-xs text-muted-foreground">Say hello to your care team.</p>}
       </div>
@@ -265,7 +269,7 @@ function PlanScreen({ records }: { records: CareRecord[] }) {
     <div className="space-y-4">
       {!plan && <EmptyState title="Your plan is being prepared" desc="Your care team will share it once it is signed." />}
       {plan && <>
-      <div className="text-lg font-semibold">My care plan</div>
+      <div className="font-serif text-[22px]">My care plan</div>
       {plan.description && <p className="text-sm text-foreground/85">{plan.description}</p>}
       {(["goals", "interventions"] as const).map((k) => (
         <div key={k}><div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{k === "goals" ? "My goals" : "What we'll do"}</div>

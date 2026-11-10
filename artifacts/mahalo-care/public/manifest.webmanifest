@@ -5,7 +5,7 @@
   "start_url": "/patient",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#FAFBFD",
-  "theme_color": "#071C3B",
-  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+  "background_color": "#FCFCFA",
+  "theme_color": "#FCFCFA",
+  "icons": [{ "src": "/brand/mahalo-mark-color.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
 }

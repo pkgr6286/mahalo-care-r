@@ -67,7 +67,7 @@ function SettingsTab() {
           <Field label="Patient app name"><input className={inputCls} value={v.patientAppName} onChange={set("patientAppName")} data-testid="input-app-name" /></Field>
           <Field label="Accent color"><div className="flex gap-2"><input type="color" className="h-9 w-12 rounded border border-input" value={v.accentColor} onChange={set("accentColor")} data-testid="input-accent" /><input className={inputCls} value={v.accentColor} onChange={set("accentColor")} /></div></Field>
           <Field label="Quiet hours"><input className={inputCls} value={v.quietHours} onChange={set("quietHours")} placeholder="21:00-07:00" data-testid="input-quiet" /></Field>
-          <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" className="h-4 w-4 accent-[hsl(243_79%_56%)]" checked={v.notifications} onChange={(e) => setV({ ...v, notifications: e.target.checked })} data-testid="checkbox-notifications" />Send patient notifications (simulated delivery)</label>
+          <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={v.notifications} onChange={(e) => setV({ ...v, notifications: e.target.checked })} data-testid="checkbox-notifications" />Send patient notifications (simulated delivery)</label>
           <div className="sm:col-span-2"><Btn type="submit" variant="primary" disabled={upd.isPending} data-testid="button-save-settings">{upd.isPending ? "Saving…" : "Save settings"}</Btn></div>
         </form>
       </Panel>
@@ -213,7 +213,7 @@ function PatientImport() {
         <div className="space-y-3">
           <input type="file" accept=".csv,text/csv" onChange={(e) => onFile(e.target.files?.[0])} className="block w-full text-xs file:mr-3 file:rounded-md file:border file:border-input file:bg-card file:px-3 file:py-1.5 file:text-xs" data-testid="input-import-file" />
           <textarea className={`${inputCls} h-40 py-2 font-mono text-xs`} placeholder={"firstName,lastName,dob,location\nKalani,Akana,1958-03-14,Kapiolani Clinic"} value={csv} onChange={(e) => setCsv(e.target.value)} data-testid="input-import-csv" />
-          <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-[hsl(243_79%_56%)]" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} data-testid="checkbox-synthetic" />I confirm every row is synthetic and contains no real patient information.</label>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} data-testid="checkbox-synthetic" />I confirm every row is synthetic and contains no real patient information.</label>
           <div className="flex gap-2">
             <Btn disabled={!csv.trim() || !confirmed || pending} onClick={() => exec(true)} data-testid="button-validate-import">Validate</Btn>
             <ConfirmButton size="md" variant="primary" label="Import" icon={<Upload className="h-4 w-4" />} title="Import synthetic patients" desc={`Creates ${n("newRows")} new synthetic patient(s). Duplicates are skipped.`} confirmLabel="Import" pending={pending} disabled={!validated || !confirmed} onConfirm={(_, c) => { exec(false); c(); }} testid="button-run-import" />

@@ -19,11 +19,11 @@ export function Btn({
     <button
       {...props}
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-        size === "sm" ? "h-7 px-2.5 text-xs" : "h-9 px-3.5 text-sm",
-        variant === "primary" && "bg-primary text-primary-foreground hover:bg-[hsl(243_79%_50%)]",
-        variant === "navy" && "bg-foreground text-white hover:bg-[hsl(216_70%_20%)]",
-        variant === "secondary" && "border border-input bg-card text-foreground hover:bg-muted",
+        "inline-flex items-center justify-center gap-1.5 rounded-full font-medium transition-[background-color,border-color,color,transform,box-shadow] duration-200 ease-out active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--brand-orange))]/50 focus-visible:ring-offset-1",
+        size === "sm" ? "h-7 px-3 text-xs" : "h-9 px-4 text-sm",
+        variant === "primary" && "bg-[hsl(var(--brand-charcoal))] text-[hsl(var(--background))] shadow-[inset_0_-2px_0_hsl(var(--brand-orange))] hover:bg-[hsl(220_5%_20%)]",
+        variant === "navy" && "bg-[hsl(var(--brand-charcoal))] text-[hsl(var(--background))] hover:bg-[hsl(220_5%_20%)]",
+        variant === "secondary" && "border border-input bg-card text-foreground hover:border-foreground/25 hover:bg-secondary",
         variant === "ghost" && "text-muted-foreground hover:bg-muted hover:text-foreground",
         variant === "danger" && "border border-destructive/30 bg-card text-destructive hover:bg-destructive/5",
         className,
@@ -39,11 +39,11 @@ export type Tone = "neutral" | "indigo" | "red" | "amber" | "green" | "navy" | "
 const toneCls: Record<Tone, string> = {
   neutral: "bg-muted text-muted-foreground border-border",
   indigo: "bg-accent text-accent-foreground border-primary/15",
-  red: "bg-[hsl(356_80%_97%)] text-[hsl(356_65%_42%)] border-[hsl(356_70%_88%)]",
+  red: "bg-[hsl(352_80%_97%)] text-[hsl(352_72%_36%)] border-[hsl(352_65%_86%)]",
   amber: "bg-[hsl(38_95%_95%)] text-[hsl(30_80%_34%)] border-[hsl(38_80%_82%)]",
-  green: "bg-[hsl(160_50%_95%)] text-[hsl(162_60%_27%)] border-[hsl(160_40%_82%)]",
-  navy: "bg-foreground text-white border-foreground",
-  teal: "bg-[hsl(185_55%_94%)] text-[hsl(188_70%_28%)] border-[hsl(185_45%_82%)]",
+  green: "bg-[hsl(150_40%_94.5%)] text-[hsl(152_60%_24%)] border-[hsl(150_35%_80%)]",
+  navy: "bg-[hsl(var(--brand-charcoal))] text-[hsl(var(--background))] border-transparent",
+  teal: "bg-[hsl(189_60%_95%)] text-[hsl(192_80%_25%)] border-[hsl(189_50%_82%)]",
 };
 export function toneFor(v?: string | null): Tone {
   const s = (v ?? "").toLowerCase();
@@ -67,11 +67,11 @@ export function StatusPill({ value }: { value?: string | null }) {
 }
 export function ProgramTag({ p }: { p?: string | null }) {
   if (!p) return null;
-  return <span className="inline-flex rounded border border-primary/20 bg-accent px-1.5 text-[10px] font-semibold tracking-wider text-accent-foreground font-mono">{p.toUpperCase()}</span>;
+  return <span className="inline-flex rounded-md border border-foreground/10 bg-secondary px-1.5 text-[10px] font-semibold tracking-[0.08em] text-foreground/80">{p.toUpperCase()}</span>;
 }
 export function SimLabel({ text = "Simulated" }: { text?: string }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded border border-dashed border-[hsl(188_50%_60%)] bg-[hsl(185_55%_96%)] px-1.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(188_70%_28%)]" data-testid="label-simulated">
+    <span className="inline-flex items-center gap-1 rounded-full border border-[hsl(189_50%_78%)] bg-[hsl(189_60%_96%)] px-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-[hsl(192_80%_25%)]" data-testid="label-simulated">
       {text}
     </span>
   );
@@ -82,9 +82,9 @@ export function PageHeader({ eyebrow, title, desc, actions }: { eyebrow?: string
   return (
     <div className="rise mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
-        {eyebrow && <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">{eyebrow}</div>}
-        <h1 className="text-[26px] font-semibold tracking-tight text-foreground" data-testid="text-page-title">{title}</h1>
-        {desc && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{desc}</p>}
+        {eyebrow && <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--brand-orange))]" />{eyebrow}</div>}
+        <h1 className="text-[30px] leading-[1.1] text-foreground md:text-[36px]" data-testid="text-page-title">{title}</h1>
+        {desc && <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">{desc}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -93,29 +93,29 @@ export function PageHeader({ eyebrow, title, desc, actions }: { eyebrow?: string
 
 export function Panel({ title, sub, action, children, className, bodyClass }: { title?: ReactNode; sub?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; bodyClass?: string }) {
   return (
-    <section className={cn("rise rounded-xl border border-card-border bg-card", className)}>
+    <section className={cn("rise rounded-2xl border border-card-border bg-card shadow-[var(--shadow-sm)]", className)}>
       {(title || action) && (
-        <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
           <div className="min-w-0">
-            <h2 className="truncate text-[13px] font-semibold text-foreground">{title}</h2>
+            <h2 className="truncate text-[17px] leading-tight text-foreground">{title}</h2>
             {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
           </div>
           {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
         </header>
       )}
-      <div className={cn("p-4", bodyClass)}>{children}</div>
+      <div className={cn("px-5 py-4", bodyClass)}>{children}</div>
     </section>
   );
 }
 
 export function Stat({ label, value, hint, tone, icon, testid }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "red" | "indigo" | "amber" | "green"; icon?: ReactNode; testid?: string }) {
   return (
-    <div className="rise rounded-xl border border-card-border bg-card p-4" data-testid={testid}>
+    <div className="rise lift rounded-2xl border border-card-border bg-card p-4 shadow-[var(--shadow-sm)]" data-testid={testid}>
       <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
         <span>{label}</span>
-        <span className={cn(tone === "red" && "text-destructive", tone === "indigo" && "text-primary", tone === "amber" && "text-[hsl(30_80%_40%)]", tone === "green" && "text-[hsl(162_60%_30%)]")}>{icon}</span>
+        <span className={cn(tone === "red" && "text-destructive", tone === "indigo" && "text-[hsl(192_80%_30%)]", tone === "amber" && "text-[hsl(30_80%_36%)]", tone === "green" && "text-[hsl(162_60%_30%)]")}>{icon}</span>
       </div>
-      <div className="tnum mt-2 text-[28px] font-semibold leading-none tracking-tight">{value}</div>
+      <div className="tnum mt-3 text-[30px] font-medium leading-none tracking-tight">{value}</div>
       {hint && <div className="mt-2 text-xs text-muted-foreground">{hint}</div>}
     </div>
   );
@@ -133,11 +133,11 @@ export function Tabs<T extends string>({ tabs, value, onChange, className }: { t
           data-testid={`tab-${t.id}`}
           className={cn(
             "relative -mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
-            value === t.id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+            value === t.id ? "border-[hsl(var(--brand-orange))] text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
           )}
         >
           {t.label}
-          {t.count !== undefined && <span className={cn("tnum rounded-full px-1.5 text-[10px] font-semibold", value === t.id ? "bg-primary text-white" : "bg-muted text-muted-foreground")}>{t.count}</span>}
+          {t.count !== undefined && <span className={cn("tnum rounded-full px-1.5 text-[10px] font-semibold", value === t.id ? "bg-[hsl(var(--brand-charcoal))] text-[hsl(var(--background))]" : "bg-muted text-muted-foreground")}>{t.count}</span>}
         </button>
       ))}
     </div>
@@ -149,7 +149,7 @@ export function SkeletonRows({ rows = 5, className }: { rows?: number; className
   return (
     <div className={cn("space-y-2", className)} data-testid="state-loading">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+        <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
           <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
           <div className="flex-1 space-y-1.5">
             <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
@@ -162,9 +162,9 @@ export function SkeletonRows({ rows = 5, className }: { rows?: number; className
 }
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   return (
-    <div className="flex flex-col items-center rounded-xl border border-destructive/20 bg-[hsl(356_80%_99%)] px-6 py-10 text-center" data-testid="state-error">
+    <div className="flex flex-col items-center rounded-2xl border border-destructive/20 bg-[hsl(352_80%_98.5%)] px-6 py-10 text-center" data-testid="state-error">
       <AlertTriangle className="h-5 w-5 text-destructive" strokeWidth={1.75} />
-      <div className="mt-2 text-sm font-semibold">This view didn't load</div>
+      <div className="mt-3 font-serif text-lg">This view didn't load</div>
       <p className="mt-1 max-w-sm text-xs text-muted-foreground">{errMsg(error)}</p>
       {onRetry && <Btn size="sm" className="mt-4" onClick={onRetry} data-testid="button-retry"><RotateCw className="h-3.5 w-3.5" />Try again</Btn>}
     </div>
@@ -172,9 +172,9 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
 }
 export function EmptyState({ title, desc, action, icon }: { title: string; desc?: string; action?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center rounded-xl border border-dashed border-border bg-[hsl(220_40%_98.5%)] px-6 py-10 text-center" data-testid="state-empty">
-      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">{icon ?? <Inbox className="h-4 w-4" strokeWidth={1.75} />}</div>
-      <div className="mt-3 text-sm font-semibold">{title}</div>
+    <div className="flex flex-col items-center rounded-2xl border border-dashed border-border bg-secondary/50 px-6 py-10 text-center" data-testid="state-empty">
+      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-[hsl(var(--brand-orange))]">{icon ?? <Inbox className="h-4 w-4" strokeWidth={1.75} />}</div>
+      <div className="mt-3 font-serif text-lg">{title}</div>
       {desc && <p className="mt-1 max-w-sm text-xs text-muted-foreground">{desc}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
@@ -182,7 +182,7 @@ export function EmptyState({ title, desc, action, icon }: { title: string; desc?
 }
 
 /* ---------- Form fields ---------- */
-export const inputCls = "h-9 w-full rounded-md border border-input bg-card px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/15";
+export const inputCls = "h-9 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground/70 hover:border-foreground/25 focus:border-[hsl(var(--brand-orange))] focus:ring-[3px] focus:ring-[hsl(var(--brand-orange))]/15";
 export function Field({ label, children, hint, className }: { label: string; children: ReactNode; hint?: string; className?: string }) {
   return (
     <label className={cn("block", className)}>
@@ -445,7 +445,7 @@ function RecordForm({ kind, record, title, fields, meta, defaults, statusOptions
       {meta.map((f) => (
         <Field key={f.key} label={f.label} hint={f.hint ?? (f.type === "list" ? "One item per line" : undefined)}>
           {f.type === "bool" ? (
-            <input type="checkbox" className="h-4 w-4 accent-[hsl(243_79%_56%)]" checked={!!m[f.key]} onChange={(e) => setM((s) => ({ ...s, [f.key]: e.target.checked }))} data-testid={`input-meta-${f.key}`} />
+            <input type="checkbox" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={!!m[f.key]} onChange={(e) => setM((s) => ({ ...s, [f.key]: e.target.checked }))} data-testid={`input-meta-${f.key}`} />
           ) : f.type === "list" || f.type === "textarea" ? (
             <textarea className={cn(inputCls, "h-20 py-2")} value={String(m[f.key] ?? "")} onChange={(e) => setM((s) => ({ ...s, [f.key]: e.target.value }))} data-testid={`input-meta-${f.key}`} />
           ) : (

@@ -301,14 +301,14 @@ function ReadingsTab({ p, obs, devices }: { p: Patient; obs: CareRecord[]; devic
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ left: -18, right: 8, top: 8 }}>
-                <CartesianGrid stroke="hsl(220 24% 93%)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(218 18% 44%)" }} axisLine={false} tickLine={false} />
-                <YAxis domain={[50, 200]} tick={{ fontSize: 11, fill: "hsl(218 18% 44%)" }} axisLine={false} tickLine={false} />
+                <CartesianGrid stroke="hsl(40 12% 91%)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(220 4% 42%)" }} axisLine={false} tickLine={false} />
+                <YAxis domain={[50, 200]} tick={{ fontSize: 11, fill: "hsl(220 4% 42%)" }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
                 <ReferenceLine y={140} stroke="hsl(356 72% 50%)" strokeDasharray="4 4" />
                 <ReferenceLine y={90} stroke="hsl(38 90% 52%)" strokeDasharray="4 4" />
-                <Line type="monotone" dataKey="sys" name="Systolic" stroke="hsl(243 79% 56%)" strokeWidth={2} dot={{ r: 2.5 }} />
-                <Line type="monotone" dataKey="dia" name="Diastolic" stroke="hsl(216 79% 13%)" strokeWidth={1.5} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="sys" name="Systolic" stroke="hsl(22 88% 42%)" strokeWidth={2} dot={{ r: 2.5 }} />
+                <Line type="monotone" dataKey="dia" name="Diastolic" stroke="hsl(220 5% 12%)" strokeWidth={1.5} dot={{ r: 2 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -454,7 +454,7 @@ export function EnrollDialog({ p, open, onOpenChange }: { p: Patient; open: bool
             </select>
           </Field>
           <label className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm">
-            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[hsl(243_79%_56%)]" checked={consent} onChange={(e) => setConsent(e.target.checked)} data-testid="checkbox-consent" />
+            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]" checked={consent} onChange={(e) => setConsent(e.target.checked)} data-testid="checkbox-consent" />
             <span>Patient gave informed consent, including cost-sharing, and understands they may stop at any time.</span>
           </label>
         </div>
@@ -555,7 +555,7 @@ function LogTimeDialog({ p, open, onOpenChange }: { p: Patient; open: boolean; o
           <Field label="Started"><input type="datetime-local" className={inputCls} value={start} onChange={(e) => setStart(e.target.value)} data-testid="input-time-start" /></Field>
           <Field label="Ended"><input type="datetime-local" className={inputCls} value={end} onChange={(e) => setEnd(e.target.value)} data-testid="input-time-end" /></Field>
         </div>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-[hsl(243_79%_56%)]" checked={interactive} onChange={(e) => setInteractive(e.target.checked)} data-testid="checkbox-interactive" />Interactive communication with patient or caregiver</label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={interactive} onChange={(e) => setInteractive(e.target.checked)} data-testid="checkbox-interactive" />Interactive communication with patient or caregiver</label>
         <DialogFooter>
           <Btn variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Btn>
           <Btn variant="primary" disabled={pending || !activity.trim()} onClick={() => run({ action: "commitTime", patientId: p.id, program, payload: { startedAt: new Date(start).toISOString(), endedAt: new Date(end).toISOString(), activity, isInteractive: interactive } }, () => onOpenChange(false))} data-testid="button-commit-time">Commit time</Btn>
@@ -659,7 +659,7 @@ function AssistChooser({ p }: { p: Patient }) {
           <div className="space-y-1.5">
             {ASSIST.map((a) => (
               <label key={a.action} className={cn("flex cursor-pointer gap-3 rounded-lg border p-2.5", choice === a.action ? "border-primary bg-accent/50" : "border-border")}>
-                <input type="radio" className="mt-1 accent-[hsl(243_79%_56%)]" checked={choice === a.action} onChange={() => setChoice(a.action)} data-testid={`radio-assist-${a.action}`} />
+                <input type="radio" className="mt-1 accent-[hsl(var(--primary))]" checked={choice === a.action} onChange={() => setChoice(a.action)} data-testid={`radio-assist-${a.action}`} />
                 <span><span className="block text-sm font-medium">{a.label}</span><span className="text-xs text-muted-foreground">{a.desc}</span></span>
               </label>
             ))}
@@ -670,7 +670,7 @@ function AssistChooser({ p }: { p: Patient }) {
           {live && (
             <div className="space-y-2 rounded-lg border border-[hsl(38_80%_75%)] bg-[hsl(38_95%_96%)] p-3 text-xs text-[hsl(30_70%_25%)]" data-testid="notice-live-ai">
               <p>Uses Replit AI Integrations for OpenAI. No API key needed; usage is billed to your Replit credits. Never send real patient data.</p>
-              <label className="flex items-start gap-2 font-medium"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-[hsl(243_79%_56%)]" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} data-testid="checkbox-synthetic-chart" />I confirm this chart is synthetic and contains no real patient information.</label>
+              <label className="flex items-start gap-2 font-medium"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} data-testid="checkbox-synthetic-chart" />I confirm this chart is synthetic and contains no real patient information.</label>
             </div>
           )}
           {result && <div className="rounded-md border border-dashed border-border bg-muted/40 p-3 text-xs" data-testid="text-assist-result">{result}</div>}
