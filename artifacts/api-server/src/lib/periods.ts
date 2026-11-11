@@ -2,7 +2,7 @@ export function localDay(timestamp:string|Date,timeZone:string) {
   return new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(timestamp));
 }
 export function rollingSupplyWindow(anchor:string,clock:Date,timeZone:string) {
-  const start=new Date(`${localDay(anchor,timeZone)}T00:00:00Z`).getTime();
+  const start=new Date(`${/^\d{4}-\d{2}-\d{2}$/.test(anchor)?anchor:localDay(anchor,timeZone)}T00:00:00Z`).getTime();
   const today=new Date(`${localDay(clock,timeZone)}T00:00:00Z`).getTime();
   const elapsedDays=Math.max(0,Math.floor((today-start)/86400000));
   const complete=elapsedDays>=30;

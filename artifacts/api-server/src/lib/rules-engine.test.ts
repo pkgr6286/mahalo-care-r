@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {evaluateRule,type RuleSignal} from "./rules-engine";
 const clock=new Date("2026-06-15T12:00:00Z");
-const reading=(value:number,date="2026-06-14T12:00:00Z"):RuleSignal=>({date,value,kind:"observations",metadata:{valid:true}});
+const reading=(value:number,date="2026-06-14T12:00:00Z"):RuleSignal=>({date,value,kind:"observations",metadata:{valid:true,source:"device"}});
 test("threshold rules exclude invalid observations",()=>{
   assert.equal(evaluateRule({kind:"threshold",threshold:180},[reading(185)],clock).matched,true);
   assert.equal(evaluateRule({kind:"threshold",threshold:180},[{...reading(185),metadata:{valid:false}}],clock).matched,false);

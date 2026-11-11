@@ -1,10 +1,12 @@
 import type { Request, Response, NextFunction } from "express";
 import { getRecord, type Actor } from "../lib/store";
 import { db } from "@workspace/db";
+import {isReleasedPatientDocument} from "../lib/document-access";
 
 /** Patient sessions use the same password/session mechanism but a strictly smaller API surface. */
 export async function patientScope(req:Request,res:Response,next:NextFunction):Promise<void> {
   const actor=res.locals.actor as Actor;
+  if(req.path.startsWith("/auth/")) {next();return;}
   if(actor.role!=="patient") {next();return;}
   const deny=()=>res.status(403).json({error:"This resource is available only to the care team"});
   const patientId=actor.patientId;
@@ -12,6 +14,8 @@ export async function patientScope(req:Request,res:Response,next:NextFunction):P
   if(["/auth/me","/auth/logout"].includes(req.path)) {next();return;}
   if(req.method==="GET"&&req.path==="/patients") {next();return;}
   if(req.method==="GET"&&req.path===`/patients/${patientId}`) {next();return;}
+  const filePrefix=`/patients/${patientId}/attachments`;
+  if(["GET","POST"].includes(req.method)&&(req.path===filePrefix||req.path.startsWith(`${filePrefix}/`))){next();return;}
   if(req.method==="GET"&&/^\/records\/[^/]+$/.test(req.path)) {
     const kind=req.path.split("/")[2]!;
     if(!["tasks","observations","responses","messages","devices","careplans","consents","education","instruments","enrollments"].includes(kind)) {deny();return;}
@@ -19,7 +23,7 @@ export async function patientScope(req:Request,res:Response,next:NextFunction):P
   }
   if(req.method==="GET"&&req.path.startsWith("/documents/")) {
     const record=await getRecord(db,req.path.split("/")[2]);
-    if(record.patientId!==patientId||!["careplans","consents"].includes(record.kind)||record.status==="draft") {deny();return;}
+    if(record.patientId!==patientId||!isReleasedPatientDocument(record)) {deny();return;}
     next();return;
   }
   if(req.method==="POST"&&req.path==="/records/messages") {
@@ -29,11 +33,11 @@ export async function patientScope(req:Request,res:Response,next:NextFunction):P
     next();return;
   }
   if(req.method==="POST"&&req.path==="/actions") {
-    if(!["submitCheckin","recordAdherence","completeTask","revokeConsent","createVideo"].includes(req.body.action)) {deny();return;}
+    if(!["submitCheckin","recordAdherence","completeTask","revokeConsent","createVideo","updatePreferences","disconnectDevice","acknowledgeEducation"].includes(req.body.action)) {deny();return;}
     if(req.body.patientId&&req.body.patientId!==patientId) {deny();return;}
     if(req.body.id) {
       const record=await getRecord(db,req.body.id);
-      if(record.patientId!==patientId) {deny();return;}
+      if(record.patientId!==patientId&&!(req.body.action==="acknowledgeEducation"&&record.kind==="education"&&!record.patientId)) {deny();return;}
     }
     req.body.patientId=patientId;
     next();return;

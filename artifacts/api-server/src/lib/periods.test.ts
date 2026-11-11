@@ -1,6 +1,9 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {rollingSupplyWindow,countDeviceDays,localDay} from "./periods";
+test("A date-only supply anchor is a patient-local calendar date, not UTC midnight",()=>{
+  assert.equal(rollingSupplyWindow("2026-03-01",new Date("2026-03-15T15:00:00Z"),"America/New_York").startDay,"2026-03-01");
+});
 test("a 30-day supply window is distinct from the calendar month",()=>{
   const w=rollingSupplyWindow("2026-01-20T12:00:00Z",new Date("2026-03-01T12:00:00Z"),"America/New_York");
   assert.deepEqual(w,{startDay:"2026-01-20",endDayExclusive:"2026-02-19",complete:true});

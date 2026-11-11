@@ -1,11 +1,15 @@
 import { db, patients, audit, type RecordRow } from "@workspace/db";
 import { desc } from "drizzle-orm";
-import { allRecords, patientView, serializeRecord } from "./store";
+import { allRecords, patientView, serializeRecord, writeAudit, type Actor } from "./store";
+import { scopedPatients, scopedRecords } from "./access";
 
-export async function overview() {
-  const [ps,rs,events]=await Promise.all([
+export async function overview(actor: Actor) {
+  const [allPatients,all,events]=await Promise.all([
     db.select().from(patients),allRecords(),db.select().from(audit).orderBy(desc(audit.at)).limit(12),
   ]);
+  const ps=scopedPatients(actor,allPatients),rs=scopedRecords(actor,all,allPatients);
+  const visibleIds=new Set(ps.map(p=>p.id));
+  await writeAudit(db,actor,"read_practice_overview","practice",null,{patientCount:ps.length});
   const views=ps.map(p=>patientView(p,rs));
   const open=rs.filter(r=>r.kind==="exceptions"&&["open","acknowledged"].includes(r.status));
   const active=rs.filter(r=>r.kind==="enrollments"&&r.status==="active");
@@ -20,7 +24,7 @@ export async function overview() {
     const date=new Date();date.setUTCDate(date.getUTCDate()-6+i);const key=date.toISOString().slice(0,10);
     return {label:date.toLocaleDateString("en-US",{weekday:"short",timeZone:"UTC"}),readings:rs.filter(r=>r.kind==="observations"&&r.date.startsWith(key)).length,completed:rs.filter(r=>r.kind==="tasks"&&r.status==="completed"&&String(r.metadata.completedAt||r.updatedAt.toISOString()).startsWith(key)).length,enrolled:active.filter(r=>r.date.startsWith(key)).length};
   });
-  const activity=events.map(e=>({
+  const activity=events.filter(e=>!e.patientId||visibleIds.has(e.patientId)).map(e=>({
     id:e.id,kind:"audit",title:e.action.replaceAll("_"," "),description:e.actorName,patientId:e.patientId,
     patientName:ps.find(p=>p.id===e.patientId)?.firstName||"",status:"recorded",date:e.at.toISOString(),createdAt:e.at.toISOString(),updatedAt:e.at.toISOString(),metadata:e.detail,
   }));

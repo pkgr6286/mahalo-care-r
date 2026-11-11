@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  BarChart3, ClipboardList, CreditCard, Layers, LogOut, Menu, MessageSquare, Router, Settings2, Smartphone, Sun, Users, X,
+  BarChart3, ClipboardList, Gauge, UserCog, CreditCard, Layers, LogOut, Menu, MessageSquare, Router, Settings2, Smartphone, Sun, Users, X,
 } from "lucide-react";
 import { useGetCurrentUser, getGetCurrentUserQueryKey, useGetSettings, useLogout, getGetSettingsQueryKey } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,10 @@ import { initials, isUnauthorized } from "@/lib/api";
 import { ErrorState } from "@/components/kit";
 import { PatientApp } from "@/pages/patient-app";
 import { Logo } from "@/components/brand";
+import { can } from "@/components/access";
+import { GlobalTimer } from "@/components/global-timer";
+import { CommandPalette, SearchTrigger } from "@/components/command-palette";
+import { usePrefs } from "@/hooks/use-workspace-prefs";
 export { Logo, Mark } from "@/components/brand";
 
 export function SyntheticRibbon() {
@@ -21,34 +25,39 @@ export function SyntheticRibbon() {
   );
 }
 
-const NAV = [
+const NAV: { href: string; label: string; icon: typeof Sun; perms?: string[] }[] = [
   { href: "/", label: "Today", icon: Sun },
-  { href: "/worklists", label: "Worklists", icon: ClipboardList },
-  { href: "/patients", label: "Patients", icon: Users },
+  { href: "/worklists", label: "Worklists", icon: ClipboardList, perms: ["admin", "clinical.read", "devices.write"] },
+  { href: "/patients", label: "Patients", icon: Users, perms: ["patients.read"] },
   { href: "/programs", label: "Programs", icon: Layers },
+  { href: "/rules", label: "Rules", icon: Gauge, perms: ["admin", "clinical.read"] },
   { href: "/messages", label: "Messages", icon: MessageSquare },
   { href: "/devices", label: "Devices", icon: Router },
-  { href: "/billing", label: "Billing", icon: CreditCard },
-  { href: "/reports", label: "Reports", icon: BarChart3 },
-  { href: "/admin", label: "Admin", icon: Settings2 },
-  { href: "/patient", label: "Patient app", icon: Smartphone },
+  { href: "/billing", label: "Billing", icon: CreditCard, perms: ["billing.read"] },
+  { href: "/reports", label: "Reports", icon: BarChart3, perms: ["clinical.read", "billing.read"] },
+  { href: "/admin", label: "Admin", icon: Settings2, perms: ["admin"] },
+  { href: "/patient", label: "Patient app", icon: Smartphone, perms: ["admin", "clinical.write"] },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
-  const me = useGetCurrentUser({ query: { retry: false, queryKey: getGetCurrentUserQueryKey() } });
+  const me = useGetCurrentUser({ query: { retry: false, queryKey: getGetCurrentUserQueryKey(), refetchInterval:60_000, refetchOnWindowFocus:true } });
   const isPatient = me.data?.role === "patient";
   const settings = useGetSettings({ query: { enabled: !!me.data && !isPatient, queryKey: getGetSettingsQueryKey() } });
   const logout = useLogout();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const openSearch = () => { setOpen(false); setSearchOpen(true); };
+  const prefs = usePrefs();
+  const density = prefs.q.data?.density === "compact" ? "compact" : "comfortable";
 
   useEffect(() => setOpen(false), [location]);
   useEffect(() => {
-    if (me.isError && isUnauthorized(me.error)) setLocation("/login");
-  }, [me.isError, me.error, setLocation]);
+    if (me.isError && isUnauthorized(me.error)) {qc.clear();setLocation("/login");}
+  }, [me.isError, me.error, setLocation, qc]);
   useEffect(() => {
-    if (isPatient && location !== "/patient") setLocation("/patient");
+    if (isPatient && location !== "/patient" && location !== "/account") setLocation("/patient");
   }, [isPatient, location, setLocation]);
 
   if (me.isLoading) {
@@ -75,6 +84,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     });
 
   if (user.role === "patient") {
+    if (location === "/account") {
+      return (
+        <div className="min-h-[100dvh] bg-background">
+          <SyntheticRibbon />
+          <div className="flex items-center justify-between border-b border-border px-5 py-3"><Link href="/patient" aria-label="Back to my care"><Logo /></Link></div>
+          {children}
+        </div>
+      );
+    }
     return (
       <div className="min-h-[100dvh] bg-background">
         <SyntheticRibbon />
@@ -99,8 +117,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Practice</div>
         <div className="mt-0.5 truncate font-serif text-[15px] text-foreground" data-testid="text-practice-name">{settings.data?.name ?? "Loading…"}</div>
       </div>
+      <div className="mx-3 mb-3"><SearchTrigger onOpen={openSearch} /></div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3" aria-label="Primary">
-        {NAV.map((n, i) => (
+        {NAV.filter((n) => !n.perms || can(user, ...n.perms)).map((n) => (
           <Link
             key={n.href}
             href={n.href}
@@ -108,7 +127,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             className={cn(
               "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] transition-[background-color,color] duration-200",
               isActive(n.href) ? "bg-card font-medium text-foreground shadow-[var(--shadow-sm)] ring-1 ring-sidebar-border" : "text-foreground/65 hover:bg-[hsl(40_15%_92%)] hover:text-foreground",
-              i === 9 && "mt-5",
+              n.href === "/patient" && "mt-5",
             )}
           >
             {isActive(n.href) && <span className="absolute -left-3 top-2 bottom-2 w-[3px] rounded-r-full bg-[hsl(var(--brand-orange))]" />}
@@ -124,6 +143,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="truncate text-[13px] font-medium text-foreground" data-testid="text-user-name">{user.name}{user.credential ? `, ${user.credential}` : ""}</div>
             <div className="truncate text-[11px] capitalize text-muted-foreground">{user.role}</div>
           </div>
+          <Link href="/account" className={cn("rounded-full p-2 transition-colors hover:bg-[hsl(40_15%_92%)] hover:text-foreground", isActive("/account") ? "text-primary" : "text-muted-foreground")} aria-label="Account and security" title="Account and security" data-testid="link-nav-account">
+            <UserCog className="h-4 w-4" strokeWidth={1.6} />
+          </Link>
           <button onClick={doLogout} disabled={logout.isPending} className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-[hsl(40_15%_92%)] hover:text-foreground" aria-label="Sign out" title="Sign out" data-testid="button-logout">
             <LogOut className="h-4 w-4" strokeWidth={1.6} />
           </button>
@@ -133,7 +155,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="flex min-h-[100dvh] flex-col">
+    <div className="flex min-h-[100dvh] flex-col" data-density={density}>
       <SyntheticRibbon />
       <div className="flex flex-1">
         <div className="sticky top-0 hidden h-[calc(100dvh-28px)] md:block">{sidebar}</div>
@@ -147,8 +169,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur md:hidden">
             <button onClick={() => setOpen(true)} aria-label="Open menu" className="rounded-full p-1.5 hover:bg-secondary" data-testid="button-menu"><Menu className="h-5 w-5" strokeWidth={1.5} /></button>
             <Logo />
-            <span className="w-8" />
+            <SearchTrigger onOpen={openSearch} compact />
           </div>
+          <CommandPalette user={user} nav={NAV} open={searchOpen} onOpenChange={(next) => { if(next) openSearch(); else setSearchOpen(false); }} />
+          <GlobalTimer user={user} />
           <main key={location.split("/")[1]} className="mx-auto w-full max-w-[1320px] px-4 py-6 md:px-10 md:py-10">{children}</main>
         </div>
       </div>

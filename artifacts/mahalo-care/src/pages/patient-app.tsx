@@ -1,10 +1,15 @@
 import { useMemo, useState } from "react";
-import { CheckCircle2, ClipboardCheck, Dumbbell, Home, LogOut, MessageCircle, Pill as PillIcon, Send, Target, Video } from "lucide-react";
+import { Link } from "wouter";
+import { CheckCircle2, ClipboardCheck, UserCog, Dumbbell, Home, LogOut, MessageCircle, Pill as PillIcon, Send, Target, Video } from "lucide-react";
 import { useGetPatient, useGetSettings, useListPatients, useListRecords, getGetPatientQueryKey, getGetSettingsQueryKey, type CareRecord, type Patient } from "@workspace/api-client-react";
 import { Logo, Mark } from "@/components/brand";
 import { Btn, ConfirmButton, EmptyState, ErrorState, PageHeader, SimLabel, SkeletonRows, StatusPill, inputCls } from "@/components/kit";
 import { fmtDate, fmtDateTime, mArr, mStr, useAction, useSaveRecord } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { PatientPreferences } from "@/components/patient-preferences";
+import { PatientAttachments } from "@/components/attachments/patient-attachments";
+import { EducationCard, isExerciseMaterial } from "@/components/patient/education-card";
+import { instrumentGate } from "@/components/admin/instrument-review";
 
 type Screen = "today" | "checkin" | "exercises" | "meds" | "messages" | "plan";
 type Mode = "staff" | "patient";
@@ -49,9 +54,12 @@ export function PatientApp({ id, mode, onSignOut, signingOut }: { id: string; mo
           <span className="flex items-center gap-2"><Mark size={24} /><span className="font-serif text-[15px]">{settings.data.patientAppName}</span></span>
         ) : <Logo />}
         {standalone ? (
+          <span className="flex items-center gap-1.5">
+          <Link href="/account" className="inline-flex items-center gap-1.5 rounded-full border border-input bg-card px-3 py-1 text-xs font-medium transition-colors hover:border-foreground/30" data-testid="link-patient-account"><UserCog className="h-3.5 w-3.5" strokeWidth={1.6} />Account</Link>
           <button onClick={onSignOut} disabled={signingOut} className="inline-flex items-center gap-1.5 rounded-full border border-input bg-card px-3 py-1 text-xs font-medium transition-colors hover:border-foreground/30" data-testid="button-patient-signout">
             <LogOut className="h-3.5 w-3.5" strokeWidth={1.6} />{signingOut ? "Signing out…" : "Sign out"}
           </button>
+          </span>
         ) : <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Staff preview</span>}
       </div>
       <div className={cn("overflow-y-auto p-4", standalone ? "mx-auto w-full max-w-md flex-1 pb-20" : "h-[600px]")}>
@@ -59,10 +67,10 @@ export function PatientApp({ id, mode, onSignOut, signingOut }: { id: string; mo
           <div key={screen} className="rise">
             {screen === "today" && <TodayScreen p={q.data.patient} records={q.data.records} go={setScreen} />}
             {screen === "checkin" && <CheckinScreen p={q.data.patient} />}
-            {screen === "exercises" && <ExercisesScreen p={q.data.patient} records={q.data.records} />}
+            {screen === "exercises" && <ExercisesScreen p={q.data.patient} records={q.data.records} staff={!standalone} />}
             {screen === "meds" && <MedsScreen p={q.data.patient} records={q.data.records} />}
             {screen === "messages" && <MessagesScreen p={q.data.patient} records={q.data.records} />}
-            {screen === "plan" && <PlanScreen records={q.data.records} />}
+            {screen === "plan" && <PlanScreen p={q.data.patient} records={q.data.records} />}
           </div>
         )}
       </div>
@@ -79,7 +87,7 @@ export function PatientApp({ id, mode, onSignOut, signingOut }: { id: string; mo
 
 function TodayScreen({ p, records, go }: { p: Patient; records: CareRecord[]; go: (s: Screen) => void }) {
   const { run, pending } = useAction();
-  const tasks = records.filter((r) => r.kind === "tasks" && !mStr(r, "adherenceKind") && !["completed", "done", "closed"].includes(r.status));
+  const tasks = records.filter((r) => r.kind === "tasks" && !mStr(r, "adherenceKind") && r.status === "pending" && mStr(r,"audience") !== "staff" && (!mStr(r,"dueAt") || Date.parse(mStr(r,"dueAt")) <= Date.now()));
   const cellular = records
     .filter((r) => r.kind === "observations" && (mStr(r, "source").toLowerCase() === "cellular" || (mStr(r, "source").toLowerCase() === "device" && r.metadata?.deviceCleared === true)))
     .sort((a, b) => (b.date ?? b.createdAt).localeCompare(a.date ?? a.createdAt));
@@ -106,7 +114,8 @@ function TodayScreen({ p, records, go }: { p: Patient; records: CareRecord[]; go
         {tasks.length ? tasks.map((t) => (
           <div key={t.id} className="mb-2 flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 lift">
             <div className="flex-1 text-sm">{t.title}<div className="text-xs text-muted-foreground">{t.date ? `Due ${fmtDate(t.date, "MMM d")}` : ""}</div></div>
-            <Btn size="sm" disabled={pending} onClick={() => run({ action: "completeTask", id: t.id })} data-testid={`button-p-task-${t.id}`}>Done</Btn>
+            {windowEnded(t) ? <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground" data-testid={`status-p-task-ended-${t.id}`}>Window ended</span>
+              : <Btn size="sm" disabled={pending} onClick={() => run({ action: "completeTask", id: t.id })} data-testid={`button-p-task-${t.id}`}>Done</Btn>}
           </div>
         )) : <p className="rounded-2xl border border-dashed border-border bg-secondary/50 p-5 text-center text-xs text-muted-foreground">You're all caught up.</p>}
       </div>
@@ -133,13 +142,15 @@ function CheckinScreen({ p }: { p: Patient }) {
   const key = mStr(instrument, "key");
   const cfg = INSTRUMENTS[key];
   const supplied = mArr(instrument, "questions");
+  const gate = instrument ? instrumentGate(instrument) : { custom: false, ok: true, missing: [] as string[] };
   const items = useMemo(() => (cfg ? Array.from({ length: cfg.count }, (_, i) => (supplied.length === cfg.count ? supplied[i] : `${cfg.label} item ${i + 1}`)) : []), [cfg, supplied.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [done, setDone] = useState(false);
-  const program = instrument?.program ?? p.programs[0] ?? "RTM";
-  if (done) return <div className="py-16 text-center"><CheckCircle2 className="mx-auto h-8 w-8 text-primary" strokeWidth={1.5} /><div className="mt-2 font-semibold">Submitted</div><p className="text-xs text-muted-foreground">The care team will review the responses.</p><Btn className="mt-4" onClick={() => { setDone(false); setAnswers({}); }}>Start another</Btn></div>;
+  const program = instrument?.program && p.programs.includes(instrument.program) ? instrument.program : p.programs[0];
+  if (done) return <div className="py-10 text-center"><CheckCircle2 className="mx-auto h-8 w-8 text-primary" strokeWidth={1.5} /><div className="mt-2 font-semibold">Submitted</div><p className="text-xs text-muted-foreground">The care team will review the responses.</p>{key==="phq9"&&answers[8]>0&&<div className="mt-5 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-left text-sm" role="alert" data-testid="patient-urgent-help"><h2 className="font-semibold">Do not wait for an app response if you need urgent help</h2><p className="mt-2">If you may harm yourself or are in immediate danger, call 911 in the US or your local emergency number. In the US, call or text 988 for crisis support. This demo is not an emergency monitoring service.</p></div>}<Btn className="mt-4" onClick={() => { setDone(false); setAnswers({}); }}>Start another</Btn></div>;
   if (inst.isLoading) return <SkeletonRows rows={3} />;
   if (inst.isError) return <ErrorState error={inst.error} onRetry={() => inst.refetch()} />;
+  if (!program) return <EmptyState title="Check-ins are not active" desc="Ask your care team to confirm your enrollment before sharing another check-in." />;
   if (!instrument || !cfg) return <EmptyState title="No check-in available" desc="No supported instrument is configured." />;
   const scale = Array.from({ length: cfg.max - cfg.min + 1 }, (_, i) => cfg.min + i);
   return (
@@ -149,7 +160,8 @@ function CheckinScreen({ p }: { p: Patient }) {
         <select className={inputCls} value={instrument.id} onChange={(e) => { setIid(e.target.value); setAnswers({}); }} data-testid="select-instrument">{available.map((i) => <option key={i.id} value={i.id}>{i.title}</option>)}</select>
       )}
       {!supplied.length && <p className="rounded-lg border border-dashed border-border bg-muted/40 p-2.5 text-[11px] text-muted-foreground" data-testid="note-synthetic-items">Demo item labels are placeholders. Licensed instrument wording is not reproduced. Scale {cfg.min} to {cfg.max}.</p>}
-      {items.map((q, i) => (
+      {gate.custom && !gate.ok && <div role="alert" className="rounded-lg border border-[hsl(38_80%_82%)] bg-[hsl(38_95%_95%)] p-2.5 text-xs text-[hsl(30_80%_30%)]" data-testid="gate-instrument-content"><div className="font-semibold">This check-in is not ready yet</div>Its question wording is waiting for review by your care team ({gate.missing.join("; ")}). Please check back later.</div>}
+      {gate.custom && !gate.ok ? null : items.map((q, i) => (
         <div key={i} className="rounded-2xl border border-border bg-card p-3.5">
           <div className="text-sm">{q}</div>
           <div className={cn("mt-2 grid gap-1", scale.length > 7 ? "grid-cols-6" : `grid-cols-${scale.length}`)} style={{ gridTemplateColumns: `repeat(${Math.min(scale.length, 6)}, minmax(0,1fr))` }}>
@@ -159,7 +171,7 @@ function CheckinScreen({ p }: { p: Patient }) {
           </div>
         </div>
       ))}
-      <Btn variant="primary" className="w-full" disabled={pending || Object.keys(answers).length < items.length} onClick={() => run({ action: "submitCheckin", patientId: p.id, program, payload: { instrument: key, answers: items.map((_, i) => answers[i]) } }, () => setDone(true))} data-testid="button-submit-checkin">Submit</Btn>
+      <Btn variant="primary" className="w-full" disabled={pending || !gate.ok || Object.keys(answers).length < items.length} onClick={() => run({ action: "submitCheckin", patientId: p.id, program, payload: { instrument: key, instrumentId: instrument.id, answers: items.map((_, i) => answers[i]) } }, () => setDone(true))} data-testid="button-submit-checkin">Submit</Btn>
     </div>
   );
 }
@@ -173,16 +185,33 @@ function todayIn(tz?: string) {
 }
 function adherenceToday(records: CareRecord[], kind: AdhKind, title: string, tz?: string) {
   const today = todayIn(tz);
-  return records.find((r) => r.kind === "tasks" && mStr(r, "adherenceKind") === kind && mStr(r, "title") === title && mStr(r, "day") === today);
+  return records.find((r) => r.kind === "tasks" && mStr(r, "adherenceKind") === kind && mStr(r, "activityTitle") === title && mStr(r, "day") === today);
+}
+
+const BARRIERS = [
+  { code: "too_painful", label: "Too painful" },
+  { code: "side_effects", label: "Side effects" },
+  { code: "forgot", label: "Forgot" },
+  { code: "unavailable", label: "Not available" },
+  { code: "other", label: "Other" },
+] as const;
+function windowEnded(t: CareRecord) {
+  const due = Date.parse(mStr(t, "dueAt"));
+  const w = Number(t.metadata?.windowMinutes);
+  return Number.isFinite(due) && Number.isFinite(w) && Date.now() > due + w * 60000;
 }
 
 function AdherenceItem({ p, kind, title, program, sub, records }: { p: Patient; kind: AdhKind; title: string; program: string; sub?: string; records: CareRecord[] }) {
   const { run, pending } = useAction();
   const [skipping, setSkipping] = useState(false);
   const [barrier, setBarrier] = useState("");
+  const [barrierCode, setBarrierCode] = useState("");
+  const barrierLabel = BARRIERS.find((b) => b.code === barrierCode)?.label ?? "";
+  const barrierText = barrier.trim() ? (barrierCode && barrierCode !== "other" ? `${barrierLabel}: ${barrier.trim()}` : barrier.trim()) : barrierLabel;
+  const canSkip = !!barrierCode && (barrierCode !== "other" || barrier.trim().length >= 3) && barrierText.length >= 3;
   const existing = adherenceToday(records, kind, title, p.timezone);
   const send = (status: "done" | "skipped") =>
-    run({ action: "recordAdherence", patientId: p.id, program, payload: { kind, title, status, ...(status === "skipped" && barrier.trim() ? { barrier: barrier.trim() } : {}) } }, () => { setSkipping(false); setBarrier(""); });
+    run({ action: "recordAdherence", patientId: p.id, program, payload: { kind, title, status, ...(status === "skipped" ? { barrierCode, barrier: barrierText } : {}) } }, () => { setSkipping(false); setBarrier(""); setBarrierCode(""); });
   const st = existing ? (existing.status === "skipped" || mStr(existing, "status") === "skipped" ? "skipped" : "done") : null;
   return (
     <div className="rounded-2xl border border-border bg-card p-3.5" data-testid={`adherence-${kind}-${title}`}>
@@ -198,24 +227,38 @@ function AdherenceItem({ p, kind, title, program, sub, records }: { p: Patient; 
         )}
       </div>
       {skipping && !st && (
-        <div className="mt-2 flex gap-2">
-          <input className={inputCls} placeholder="What got in the way? (optional)" value={barrier} onChange={(e) => setBarrier(e.target.value)} data-testid="input-barrier" />
-          <Btn size="sm" disabled={pending} onClick={() => send("skipped")} data-testid="button-confirm-skip">Save</Btn>
-        </div>
+        <fieldset className="mt-2 space-y-2">
+          <legend className="mb-1 text-xs font-medium text-muted-foreground">What got in the way?</legend>
+          <div className="flex flex-wrap gap-1.5" role="radiogroup">
+            {BARRIERS.map((b) => (
+              <button key={b.code} type="button" role="radio" aria-checked={barrierCode === b.code} onClick={() => setBarrierCode(b.code)} className={cn("rounded-full border px-3 py-1 text-xs", barrierCode === b.code ? "border-foreground bg-foreground text-background" : "border-border bg-card text-muted-foreground")} data-testid={`button-barrier-${b.code}`}>{b.label}</button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input aria-label="Details" className={inputCls} placeholder={barrierCode === "other" ? "Tell us a little more (required)" : "Details (optional)"} value={barrier} onChange={(e) => setBarrier(e.target.value)} data-testid="input-barrier" />
+            <Btn size="sm" disabled={pending || !canSkip} onClick={() => send("skipped")} data-testid="button-confirm-skip">Save</Btn>
+          </div>
+        </fieldset>
       )}
     </div>
   );
 }
 
-function ExercisesScreen({ p, records }: { p: Patient; records: CareRecord[] }) {
+function ExercisesScreen({ p, records, staff }: { p: Patient; records: CareRecord[]; staff: boolean }) {
   const ed = useListRecords("education");
-  const items = (ed.data ?? []).filter((e) => !e.patientId || e.patientId === p.id);
+  const items = (ed.data ?? []).filter((e) => (!e.patientId || e.patientId === p.id) && (!e.program || p.programs.includes(e.program)));
+  const exercises = items.filter(isExerciseMaterial);
+  const reading = items.filter((e) => !isExerciseMaterial(e));
   return (
     <div className="space-y-3">
       <div className="font-serif text-[22px]">Exercises and learning</div>
-      {ed.isLoading ? <SkeletonRows rows={3} /> : ed.isError ? <ErrorState error={ed.error} onRetry={() => ed.refetch()} /> : items.length ? items.map((e) => (
-        <AdherenceItem key={e.id} p={p} records={records} kind={mStr(e, "type") === "exercise" || /exercise/i.test(mStr(e, "category")) ? "exercise" : "education"} title={e.title} sub={e.description} program={e.program ?? p.programs[0] ?? "RTM"} />
-      )) : <p className="text-xs text-muted-foreground">No exercises assigned.</p>}
+      {ed.isLoading ? <SkeletonRows rows={3} /> : ed.isError ? <ErrorState error={ed.error} onRetry={() => ed.refetch()} /> : !items.length ? <p className="text-xs text-muted-foreground">Nothing assigned yet.</p> : (
+        <>
+          {exercises.map((e) => <AdherenceItem key={e.id} p={p} records={records} kind="exercise" title={e.title} sub={e.description} program={e.program ?? p.programs[0] ?? "RTM"} />)}
+          {reading.length > 0 && <div className="pt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">To read</div>}
+          {reading.map((e) => <EducationCard key={e.id} p={p} m={e} records={records} staff={staff} />)}
+        </>
+      )}
     </div>
   );
 }
@@ -262,7 +305,7 @@ function VideoRequest({ p }: { p: Patient }) {
   );
 }
 
-function PlanScreen({ records }: { records: CareRecord[] }) {
+function PlanScreen({ p, records }: { p:Patient; records: CareRecord[] }) {
   const plan = records.filter((r) => r.kind === "careplans" && (r.status === "signed" || r.status === "active")).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
   const consents = records.filter((r) => r.kind === "consents");
   return (
@@ -278,6 +321,8 @@ function PlanScreen({ records }: { records: CareRecord[] }) {
       <p className="text-[11px] text-muted-foreground">Signed {fmtDate(mStr(plan, "signedAt"))} by {mStr(plan, "signedBy")}</p>
       </>}
       {consents.length > 0 && <Consents consents={consents} />}
+      <PatientAttachments patientId={p.id} audience="patient" />
+      <PatientPreferences patient={p} records={records}/>
     </div>
   );
 }

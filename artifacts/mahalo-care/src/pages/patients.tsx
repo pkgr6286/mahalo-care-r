@@ -41,7 +41,7 @@ export default function PatientsPage() {
         </select>
         <select className={`${inputCls} sm:w-40`} value={status} onChange={(e) => setStatus(e.target.value)} data-testid="select-status">
           <option value="">Any status</option>
-          {["active", "paused", "discharged", "pending"].map((s) => <option key={s} value={s}>{s}</option>)}
+          {["active", "inactive"].map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
 
@@ -69,7 +69,7 @@ export default function PatientsPage() {
                 <div className="h-1 w-12 overflow-hidden rounded-full bg-muted"><div className={cn("h-full", p.adherence < 60 ? "bg-destructive" : p.adherence < 80 ? "bg-[hsl(38_90%_52%)]" : "bg-primary")} style={{ width: `${Math.min(100, p.adherence)}%` }} /></div>
                 <span className="tnum w-9 text-right text-xs">{p.adherence}%</span>
               </div>
-              <div className="hidden text-right text-xs text-muted-foreground lg:block">{fmtRel(p.lastContact)}</div>
+              <div className="hidden text-right text-xs text-muted-foreground lg:block">{p.lastContact ? fmtRel(p.lastContact) : "No contact recorded"}</div>
             </Link>
           ))}
         </div>

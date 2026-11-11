@@ -1,3 +1,6 @@
+import { FileStack } from "lucide-react";
+import { RulesManager } from "@/components/rules/rules-manager";
+import { Link } from "wouter";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Download, FlaskConical, Pencil, Plug, Plus, Upload } from "lucide-react";
@@ -7,13 +10,18 @@ import { useGetSettings, useListPatients, useListRecords, getListPatientsQueryKe
 import { Btn, ConfirmButton, EmptyState, ErrorState, Field, PageHeader, Panel, ProgramTag, RecordDialog, SimLabel, SkeletonRows, StatusPill, Tabs, inputCls, useRecordDialog, type BaseField, type MetaField } from "@/components/kit";
 import { errMsg, fmtDateTime, fmtRel, mStr, useAction, type Kind } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { AccountsTab } from "@/components/accounts-admin";
+import { OperationsTab } from "@/components/operations-admin";
+import { InstrumentReviewPanel } from "@/components/admin/instrument-review";
+import { EducationAuthoring } from "@/components/admin/education-authoring";
+import { ConfigTransferPanel } from "@/components/admin/config-transfer";
 
-type T = "settings" | "locations" | "staff" | "rules" | "templates" | "integrations" | "audit";
+type T = "settings" | "accounts" | "operations" | "locations" | "staff" | "rules" | "templates" | "instruments" | "education" | "integrations" | "audit";
 
 const CFG: Record<"locations" | "staff" | "rules" | "templates", { title: string; fields: BaseField[]; meta: MetaField[]; status?: string[]; titleLabel?: string; descLabel?: string }> = {
   locations: { title: "Site", titleLabel: "Site name", fields: ["status", "description"], status: ["active", "inactive"], meta: [{ key: "address", label: "Address" }, { key: "phone", label: "Phone" }], descLabel: "Notes" },
   staff: { title: "Directory entry", titleLabel: "Full name", fields: ["status"], status: ["active", "inactive"], meta: [{ key: "role", label: "Role" }, { key: "credential", label: "Credential" }, { key: "email", label: "Email" }, { key: "location", label: "Primary site" }] },
-  rules: { title: "Rule", fields: ["program", "severity", "status", "description"], status: ["active", "paused", "draft"], meta: [{ key: "condition", label: "Condition expression", hint: "e.g. systolic >= 160" }, { key: "threshold", label: "Threshold", type: "number" }], descLabel: "What the rule detects" },
+  rules: { title: "Rule", fields: ["program", "severity", "status", "description"], status: ["active", "paused", "draft"], meta: [{ key: "kind", label: "Rule kind", hint: "threshold, trend, missing_data, adherence, score, time_budget or device_days_at_risk" }, { key: "condition", label: "Condition expression", hint: "e.g. systolic >= 160" }, { key: "threshold", label: "Threshold", type: "number" }, { key:"days",label:"Days without data",type:"number" }, { key:"windowDays",label:"Window (days)",type:"number" }, { key:"minPoints",label:"Minimum trend samples",type:"number" }, { key:"rate",label:"Minimum completion rate (0–1)",type:"number" }, { key:"escalateAfterHours",label:"Escalate after hours",type:"number" }], descLabel: "What the rule detects" },
   templates: { title: "Template", meta: [], fields: ["program", "status", "description"], status: ["active", "draft"], descLabel: "Template body" },
 };
 
@@ -21,12 +29,17 @@ export default function AdminPage() {
   const [tab, setTab] = useState<T>("settings");
   return (
     <div>
-      <PageHeader eyebrow="Administration" title="Practice setup" desc="Single-practice configuration. Rule and CMS-derived defaults are provisional and should be reviewed before real use." />
-      <Tabs value={tab} onChange={setTab} tabs={[{ id: "settings", label: "Settings" }, { id: "locations", label: "Locations" }, { id: "staff", label: "Staff" }, { id: "rules", label: "Rules" }, { id: "templates", label: "Templates" }, { id: "integrations", label: "Integrations" }, { id: "audit", label: "Audit" }]} />
+      <PageHeader eyebrow="Administration" title="Practice setup" desc="Single-practice configuration. Rule and CMS-derived defaults are provisional and should be reviewed before real use." actions={<Link href="/policies" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-card px-4 text-sm font-medium hover:bg-secondary" data-testid="link-admin-policies"><FileStack className="h-4 w-4" />Policies and templates</Link>} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ id: "settings", label: "Settings" }, { id: "accounts", label: "Accounts" }, { id: "locations", label: "Locations" }, { id: "staff", label: "Staff directory" }, { id: "rules", label: "Rules" }, { id: "templates", label: "Templates" }, { id: "instruments", label: "Instruments" }, { id: "education", label: "Learning" }, { id: "operations", label: "Operations" }, { id: "integrations", label: "Integrations" }, { id: "audit", label: "Audit" }]} />
       <div className="mt-5" key={tab}>
         {tab === "settings" && <SettingsTab />}
         {tab === "settings" && <PatientImport />}
-        {(tab === "locations" || tab === "staff" || tab === "rules" || tab === "templates") && <RecordList kind={tab} />}
+        {tab === "accounts" && <AccountsTab />}
+        {tab === "operations" && <OperationsTab />}
+        {(tab === "locations" || tab === "staff" || tab === "templates") && <RecordList kind={tab} />}
+        {tab === "rules" && <RulesManager />}
+        {tab === "instruments" && <InstrumentReviewPanel />}
+        {tab === "education" && <EducationAuthoring />}
         {tab === "integrations" && <Integrations />}
         {tab === "audit" && <Audit />}
       </div>
@@ -39,9 +52,7 @@ function SettingsTab() {
   const upd = useUpdateSettings();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { run, pending } = useAction();
   const [v, setV] = useState<PracticeSettings | null>(null);
-  const [json, setJson] = useState("");
   useEffect(() => { if (q.data && !v) setV(q.data); }, [q.data, v]);
   if (q.isLoading || !v) return q.isError ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : <SkeletonRows rows={4} />;
   const set = (k: keyof PracticeSettings) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.value });
@@ -51,10 +62,6 @@ function SettingsTab() {
       onSuccess: (s) => { qc.setQueryData(getGetSettingsQueryKey(), s); qc.invalidateQueries(); toast({ title: "Settings saved" }); },
       onError: (err) => toast({ title: "Could not save", description: errMsg(err), variant: "destructive" }),
     });
-  };
-  const doImport = (close: () => void) => {
-    try { const payload = JSON.parse(json); run({ action: "importConfiguration", payload }, () => { setJson(""); close(); }); }
-    catch { toast({ title: "Invalid JSON", description: "Paste a configuration exported from Mahalo Care.", variant: "destructive" }); }
   };
   return (
     <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
@@ -71,11 +78,7 @@ function SettingsTab() {
           <div className="sm:col-span-2"><Btn type="submit" variant="primary" disabled={upd.isPending} data-testid="button-save-settings">{upd.isPending ? "Saving…" : "Save settings"}</Btn></div>
         </form>
       </Panel>
-      <Panel title="Configuration transfer" sub="Programs, rules, templates and sites">
-        <a href="/api/exports/configuration" className="inline-flex h-9 items-center gap-1.5 rounded-md border border-input px-3.5 text-sm font-medium hover:bg-muted" data-testid="link-export-config"><Download className="h-4 w-4" />Export configuration</a>
-        <Field label="Import configuration JSON" className="mt-4"><textarea className={`${inputCls} h-32 py-2 font-mono text-xs`} value={json} onChange={(e) => setJson(e.target.value)} data-testid="input-import-json" /></Field>
-        <div className="mt-2"><ConfirmButton size="md" label="Import" icon={<Upload className="h-4 w-4" />} title="Import configuration" desc="Merges the pasted configuration into this practice. Existing records with the same title are updated." confirmLabel="Import" pending={pending} disabled={!json.trim()} onConfirm={(_, c) => doImport(c)} testid="button-import" /></div>
-      </Panel>
+      <ConfigTransferPanel />
     </div>
   );
 }

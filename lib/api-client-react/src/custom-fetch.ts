@@ -336,6 +336,14 @@ export async function customFetch<T = unknown>(
   }
 
   const headers = mergeHeaders(isRequest(input) ? input.headers : undefined, headersInit);
+  // Same-origin double-submit proof for the browser session. Never attach it to external URLs.
+  if (typeof document !== "undefined" && !["GET", "HEAD", "OPTIONS"].includes(method)) {
+    const target = new URL(resolveUrl(input), window.location.href);
+    if (target.origin === window.location.origin) {
+      const csrf = document.cookie.split("; ").find(c => c.startsWith("mahalo_csrf="))?.slice("mahalo_csrf=".length);
+      if (csrf) headers.set("x-csrf-token", decodeURIComponent(csrf));
+    }
+  }
 
   if (
     typeof init.body === "string" &&

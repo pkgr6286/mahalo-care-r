@@ -5,10 +5,17 @@
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "build:portable": "pnpm run typecheck:libs && pnpm --filter @workspace/api-server run typecheck && pnpm --filter @workspace/mahalo-care run typecheck && PORT=19333 BASE_PATH=/ pnpm --filter @workspace/mahalo-care run build && pnpm --filter @workspace/api-server run build",
+    "gcp-build": "pnpm run build:portable",
+    "test:portable": "pnpm --filter @workspace/api-server exec tsx src/check-portable.ts",
+    "test:private-storage": "pnpm --filter @workspace/api-server exec tsx src/check-storage-access.ts",
+    "start": "NODE_ENV=production SERVE_WEB=true node --enable-source-maps artifacts/api-server/dist/index.mjs",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
   "private": true,
+  "engines": { "node": "24.x", "pnpm": "10.26.1" },
+  "packageManager": "pnpm@10.26.1",
   "dependencies": {
     "@replit/connectors-sdk": "^0.4.3"
   },

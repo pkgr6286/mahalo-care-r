@@ -8,6 +8,638 @@
 import * as zod from 'zod';
 
 
+export const GetAiReviewMetricsResponse = zod.object({
+  "since": zod.coerce.date(),
+  "scope": zod.string(),
+  "total": zod.number().int(),
+  "pending": zod.number().int(),
+  "accepted": zod.number().int(),
+  "rejected": zod.number().int(),
+  "acceptanceRate": zod.number().nullable(),
+  "acceptedWithEditMetrics": zod.number().int(),
+  "editedAccepted": zod.number().int(),
+  "meanEditRatio": zod.number().nullable(),
+  "sourceCheckedDrafts": zod.number().int(),
+  "unsupportedDrafts": zod.number().int(),
+  "recognizedClaims": zod.number().int(),
+  "supportedClaims": zod.number().int(),
+  "supportedClaimRate": zod.number().nullable(),
+  "humanNumericExceptions": zod.number().int(),
+  "tokenReportingDrafts": zod.number().int(),
+  "totalTokens": zod.number().int(),
+  "medianGenerationMs": zod.number().nullable(),
+  "limitations": zod.array(zod.string()),
+  "capabilities": zod.array(zod.object({
+  "capability": zod.string(),
+  "total": zod.number().int(),
+  "pending": zod.number().int(),
+  "accepted": zod.number().int(),
+  "rejected": zod.number().int()
+}))
+})
+
+
+export const CheckAiDraftTextParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const checkAiDraftTextBodyFinalTextMax = 18000;
+
+
+
+export const CheckAiDraftTextBody = zod.object({
+  "finalText": zod.string().min(1).max(checkAiDraftTextBodyFinalTextMax)
+})
+
+export const CheckAiDraftTextResponse = zod.object({
+  "version": zod.number().int().optional(),
+  "status": zod.enum(['checked', 'needs_review', 'no_numeric_claims', 'unavailable']),
+  "recognizedClaims": zod.number().int(),
+  "supportedClaims": zod.number().int(),
+  "scope": zod.string(),
+  "unsupported": zod.array(zod.object({
+  "claim": zod.string(),
+  "reason": zod.string()
+}))
+})
+
+
+
+export const getWorklistQueryPageSizeMin = 10;
+export const getWorklistQueryPageSizeMax = 100;
+
+export const getWorklistQueryQMax = 200;
+
+
+
+export const GetWorklistQueryParams = zod.object({
+  "kind": zod.enum(['my_exceptions', 'team_queue', 'due_today', 'tasks', 'at_risk', 'unsigned', 'device_issues', 'cocm_registry']),
+  "page": zod.coerce.number().int().min(1).optional(),
+  "pageSize": zod.coerce.number().int().min(getWorklistQueryPageSizeMin).max(getWorklistQueryPageSizeMax).optional(),
+  "q": zod.coerce.string().max(getWorklistQueryQMax).optional(),
+  "program": zod.coerce.string().optional(),
+  "locations": zod.coerce.string().optional(),
+  "assignee": zod.coerce.string().optional(),
+  "ownerRole": zod.coerce.string().optional(),
+  "status": zod.enum(['open', 'closed', 'all']).optional(),
+  "period": zod.coerce.string().optional(),
+  "includeInactive": zod.coerce.boolean().optional()
+})
+
+export const getWorklistResponseAppliedFiltersQMax = 200;
+
+export const getWorklistResponseAppliedFiltersLocationsMax = 100;
+
+export const getWorklistResponseAppliedFiltersPageSizeMin = 10;
+export const getWorklistResponseAppliedFiltersPageSizeMax = 100;
+
+
+
+
+export const GetWorklistResponse = zod.object({
+  "kind": zod.enum(['my_exceptions', 'team_queue', 'due_today', 'tasks', 'at_risk', 'unsigned', 'device_issues', 'cocm_registry']),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "total": zod.number().int(),
+  "totalPages": zod.number().int(),
+  "generatedAt": zod.string(),
+  "appliedFilters": zod.object({
+  "q": zod.string().max(getWorklistResponseAppliedFiltersQMax).optional(),
+  "program": zod.string().optional(),
+  "locations": zod.array(zod.string()).max(getWorklistResponseAppliedFiltersLocationsMax).optional(),
+  "assignee": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "status": zod.enum(['open', 'closed', 'all']).optional(),
+  "period": zod.string().optional(),
+  "pageSize": zod.number().int().min(getWorklistResponseAppliedFiltersPageSizeMin).max(getWorklistResponseAppliedFiltersPageSizeMax).optional(),
+  "includeInactive": zod.boolean().optional()
+}),
+  "options": zod.object({
+  "locations": zod.array(zod.string()),
+  "assignees": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "role": zod.string()
+})),
+  "ownerRoles": zod.array(zod.string()),
+  "programs": zod.array(zod.string())
+}),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "patientId": zod.string(),
+  "patientName": zod.string(),
+  "mrn": zod.string(),
+  "location": zod.string(),
+  "timezone": zod.string(),
+  "title": zod.string(),
+  "status": zod.string(),
+  "severity": zod.string(),
+  "assignee": zod.string(),
+  "ownerRole": zod.string().nullish(),
+  "program": zod.string().nullable(),
+  "record": zod.object({
+  "title": zod.string().min(1),
+  "patientId": zod.string().nullish(),
+  "program": zod.string().nullish(),
+  "status": zod.string(),
+  "severity": zod.string().optional(),
+  "description": zod.string().optional(),
+  "assignee": zod.string().optional(),
+  "date": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "patientName": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})),
+  "dueAt": zod.string().nullable(),
+  "ageHours": zod.number(),
+  "daysLeft": zod.number().int().nullish(),
+  "shortfall": zod.number().nullish(),
+  "cpt": zod.string().nullish(),
+  "latestPhq9": zod.number().nullish(),
+  "latestGad7": zod.number().nullish(),
+  "scoreTrend": zod.number().nullish(),
+  "lastContactAt": zod.string().nullish(),
+  "consultantReviewAt": zod.string().nullish(),
+  "nextConsultantReviewAt": zod.string().nullish(),
+  "consultantReviewDue": zod.boolean().optional(),
+  "issueReasons": zod.array(zod.string())
+}))
+})
+
+
+export const assignWorklistRecordsBodyIdsMax = 100;
+
+
+
+export const AssignWorklistRecordsBody = zod.object({
+  "ids": zod.array(zod.string()).min(1).max(assignWorklistRecordsBodyIdsMax),
+  "assigneeId": zod.string().nullable()
+})
+
+
+
+
+export const AssignWorklistRecordsResponse = zod.object({
+  "success": zod.boolean(),
+  "count": zod.number().int(),
+  "records": zod.array(zod.object({
+  "title": zod.string().min(1),
+  "patientId": zod.string().nullish(),
+  "program": zod.string().nullish(),
+  "status": zod.string(),
+  "severity": zod.string().optional(),
+  "description": zod.string().optional(),
+  "assignee": zod.string().optional(),
+  "date": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "patientName": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})))
+})
+
+
+export const recordConsultantReviewBodySummaryMin = 20;
+export const recordConsultantReviewBodySummaryMax = 12000;
+
+export const recordConsultantReviewBodyNextReviewDaysMax = 90;
+
+
+
+export const RecordConsultantReviewBody = zod.object({
+  "patientId": zod.string(),
+  "summary": zod.string().min(recordConsultantReviewBodySummaryMin).max(recordConsultantReviewBodySummaryMax),
+  "nextReviewDays": zod.number().int().min(1).max(recordConsultantReviewBodyNextReviewDaysMax),
+  "assessmentCompleted": zod.boolean().optional()
+})
+
+
+
+
+export const RecordConsultantReviewResponse = zod.object({
+  "title": zod.string().min(1),
+  "patientId": zod.string().nullish(),
+  "program": zod.string().nullish(),
+  "status": zod.string(),
+  "severity": zod.string().optional(),
+  "description": zod.string().optional(),
+  "assignee": zod.string().optional(),
+  "date": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "patientName": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+
+
+export const getWorkspacePreferencesResponseWorklistsQMax = 200;
+
+export const getWorkspacePreferencesResponseWorklistsLocationsMax = 100;
+
+export const getWorkspacePreferencesResponseWorklistsPageSizeMin = 10;
+export const getWorkspacePreferencesResponseWorklistsPageSizeMax = 100;
+
+
+
+export const GetWorkspacePreferencesResponse = zod.object({
+  "density": zod.enum(['comfortable', 'compact']),
+  "lastWorklist": zod.enum(['my_exceptions', 'team_queue', 'due_today', 'tasks', 'at_risk', 'unsigned', 'device_issues', 'cocm_registry']),
+  "worklists": zod.record(zod.string(), zod.object({
+  "q": zod.string().max(getWorkspacePreferencesResponseWorklistsQMax).optional(),
+  "program": zod.string().optional(),
+  "locations": zod.array(zod.string()).max(getWorkspacePreferencesResponseWorklistsLocationsMax).optional(),
+  "assignee": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "status": zod.enum(['open', 'closed', 'all']).optional(),
+  "period": zod.string().optional(),
+  "pageSize": zod.number().int().min(getWorkspacePreferencesResponseWorklistsPageSizeMin).max(getWorkspacePreferencesResponseWorklistsPageSizeMax).optional(),
+  "includeInactive": zod.boolean().optional()
+}))
+})
+
+
+export const updateWorkspacePreferencesBodyWorklistFiltersQMax = 200;
+
+export const updateWorkspacePreferencesBodyWorklistFiltersLocationsMax = 100;
+
+export const updateWorkspacePreferencesBodyWorklistFiltersPageSizeMin = 10;
+export const updateWorkspacePreferencesBodyWorklistFiltersPageSizeMax = 100;
+
+
+
+export const UpdateWorkspacePreferencesBody = zod.object({
+  "density": zod.enum(['comfortable', 'compact']).optional(),
+  "worklist": zod.object({
+  "kind": zod.enum(['my_exceptions', 'team_queue', 'due_today', 'tasks', 'at_risk', 'unsigned', 'device_issues', 'cocm_registry']),
+  "filters": zod.object({
+  "q": zod.string().max(updateWorkspacePreferencesBodyWorklistFiltersQMax).optional(),
+  "program": zod.string().optional(),
+  "locations": zod.array(zod.string()).max(updateWorkspacePreferencesBodyWorklistFiltersLocationsMax).optional(),
+  "assignee": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "status": zod.enum(['open', 'closed', 'all']).optional(),
+  "period": zod.string().optional(),
+  "pageSize": zod.number().int().min(updateWorkspacePreferencesBodyWorklistFiltersPageSizeMin).max(updateWorkspacePreferencesBodyWorklistFiltersPageSizeMax).optional(),
+  "includeInactive": zod.boolean().optional()
+})
+}).optional()
+})
+
+export const updateWorkspacePreferencesResponseWorklistsQMax = 200;
+
+export const updateWorkspacePreferencesResponseWorklistsLocationsMax = 100;
+
+export const updateWorkspacePreferencesResponseWorklistsPageSizeMin = 10;
+export const updateWorkspacePreferencesResponseWorklistsPageSizeMax = 100;
+
+
+
+export const UpdateWorkspacePreferencesResponse = zod.object({
+  "density": zod.enum(['comfortable', 'compact']),
+  "lastWorklist": zod.enum(['my_exceptions', 'team_queue', 'due_today', 'tasks', 'at_risk', 'unsigned', 'device_issues', 'cocm_registry']),
+  "worklists": zod.record(zod.string(), zod.object({
+  "q": zod.string().max(updateWorkspacePreferencesResponseWorklistsQMax).optional(),
+  "program": zod.string().optional(),
+  "locations": zod.array(zod.string()).max(updateWorkspacePreferencesResponseWorklistsLocationsMax).optional(),
+  "assignee": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "status": zod.enum(['open', 'closed', 'all']).optional(),
+  "period": zod.string().optional(),
+  "pageSize": zod.number().int().min(updateWorkspacePreferencesResponseWorklistsPageSizeMin).max(updateWorkspacePreferencesResponseWorklistsPageSizeMax).optional(),
+  "includeInactive": zod.boolean().optional()
+}))
+})
+
+
+export const ListProgramPoliciesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "kind": zod.enum(['rulepack', 'payer_override', 'careplan_template', 'note_template']),
+  "program": zod.enum(['RPM', 'RTM', 'CCM', 'PCM', 'BHI']),
+  "version": zod.string(),
+  "payer": zod.string().optional(),
+  "effectiveFrom": zod.string(),
+  "sourceRef": zod.string().optional(),
+  "body": zod.record(zod.string(), zod.unknown())
+}).and(zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['bundled', 'draft', 'reviewed', 'published', 'retired']),
+  "immutable": zod.boolean(),
+  "fingerprint": zod.string(),
+  "provisional": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string(),
+  "reviewNote": zod.string(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
+  "publishedAt": zod.string().nullish(),
+  "retiredAt": zod.string().nullish(),
+  "enrollmentCount": zod.number().int().optional()
+}))),
+  "canManage": zod.boolean(),
+  "canReview": zod.boolean()
+})
+
+
+export const CreateProgramPolicyBody = zod.object({
+  "kind": zod.enum(['rulepack', 'payer_override', 'careplan_template', 'note_template']),
+  "program": zod.enum(['RPM', 'RTM', 'CCM', 'PCM', 'BHI']),
+  "version": zod.string(),
+  "payer": zod.string().optional(),
+  "effectiveFrom": zod.string(),
+  "sourceRef": zod.string().optional(),
+  "body": zod.record(zod.string(), zod.unknown())
+})
+
+export const CreateProgramPolicyResponse = zod.object({
+  "kind": zod.enum(['rulepack', 'payer_override', 'careplan_template', 'note_template']),
+  "program": zod.enum(['RPM', 'RTM', 'CCM', 'PCM', 'BHI']),
+  "version": zod.string(),
+  "payer": zod.string().optional(),
+  "effectiveFrom": zod.string(),
+  "sourceRef": zod.string().optional(),
+  "body": zod.record(zod.string(), zod.unknown())
+}).and(zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['bundled', 'draft', 'reviewed', 'published', 'retired']),
+  "immutable": zod.boolean(),
+  "fingerprint": zod.string(),
+  "provisional": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string(),
+  "reviewNote": zod.string(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
+  "publishedAt": zod.string().nullish(),
+  "retiredAt": zod.string().nullish(),
+  "enrollmentCount": zod.number().int().optional()
+}))
+
+
+export const ValidateProgramPolicyBody = zod.object({
+  "kind": zod.enum(['rulepack', 'payer_override', 'careplan_template', 'note_template']),
+  "program": zod.enum(['RPM', 'RTM', 'CCM', 'PCM', 'BHI']),
+  "version": zod.string(),
+  "payer": zod.string().optional(),
+  "effectiveFrom": zod.string(),
+  "sourceRef": zod.string().optional(),
+  "body": zod.record(zod.string(), zod.unknown())
+})
+
+export const ValidateProgramPolicyResponse = zod.object({
+  "valid": zod.boolean(),
+  "body": zod.record(zod.string(), zod.unknown()),
+  "warnings": zod.array(zod.string()),
+  "evidence": zod.array(zod.object({
+  "cpt": zod.string(),
+  "units": zod.number(),
+  "met": zod.boolean(),
+  "blockers": zod.array(zod.string()),
+  "minutes": zod.number(),
+  "deviceDays": zod.number()
+}))
+})
+
+
+export const GetProgramPolicyParams = zod.object({
+  "policyId": zod.coerce.string()
+})
+
+export const GetProgramPolicyResponse = zod.object({
+  "kind": zod.enum(['rulepack', 'payer_override', 'careplan_template', 'note_template']),
+  "program": zod.enum(['RPM', 'RTM', 'CCM', 'PCM', 'BHI']),
+  "version": zod.string(),
+  "payer": zod.string().optional(),
+  "effectiveFrom": zod.string(),
+  "sourceRef": zod.string().optional(),
+  "body": zod.record(zod.string(), zod.unknown())
+}).and(zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['bundled', 'draft', 'reviewed', 'published', 'retired']),
+  "immutable": zod.boolean(),
+  "fingerprint": zod.string(),
+  "provisional": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string(),
+  "reviewNote": zod.string(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
+  "publishedAt": zod.string().nullish(),
+  "retiredAt": zod.string().nullish(),
+  "enrollmentCount": zod.number().int().optional()
+}))
+
+
+export const UpdateProgramPolicyParams = zod.object({
+  "policyId": zod.coerce.string()
+})
+
+export const UpdateProgramPolicyBody = zod.object({
+  "kind": zod.enum(['rulepack', 'payer_override', 'careplan_template', 'note_template']),
+  "program": zod.enum(['RPM', 'RTM', 'CCM', 'PCM', 'BHI']),
+  "version": zod.string(),
+  "payer": zod.string().optional(),
+  "effectiveFrom": zod.string(),
+  "sourceRef": zod.string().optional(),
+  "body": zod.record(zod.string(), zod.unknown())
+})
+
+export const UpdateProgramPolicyResponse = zod.object({
+  "kind": zod.enum(['rulepack', 'payer_override', 'careplan_template', 'note_template']),
+  "program": zod.enum(['RPM', 'RTM', 'CCM', 'PCM', 'BHI']),
+  "version": zod.string(),
+  "payer": zod.string().optional(),
+  "effectiveFrom": zod.string(),
+  "sourceRef": zod.string().optional(),
+  "body": zod.record(zod.string(), zod.unknown())
+}).and(zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['bundled', 'draft', 'reviewed', 'published', 'retired']),
+  "immutable": zod.boolean(),
+  "fingerprint": zod.string(),
+  "provisional": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string(),
+  "reviewNote": zod.string(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
+  "publishedAt": zod.string().nullish(),
+  "retiredAt": zod.string().nullish(),
+  "enrollmentCount": zod.number().int().optional()
+}))
+
+
+export const ReviewProgramPolicyParams = zod.object({
+  "policyId": zod.coerce.string()
+})
+
+export const reviewProgramPolicyBodyNoteMin = 20;
+
+
+
+
+export const ReviewProgramPolicyBody = zod.object({
+  "note": zod.string().min(reviewProgramPolicyBodyNoteMin),
+  "sourceRef": zod.string().min(1),
+  "attested": zod.literal(true)
+})
+
+export const ReviewProgramPolicyResponse = zod.object({
+  "kind": zod.enum(['rulepack', 'payer_override', 'careplan_template', 'note_template']),
+  "program": zod.enum(['RPM', 'RTM', 'CCM', 'PCM', 'BHI']),
+  "version": zod.string(),
+  "payer": zod.string().optional(),
+  "effectiveFrom": zod.string(),
+  "sourceRef": zod.string().optional(),
+  "body": zod.record(zod.string(), zod.unknown())
+}).and(zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['bundled', 'draft', 'reviewed', 'published', 'retired']),
+  "immutable": zod.boolean(),
+  "fingerprint": zod.string(),
+  "provisional": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string(),
+  "reviewNote": zod.string(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
+  "publishedAt": zod.string().nullish(),
+  "retiredAt": zod.string().nullish(),
+  "enrollmentCount": zod.number().int().optional()
+}))
+
+
+export const PublishProgramPolicyParams = zod.object({
+  "policyId": zod.coerce.string()
+})
+
+export const publishProgramPolicyBodyReasonMin = 10;
+
+
+
+export const PublishProgramPolicyBody = zod.object({
+  "reason": zod.string().min(publishProgramPolicyBodyReasonMin)
+})
+
+export const PublishProgramPolicyResponse = zod.object({
+  "kind": zod.enum(['rulepack', 'payer_override', 'careplan_template', 'note_template']),
+  "program": zod.enum(['RPM', 'RTM', 'CCM', 'PCM', 'BHI']),
+  "version": zod.string(),
+  "payer": zod.string().optional(),
+  "effectiveFrom": zod.string(),
+  "sourceRef": zod.string().optional(),
+  "body": zod.record(zod.string(), zod.unknown())
+}).and(zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['bundled', 'draft', 'reviewed', 'published', 'retired']),
+  "immutable": zod.boolean(),
+  "fingerprint": zod.string(),
+  "provisional": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string(),
+  "reviewNote": zod.string(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
+  "publishedAt": zod.string().nullish(),
+  "retiredAt": zod.string().nullish(),
+  "enrollmentCount": zod.number().int().optional()
+}))
+
+
+export const RetireProgramPolicyParams = zod.object({
+  "policyId": zod.coerce.string()
+})
+
+export const retireProgramPolicyBodyReasonMin = 10;
+
+
+
+export const RetireProgramPolicyBody = zod.object({
+  "reason": zod.string().min(retireProgramPolicyBodyReasonMin)
+})
+
+export const RetireProgramPolicyResponse = zod.object({
+  "kind": zod.enum(['rulepack', 'payer_override', 'careplan_template', 'note_template']),
+  "program": zod.enum(['RPM', 'RTM', 'CCM', 'PCM', 'BHI']),
+  "version": zod.string(),
+  "payer": zod.string().optional(),
+  "effectiveFrom": zod.string(),
+  "sourceRef": zod.string().optional(),
+  "body": zod.record(zod.string(), zod.unknown())
+}).and(zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['bundled', 'draft', 'reviewed', 'published', 'retired']),
+  "immutable": zod.boolean(),
+  "fingerprint": zod.string(),
+  "provisional": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string(),
+  "reviewNote": zod.string(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
+  "publishedAt": zod.string().nullish(),
+  "retiredAt": zod.string().nullish(),
+  "enrollmentCount": zod.number().int().optional()
+}))
+
+
+export const CloneProgramPolicyParams = zod.object({
+  "policyId": zod.coerce.string()
+})
+
+export const CloneProgramPolicyBody = zod.object({
+  "version": zod.string(),
+  "effectiveFrom": zod.string()
+})
+
+export const CloneProgramPolicyResponse = zod.object({
+  "kind": zod.enum(['rulepack', 'payer_override', 'careplan_template', 'note_template']),
+  "program": zod.enum(['RPM', 'RTM', 'CCM', 'PCM', 'BHI']),
+  "version": zod.string(),
+  "payer": zod.string().optional(),
+  "effectiveFrom": zod.string(),
+  "sourceRef": zod.string().optional(),
+  "body": zod.record(zod.string(), zod.unknown())
+}).and(zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['bundled', 'draft', 'reviewed', 'published', 'retired']),
+  "immutable": zod.boolean(),
+  "fingerprint": zod.string(),
+  "provisional": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string(),
+  "reviewNote": zod.string(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
+  "publishedAt": zod.string().nullish(),
+  "retiredAt": zod.string().nullish(),
+  "enrollmentCount": zod.number().int().optional()
+}))
+
+
 export const HealthCheckResponse = zod.object({
   "status": zod.string()
 })
@@ -27,7 +659,9 @@ export const LoginResponse = zod.object({
   "email": zod.string(),
   "role": zod.string(),
   "credential": zod.string(),
-  "patientId": zod.string().nullish()
+  "patientId": zod.string().nullish(),
+  "locationScopes": zod.array(zod.string()).optional(),
+  "permissions": zod.array(zod.string()).optional()
 })
 
 
@@ -37,7 +671,9 @@ export const GetCurrentUserResponse = zod.object({
   "email": zod.string(),
   "role": zod.string(),
   "credential": zod.string(),
-  "patientId": zod.string().nullish()
+  "patientId": zod.string().nullish(),
+  "locationScopes": zod.array(zod.string()).optional(),
+  "permissions": zod.array(zod.string()).optional()
 })
 
 
@@ -87,6 +723,492 @@ export const LogoutResponse = zod.object({
   "updatedAt": zod.string()
 }))).optional(),
   "url": zod.string().optional()
+})
+
+
+export const requestPasswordResetBodyEmailMax = 254;
+
+
+
+export const RequestPasswordResetBody = zod.object({
+  "email": zod.string().email().max(requestPasswordResetBodyEmailMax)
+})
+
+
+
+
+
+export const RequestPasswordResetResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string(),
+  "record": zod.object({
+  "title": zod.string().min(1),
+  "patientId": zod.string().nullish(),
+  "program": zod.string().nullish(),
+  "status": zod.string(),
+  "severity": zod.string().optional(),
+  "description": zod.string().optional(),
+  "assignee": zod.string().optional(),
+  "date": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "patientName": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})).optional(),
+  "records": zod.array(zod.object({
+  "title": zod.string().min(1),
+  "patientId": zod.string().nullish(),
+  "program": zod.string().nullish(),
+  "status": zod.string(),
+  "severity": zod.string().optional(),
+  "description": zod.string().optional(),
+  "assignee": zod.string().optional(),
+  "date": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "patientName": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))).optional(),
+  "url": zod.string().optional()
+})
+
+
+export const resetPasswordBodyTokenMin = 64;
+export const resetPasswordBodyTokenMax = 64;
+
+export const resetPasswordBodyPasswordMin = 12;
+export const resetPasswordBodyPasswordMax = 128;
+
+
+
+export const ResetPasswordBody = zod.object({
+  "token": zod.string().min(resetPasswordBodyTokenMin).max(resetPasswordBodyTokenMax),
+  "password": zod.string().min(resetPasswordBodyPasswordMin).max(resetPasswordBodyPasswordMax)
+})
+
+
+
+
+
+export const ResetPasswordResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string(),
+  "record": zod.object({
+  "title": zod.string().min(1),
+  "patientId": zod.string().nullish(),
+  "program": zod.string().nullish(),
+  "status": zod.string(),
+  "severity": zod.string().optional(),
+  "description": zod.string().optional(),
+  "assignee": zod.string().optional(),
+  "date": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "patientName": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})).optional(),
+  "records": zod.array(zod.object({
+  "title": zod.string().min(1),
+  "patientId": zod.string().nullish(),
+  "program": zod.string().nullish(),
+  "status": zod.string(),
+  "severity": zod.string().optional(),
+  "description": zod.string().optional(),
+  "assignee": zod.string().optional(),
+  "date": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "patientName": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))).optional(),
+  "url": zod.string().optional()
+})
+
+
+export const changePasswordBodyCurrentPasswordMax = 128;
+
+export const changePasswordBodyPasswordMin = 12;
+export const changePasswordBodyPasswordMax = 128;
+
+
+
+export const ChangePasswordBody = zod.object({
+  "currentPassword": zod.string().min(1).max(changePasswordBodyCurrentPasswordMax),
+  "password": zod.string().min(changePasswordBodyPasswordMin).max(changePasswordBodyPasswordMax)
+})
+
+
+
+
+
+export const ChangePasswordResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string(),
+  "record": zod.object({
+  "title": zod.string().min(1),
+  "patientId": zod.string().nullish(),
+  "program": zod.string().nullish(),
+  "status": zod.string(),
+  "severity": zod.string().optional(),
+  "description": zod.string().optional(),
+  "assignee": zod.string().optional(),
+  "date": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "patientName": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})).optional(),
+  "records": zod.array(zod.object({
+  "title": zod.string().min(1),
+  "patientId": zod.string().nullish(),
+  "program": zod.string().nullish(),
+  "status": zod.string(),
+  "severity": zod.string().optional(),
+  "description": zod.string().optional(),
+  "assignee": zod.string().optional(),
+  "date": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "patientName": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))).optional(),
+  "url": zod.string().optional()
+})
+
+
+export const ListSessionsResponseItem = zod.object({
+  "id": zod.string(),
+  "createdAt": zod.string(),
+  "lastSeenAt": zod.string(),
+  "expiresAt": zod.string(),
+  "current": zod.boolean()
+})
+export const ListSessionsResponse = zod.array(ListSessionsResponseItem)
+
+
+export const RevokeSessionParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+
+
+
+
+export const RevokeSessionResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string(),
+  "record": zod.object({
+  "title": zod.string().min(1),
+  "patientId": zod.string().nullish(),
+  "program": zod.string().nullish(),
+  "status": zod.string(),
+  "severity": zod.string().optional(),
+  "description": zod.string().optional(),
+  "assignee": zod.string().optional(),
+  "date": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "patientName": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})).optional(),
+  "records": zod.array(zod.object({
+  "title": zod.string().min(1),
+  "patientId": zod.string().nullish(),
+  "program": zod.string().nullish(),
+  "status": zod.string(),
+  "severity": zod.string().optional(),
+  "description": zod.string().optional(),
+  "assignee": zod.string().optional(),
+  "date": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "patientName": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))).optional(),
+  "url": zod.string().optional()
+})
+
+
+export const ListAccountsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "credential": zod.string(),
+  "patientId": zod.string().nullish(),
+  "locationScopes": zod.array(zod.string()).optional(),
+  "permissions": zod.array(zod.string()).optional()
+}).and(zod.object({
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "lastLoginAt": zod.string().nullish(),
+  "lockedUntil": zod.string().nullish()
+}))
+export const ListAccountsResponse = zod.array(ListAccountsResponseItem)
+
+
+export const createAccountBodyNameMax = 100;
+
+export const createAccountBodyEmailMax = 254;
+
+
+export const createAccountBodyLocationScopesMax = 100;
+
+
+
+export const CreateAccountBody = zod.object({
+  "name": zod.string().min(1).max(createAccountBodyNameMax),
+  "email": zod.string().email().max(createAccountBodyEmailMax),
+  "role": zod.enum(['admin', 'clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only', 'patient']),
+  "credential": zod.enum(['MD', 'DO', 'NP', 'PA', 'RN', 'LPN', 'MA', 'PT', 'OT', 'SLP', 'LCSW', 'psych_consultant', 'admin', 'billing', 'patient']),
+  "patientId": zod.string().nullish(),
+  "locationScopes": zod.array(zod.string().min(1)).max(createAccountBodyLocationScopesMax)
+})
+
+export const CreateAccountResponse = zod.object({
+  "account": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "credential": zod.string(),
+  "patientId": zod.string().nullish(),
+  "locationScopes": zod.array(zod.string()).optional(),
+  "permissions": zod.array(zod.string()).optional()
+}).and(zod.object({
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "lastLoginAt": zod.string().nullish(),
+  "lockedUntil": zod.string().nullish()
+})),
+  "path": zod.string(),
+  "expiresAt": zod.string(),
+  "delivery": zod.string()
+})
+
+
+export const UpdateAccountParams = zod.object({
+  "accountId": zod.coerce.string()
+})
+
+export const updateAccountBodyNameMax = 100;
+
+
+export const updateAccountBodyLocationScopesMax = 100;
+
+
+
+export const UpdateAccountBody = zod.object({
+  "name": zod.string().min(1).max(updateAccountBodyNameMax).optional(),
+  "role": zod.enum(['admin', 'clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only', 'patient']).optional(),
+  "credential": zod.enum(['MD', 'DO', 'NP', 'PA', 'RN', 'LPN', 'MA', 'PT', 'OT', 'SLP', 'LCSW', 'psych_consultant', 'admin', 'billing', 'patient']).optional(),
+  "status": zod.enum(['active', 'inactive']).optional(),
+  "locationScopes": zod.array(zod.string().min(1)).max(updateAccountBodyLocationScopesMax).optional()
+})
+
+export const UpdateAccountResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "credential": zod.string(),
+  "patientId": zod.string().nullish(),
+  "locationScopes": zod.array(zod.string()).optional(),
+  "permissions": zod.array(zod.string()).optional()
+}).and(zod.object({
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "lastLoginAt": zod.string().nullish(),
+  "lockedUntil": zod.string().nullish()
+}))
+
+
+export const IssueAccountInvitationParams = zod.object({
+  "accountId": zod.coerce.string()
+})
+
+export const IssueAccountInvitationResponse = zod.object({
+  "account": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "credential": zod.string(),
+  "patientId": zod.string().nullish(),
+  "locationScopes": zod.array(zod.string()).optional(),
+  "permissions": zod.array(zod.string()).optional()
+}).and(zod.object({
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "lastLoginAt": zod.string().nullish(),
+  "lockedUntil": zod.string().nullish()
+})),
+  "path": zod.string(),
+  "expiresAt": zod.string(),
+  "delivery": zod.string()
+})
+
+
+export const ListJobsResponseItem = zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "status": zod.string(),
+  "attempts": zod.number().int(),
+  "maxAttempts": zod.number().int(),
+  "runAt": zod.string(),
+  "createdAt": zod.string(),
+  "finishedAt": zod.string().nullish(),
+  "error": zod.string().nullish(),
+  "result": zod.record(zod.string(), zod.unknown())
+})
+export const ListJobsResponse = zod.array(ListJobsResponseItem)
+
+
+export const EnqueueMaintenanceBody = zod.object({
+  "kind": zod.enum(['rule_sweep', 'task_materialize', 'notifications'])
+})
+
+export const EnqueueMaintenanceResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "status": zod.string(),
+  "attempts": zod.number().int(),
+  "maxAttempts": zod.number().int(),
+  "runAt": zod.string(),
+  "createdAt": zod.string(),
+  "finishedAt": zod.string().nullish(),
+  "error": zod.string().nullish(),
+  "result": zod.record(zod.string(), zod.unknown())
+})
+
+
+export const RetryJobParams = zod.object({
+  "jobId": zod.coerce.string()
+})
+
+export const RetryJobResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "status": zod.string(),
+  "attempts": zod.number().int(),
+  "maxAttempts": zod.number().int(),
+  "runAt": zod.string(),
+  "createdAt": zod.string(),
+  "finishedAt": zod.string().nullish(),
+  "error": zod.string().nullish(),
+  "result": zod.record(zod.string(), zod.unknown())
+})
+
+
+export const ListIngestInboxResponseItem = zod.object({
+  "id": zod.string(),
+  "source": zod.string(),
+  "eventId": zod.string(),
+  "deviceId": zod.string(),
+  "status": zod.string(),
+  "signatureValid": zod.boolean(),
+  "receivedAt": zod.string(),
+  "processedAt": zod.string().nullish(),
+  "error": zod.string().nullish()
+})
+export const ListIngestInboxResponse = zod.array(ListIngestInboxResponseItem)
+
+
+export const SimulateDeviceWebhookBody = zod.object({
+  "deviceId": zod.string(),
+  "pattern": zod.enum(['normal', 'critical', 'invalid'])
+})
+
+export const SimulateDeviceWebhookResponse = zod.object({
+  "id": zod.string(),
+  "source": zod.string(),
+  "eventId": zod.string(),
+  "deviceId": zod.string(),
+  "status": zod.string(),
+  "signatureValid": zod.boolean(),
+  "receivedAt": zod.string(),
+  "processedAt": zod.string().nullish(),
+  "error": zod.string().nullish()
+})
+
+
+export const ReceiveDeviceWebhookHeader = zod.object({
+  "x-mahalo-timestamp": zod.string(),
+  "x-mahalo-signature": zod.string()
+})
+
+export const receiveDeviceWebhookBodyEventIdMax = 120;
+
+export const receiveDeviceWebhookBodyDeviceSerialMax = 120;
+
+export const receiveDeviceWebhookBodyReadingsItemUnitMax = 30;
+
+export const receiveDeviceWebhookBodyReadingsMax = 100;
+
+
+
+export const ReceiveDeviceWebhookBody = zod.object({
+  "eventId": zod.string().min(1).max(receiveDeviceWebhookBodyEventIdMax),
+  "deviceSerial": zod.string().min(1).max(receiveDeviceWebhookBodyDeviceSerialMax),
+  "readings": zod.array(zod.object({
+  "loinc": zod.enum(['8480-6', '8462-4', '29463-7', '2339-0', '8867-4', '59408-5']),
+  "value": zod.number(),
+  "unit": zod.string().max(receiveDeviceWebhookBodyReadingsItemUnitMax),
+  "measuredAt": zod.coerce.date(),
+  "diastolic": zod.number().optional()
+})).min(1).max(receiveDeviceWebhookBodyReadingsMax)
+})
+
+export const ReceiveDeviceWebhookResponse = zod.object({
+  "id": zod.string(),
+  "source": zod.string(),
+  "eventId": zod.string(),
+  "deviceId": zod.string(),
+  "status": zod.string(),
+  "signatureValid": zod.boolean(),
+  "receivedAt": zod.string(),
+  "processedAt": zod.string().nullish(),
+  "error": zod.string().nullish()
 })
 
 
@@ -186,6 +1308,8 @@ export const ListPatientsQueryParams = zod.object({
 
 
 
+export const listPatientsResponseOneCommunicationPreferencesQuietHoursStartRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listPatientsResponseOneCommunicationPreferencesQuietHoursEndRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 
 
 export const ListPatientsResponseItem = zod.object({
@@ -197,11 +1321,21 @@ export const ListPatientsResponseItem = zod.object({
   "phone": zod.string().optional(),
   "location": zod.string(),
   "timezone": zod.string().optional(),
-  "status": zod.string().optional(),
+  "status": zod.enum(['active', 'inactive']).optional(),
   "conditions": zod.array(zod.string()).optional(),
   "medications": zod.array(zod.string()).optional(),
   "payer": zod.string().optional(),
-  "careManager": zod.string().optional()
+  "careManager": zod.string().optional(),
+  "communicationPreferences": zod.object({
+  "email": zod.boolean(),
+  "sms": zod.boolean(),
+  "push": zod.boolean(),
+  "quietHours": zod.object({
+  "enabled": zod.boolean(),
+  "start": zod.string().regex(listPatientsResponseOneCommunicationPreferencesQuietHoursStartRegExp).describe('Inclusive start in the patient\'s timezone'),
+  "end": zod.string().regex(listPatientsResponseOneCommunicationPreferencesQuietHoursEndRegExp).describe('Exclusive end in the patient\'s timezone; must differ from start')
+}).optional()
+}).optional()
 }).and(zod.object({
   "id": zod.string(),
   "mrn": zod.string(),
@@ -218,6 +1352,8 @@ export const ListPatientsResponse = zod.array(ListPatientsResponseItem)
 
 
 
+export const createPatientBodyCommunicationPreferencesQuietHoursStartRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createPatientBodyCommunicationPreferencesQuietHoursEndRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 
 
 export const CreatePatientBody = zod.object({
@@ -229,15 +1365,27 @@ export const CreatePatientBody = zod.object({
   "phone": zod.string().optional(),
   "location": zod.string(),
   "timezone": zod.string().optional(),
-  "status": zod.string().optional(),
+  "status": zod.enum(['active', 'inactive']).optional(),
   "conditions": zod.array(zod.string()).optional(),
   "medications": zod.array(zod.string()).optional(),
   "payer": zod.string().optional(),
-  "careManager": zod.string().optional()
+  "careManager": zod.string().optional(),
+  "communicationPreferences": zod.object({
+  "email": zod.boolean(),
+  "sms": zod.boolean(),
+  "push": zod.boolean(),
+  "quietHours": zod.object({
+  "enabled": zod.boolean(),
+  "start": zod.string().regex(createPatientBodyCommunicationPreferencesQuietHoursStartRegExp).describe('Inclusive start in the patient\'s timezone'),
+  "end": zod.string().regex(createPatientBodyCommunicationPreferencesQuietHoursEndRegExp).describe('Exclusive end in the patient\'s timezone; must differ from start')
+}).optional()
+}).optional()
 })
 
 
 
+export const createPatientResponseOneCommunicationPreferencesQuietHoursStartRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createPatientResponseOneCommunicationPreferencesQuietHoursEndRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 
 
 export const CreatePatientResponse = zod.object({
@@ -249,11 +1397,21 @@ export const CreatePatientResponse = zod.object({
   "phone": zod.string().optional(),
   "location": zod.string(),
   "timezone": zod.string().optional(),
-  "status": zod.string().optional(),
+  "status": zod.enum(['active', 'inactive']).optional(),
   "conditions": zod.array(zod.string()).optional(),
   "medications": zod.array(zod.string()).optional(),
   "payer": zod.string().optional(),
-  "careManager": zod.string().optional()
+  "careManager": zod.string().optional(),
+  "communicationPreferences": zod.object({
+  "email": zod.boolean(),
+  "sms": zod.boolean(),
+  "push": zod.boolean(),
+  "quietHours": zod.object({
+  "enabled": zod.boolean(),
+  "start": zod.string().regex(createPatientResponseOneCommunicationPreferencesQuietHoursStartRegExp).describe('Inclusive start in the patient\'s timezone'),
+  "end": zod.string().regex(createPatientResponseOneCommunicationPreferencesQuietHoursEndRegExp).describe('Exclusive end in the patient\'s timezone; must differ from start')
+}).optional()
+}).optional()
 }).and(zod.object({
   "id": zod.string(),
   "mrn": zod.string(),
@@ -273,6 +1431,8 @@ export const GetPatientParams = zod.object({
 
 
 
+export const getPatientResponsePatientOneCommunicationPreferencesQuietHoursStartRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getPatientResponsePatientOneCommunicationPreferencesQuietHoursEndRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 
 
 
@@ -286,11 +1446,21 @@ export const GetPatientResponse = zod.object({
   "phone": zod.string().optional(),
   "location": zod.string(),
   "timezone": zod.string().optional(),
-  "status": zod.string().optional(),
+  "status": zod.enum(['active', 'inactive']).optional(),
   "conditions": zod.array(zod.string()).optional(),
   "medications": zod.array(zod.string()).optional(),
   "payer": zod.string().optional(),
-  "careManager": zod.string().optional()
+  "careManager": zod.string().optional(),
+  "communicationPreferences": zod.object({
+  "email": zod.boolean(),
+  "sms": zod.boolean(),
+  "push": zod.boolean(),
+  "quietHours": zod.object({
+  "enabled": zod.boolean(),
+  "start": zod.string().regex(getPatientResponsePatientOneCommunicationPreferencesQuietHoursStartRegExp).describe('Inclusive start in the patient\'s timezone'),
+  "end": zod.string().regex(getPatientResponsePatientOneCommunicationPreferencesQuietHoursEndRegExp).describe('Exclusive end in the patient\'s timezone; must differ from start')
+}).optional()
+}).optional()
 }).and(zod.object({
   "id": zod.string(),
   "mrn": zod.string(),
@@ -330,26 +1500,40 @@ export const UpdatePatientParams = zod.object({
 
 
 
+export const updatePatientBodyCommunicationPreferencesQuietHoursStartRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updatePatientBodyCommunicationPreferencesQuietHoursEndRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 
 
 export const UpdatePatientBody = zod.object({
-  "firstName": zod.string().min(1),
-  "lastName": zod.string().min(1),
-  "dob": zod.string(),
+  "firstName": zod.string().min(1).optional(),
+  "lastName": zod.string().min(1).optional(),
+  "dob": zod.string().optional(),
   "sex": zod.string().optional(),
   "email": zod.string().optional(),
   "phone": zod.string().optional(),
-  "location": zod.string(),
+  "location": zod.string().optional(),
   "timezone": zod.string().optional(),
-  "status": zod.string().optional(),
+  "status": zod.enum(['active', 'inactive']).optional(),
   "conditions": zod.array(zod.string()).optional(),
   "medications": zod.array(zod.string()).optional(),
   "payer": zod.string().optional(),
-  "careManager": zod.string().optional()
+  "careManager": zod.string().optional(),
+  "communicationPreferences": zod.object({
+  "email": zod.boolean(),
+  "sms": zod.boolean(),
+  "push": zod.boolean(),
+  "quietHours": zod.object({
+  "enabled": zod.boolean(),
+  "start": zod.string().regex(updatePatientBodyCommunicationPreferencesQuietHoursStartRegExp).describe('Inclusive start in the patient\'s timezone'),
+  "end": zod.string().regex(updatePatientBodyCommunicationPreferencesQuietHoursEndRegExp).describe('Exclusive end in the patient\'s timezone; must differ from start')
+}).optional()
+}).optional()
 })
 
 
 
+export const updatePatientResponseOneCommunicationPreferencesQuietHoursStartRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updatePatientResponseOneCommunicationPreferencesQuietHoursEndRegExp = new RegExp('^(?:[01][0-9]|2[0-3]):[0-5][0-9]$');
 
 
 export const UpdatePatientResponse = zod.object({
@@ -361,11 +1545,21 @@ export const UpdatePatientResponse = zod.object({
   "phone": zod.string().optional(),
   "location": zod.string(),
   "timezone": zod.string().optional(),
-  "status": zod.string().optional(),
+  "status": zod.enum(['active', 'inactive']).optional(),
   "conditions": zod.array(zod.string()).optional(),
   "medications": zod.array(zod.string()).optional(),
   "payer": zod.string().optional(),
-  "careManager": zod.string().optional()
+  "careManager": zod.string().optional(),
+  "communicationPreferences": zod.object({
+  "email": zod.boolean(),
+  "sms": zod.boolean(),
+  "push": zod.boolean(),
+  "quietHours": zod.object({
+  "enabled": zod.boolean(),
+  "start": zod.string().regex(updatePatientResponseOneCommunicationPreferencesQuietHoursStartRegExp).describe('Inclusive start in the patient\'s timezone'),
+  "end": zod.string().regex(updatePatientResponseOneCommunicationPreferencesQuietHoursEndRegExp).describe('Exclusive end in the patient\'s timezone; must differ from start')
+}).optional()
+}).optional()
 }).and(zod.object({
   "id": zod.string(),
   "mrn": zod.string(),
@@ -377,6 +1571,130 @@ export const UpdatePatientResponse = zod.object({
   "adherence": zod.number().int(),
   "createdAt": zod.string()
 }))
+
+
+export const ListPatientAttachmentsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListPatientAttachmentsResponseItem = zod.object({
+  "id": zod.string(),
+  "patientId": zod.string(),
+  "filename": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "mimeType": zod.string(),
+  "status": zod.enum(['awaiting_upload', 'quarantined', 'released_demo', 'rejected', 'revoked', 'canceled']),
+  "sha256": zod.string().nullable(),
+  "uploadedBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "reviewedBy": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewReason": zod.string().nullable(),
+  "validationError": zod.string().nullable(),
+  "canCancel": zod.boolean(),
+  "canReview": zod.boolean(),
+  "canDownload": zod.boolean()
+})
+export const ListPatientAttachmentsResponse = zod.array(ListPatientAttachmentsResponseItem)
+
+
+export const RequestPatientAttachmentUploadParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const requestPatientAttachmentUploadBodyFilenameMax = 120;
+
+export const requestPatientAttachmentUploadBodySizeBytesMax = 1048576;
+
+
+
+export const RequestPatientAttachmentUploadBody = zod.object({
+  "uploadId": zod.string().uuid(),
+  "filename": zod.string().min(1).max(requestPatientAttachmentUploadBodyFilenameMax),
+  "sizeBytes": zod.number().int().min(1).max(requestPatientAttachmentUploadBodySizeBytesMax),
+  "mimeType": zod.enum(['application/pdf'])
+})
+
+export const RequestPatientAttachmentUploadResponse = zod.object({
+  "attachmentId": zod.string(),
+  "uploadURL": zod.string().nullable(),
+  "expiresAt": zod.coerce.date(),
+  "alreadyComplete": zod.boolean()
+})
+
+
+export const CompletePatientAttachmentParams = zod.object({
+  "id": zod.coerce.string(),
+  "attachmentId": zod.coerce.string()
+})
+
+export const CompletePatientAttachmentResponse = zod.object({
+  "id": zod.string(),
+  "patientId": zod.string(),
+  "filename": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "mimeType": zod.string(),
+  "status": zod.enum(['awaiting_upload', 'quarantined', 'released_demo', 'rejected', 'revoked', 'canceled']),
+  "sha256": zod.string().nullable(),
+  "uploadedBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "reviewedBy": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewReason": zod.string().nullable(),
+  "validationError": zod.string().nullable(),
+  "canCancel": zod.boolean(),
+  "canReview": zod.boolean(),
+  "canDownload": zod.boolean()
+})
+
+
+export const ReviewPatientAttachmentParams = zod.object({
+  "id": zod.coerce.string(),
+  "attachmentId": zod.coerce.string()
+})
+
+export const reviewPatientAttachmentBodyReasonMin = 20;
+export const reviewPatientAttachmentBodyReasonMax = 2000;
+
+
+
+export const ReviewPatientAttachmentBody = zod.object({
+  "decision": zod.enum(['release_demo', 'reject', 'revoke', 'cancel']),
+  "reason": zod.string().min(reviewPatientAttachmentBodyReasonMin).max(reviewPatientAttachmentBodyReasonMax),
+  "expectedUpdatedAt": zod.coerce.date(),
+  "syntheticSourceConfirmed": zod.boolean().optional(),
+  "unscannedRiskAcknowledged": zod.boolean().optional()
+})
+
+export const ReviewPatientAttachmentResponse = zod.object({
+  "id": zod.string(),
+  "patientId": zod.string(),
+  "filename": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "mimeType": zod.string(),
+  "status": zod.enum(['awaiting_upload', 'quarantined', 'released_demo', 'rejected', 'revoked', 'canceled']),
+  "sha256": zod.string().nullable(),
+  "uploadedBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "reviewedBy": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewReason": zod.string().nullable(),
+  "validationError": zod.string().nullable(),
+  "canCancel": zod.boolean(),
+  "canReview": zod.boolean(),
+  "canDownload": zod.boolean()
+})
+
+
+export const DownloadPatientAttachmentParams = zod.object({
+  "id": zod.coerce.string(),
+  "attachmentId": zod.coerce.string()
+})
+
+export const DownloadPatientAttachmentResponse = zod.unknown()
 
 
 export const ListRecordsParams = zod.object({
@@ -453,6 +1771,35 @@ export const CreateRecordResponse = zod.object({
 }))
 
 
+export const GetRecordParams = zod.object({
+  "kind": zod.enum(['programs', 'enrollments', 'consents', 'careplans', 'observations', 'exceptions', 'tasks', 'time', 'notes', 'devices', 'messages', 'interactions', 'billing', 'rules', 'templates', 'locations', 'staff', 'instruments', 'responses', 'education', 'integrations', 'drafts', 'notifications', 'audit']),
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const GetRecordResponse = zod.object({
+  "title": zod.string().min(1),
+  "patientId": zod.string().nullish(),
+  "program": zod.string().nullish(),
+  "status": zod.string(),
+  "severity": zod.string().optional(),
+  "description": zod.string().optional(),
+  "assignee": zod.string().optional(),
+  "date": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "patientName": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+
+
 export const UpdateRecordParams = zod.object({
   "kind": zod.enum(['programs', 'enrollments', 'consents', 'careplans', 'observations', 'exceptions', 'tasks', 'time', 'notes', 'devices', 'messages', 'interactions', 'billing', 'rules', 'templates', 'locations', 'staff', 'instruments', 'responses', 'education', 'integrations', 'drafts', 'notifications', 'audit']),
   "id": zod.coerce.string()
@@ -462,7 +1809,8 @@ export const UpdateRecordParams = zod.object({
 
 
 export const UpdateRecordBody = zod.object({
-  "title": zod.string().min(1),
+  "expectedUpdatedAt": zod.coerce.date().optional().describe('Timestamp from the record being edited. A stale write returns 409.'),
+  "title": zod.string().min(1).optional(),
   "patientId": zod.string().nullish(),
   "program": zod.string().nullish(),
   "status": zod.string().optional(),
@@ -500,7 +1848,7 @@ export const UpdateRecordResponse = zod.object({
 
 
 export const PerformActionBody = zod.object({
-  "action": zod.enum(['enroll', 'pauseEnrollment', 'discharge', 'signPlan', 'signNote', 'acknowledge', 'resolve', 'dismiss', 'commitTime', 'voidTime', 'startTimer', 'stopTimer', 'completeTask', 'submitCheckin', 'recordAdherence', 'simulateReading', 'calculateBilling', 'closePeriod', 'reopenPeriod', 'approveLine', 'rejectLine', 'draftSummary', 'acceptDraft', 'rejectDraft', 'syncEhr', 'testIntegration', 'createVideo', 'importConfiguration', 'importPatients', 'evaluateRules', 'testRule', 'generateTasks', 'revokeConsent', 'draftNote', 'draftMessage', 'prioritizeQueue', 'suggestTime']),
+  "action": zod.enum(['enroll', 'pauseEnrollment', 'discharge', 'signPlan', 'reviewPlan', 'signNote', 'discardDraft', 'restoreDraft', 'acknowledge', 'resolve', 'dismiss', 'commitTime', 'voidTime', 'startTimer', 'stopTimer', 'discardTimer', 'completeTask', 'submitCheckin', 'acknowledgeEducation', 'recordAdherence', 'updatePreferences', 'disconnectDevice', 'simulateReading', 'calculateBilling', 'closePeriod', 'reopenPeriod', 'approveLine', 'bulkApproveLines', 'rejectLine', 'draftSummary', 'acceptDraft', 'rejectDraft', 'syncEhr', 'testIntegration', 'createVideo', 'importConfiguration', 'importPatients', 'evaluateRules', 'testRule', 'generateTasks', 'revokeConsent', 'draftNote', 'draftMessage', 'prioritizeQueue', 'suggestTime']),
   "id": zod.string().optional(),
   "patientId": zod.string().optional(),
   "program": zod.string().optional(),
@@ -676,6 +2024,14 @@ export const ExportDataParams = zod.object({
   "kind": zod.enum(['billing', 'patients', 'audit', 'configuration'])
 })
 
+export const exportDataQueryPeriodRegExp = new RegExp('^\\d{4}-(0[1-9]|1[0-2])$');
+
+
+export const ExportDataQueryParams = zod.object({
+  "period": zod.coerce.string().regex(exportDataQueryPeriodRegExp).optional(),
+  "format": zod.enum(['csv', 'xlsx']).optional()
+})
+
 export const ExportDataResponse = zod.string()
 
 
@@ -684,5 +2040,46 @@ export const DownloadDocumentParams = zod.object({
 })
 
 export const DownloadDocumentResponse = zod.unknown()
+
+
+export const ListDocumentVersionsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListDocumentVersionsResponseItem = zod.object({
+  "id": zod.string(),
+  "recordId": zod.string(),
+  "version": zod.number().int(),
+  "sourceVersion": zod.string(),
+  "origin": zod.string(),
+  "sha256": zod.string(),
+  "sourceHash": zod.string(),
+  "size": zod.number().int(),
+  "contentType": zod.string(),
+  "storageBackend": zod.string(),
+  "createdAt": zod.string(),
+  "createdBy": zod.string()
+})
+export const ListDocumentVersionsResponse = zod.array(ListDocumentVersionsResponseItem)
+
+
+export const DownloadDocumentVersionParams = zod.object({
+  "id": zod.coerce.string(),
+  "versionId": zod.coerce.string()
+})
+
+export const DownloadDocumentVersionResponse = zod.unknown()
+
+
+export const GetDocumentSourceParams = zod.object({
+  "id": zod.coerce.string(),
+  "versionId": zod.coerce.string()
+})
+
+export const GetDocumentSourceResponse = zod.object({
+  "documentId": zod.string(),
+  "sourceHash": zod.string(),
+  "source": zod.record(zod.string(), zod.unknown())
+})
 
 

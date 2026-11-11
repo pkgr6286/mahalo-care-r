@@ -1,9 +1,11 @@
+import { FileStack } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import { Pencil, Plus } from "lucide-react";
 import { useGetDashboard, useListPatients, useListRecords, type Patient } from "@workspace/api-client-react";
 import { Btn, EmptyState, ErrorState, PageHeader, Panel, ProgramTag, RecordDialog, SkeletonRows, StatusPill, inputCls, useRecordDialog } from "@/components/kit";
 import { EnrollDialog } from "@/pages/patient-detail";
+import { usePermission } from "@/components/access";
 import { fmtDate, mStr, PROGRAM_NAMES } from "@/lib/api";
 
 export default function ProgramsPage() {
@@ -15,10 +17,13 @@ export default function ProgramsPage() {
   const [pick, setPick] = useState("");
   const [enrollFor, setEnrollFor] = useState<Patient | null>(null);
   const [filter, setFilter] = useState("");
+  const { allow } = usePermission();
+  const isAdmin = allow();
+  const canEnroll = allow("clinical.write");
 
   return (
     <div>
-      <PageHeader eyebrow="Programs" title="Care programs" desc="RPM, RTM, CCM, PCM and BHI share one patient record. Requirement thresholds are provisional defaults pending compliance review." actions={<Btn onClick={dlg.create} data-testid="button-new-program"><Plus className="h-4 w-4" />Program config</Btn>} />
+      <PageHeader eyebrow="Programs" title="Care programs" desc="RPM, RTM, CCM, PCM and BHI share one patient record. Requirement thresholds are provisional defaults pending compliance review." actions={<div className="flex flex-wrap gap-2"><Link href="/policies" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-card px-4 text-sm font-medium hover:bg-secondary" data-testid="link-policies"><FileStack className="h-4 w-4" />Policies and templates</Link>{isAdmin && <Btn onClick={dlg.create} data-testid="button-new-program"><Plus className="h-4 w-4" />Program config</Btn>}</div>} />
       {dash.isLoading ? <SkeletonRows rows={3} /> : dash.isError ? <ErrorState error={dash.error} onRetry={() => dash.refetch()} /> : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {dash.data!.programStats.map((p) => (
@@ -32,7 +37,7 @@ export default function ProgramsPage() {
         </div>
       )}
       <div className="mt-5 grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-        <Panel title={`Enrollments${filter ? ` · ${filter}` : ""}`} bodyClass="p-0" action={
+        <Panel title={`Enrollments${filter ? ` · ${filter}` : ""}`} bodyClass="p-0" action={canEnroll &&
           <div className="flex gap-2">
             <select className={`${inputCls} h-7 w-48 text-xs`} value={pick} onChange={(e) => setPick(e.target.value)} data-testid="select-enroll-patient">
               <option value="">Choose patient to enroll</option>
@@ -56,10 +61,10 @@ export default function ProgramsPage() {
             </div>
           )}
         </Panel>
-        <Panel title="Program configuration" sub="Provisional defaults, editable">
+        <Panel title="Program configuration" sub={isAdmin ? "Provisional defaults, editable" : "Provisional defaults · administrators edit"}>
           {programs.isLoading ? <SkeletonRows rows={3} /> : (programs.data ?? []).map((p) => (
             <div key={p.id} className="border-b border-border py-2.5 last:border-b-0">
-              <div className="flex items-center gap-2 text-sm font-medium"><ProgramTag p={p.program ?? p.title} />{PROGRAM_NAMES[(p.program ?? "").toUpperCase()] ?? p.title}<StatusPill value={p.status} /><button className="ml-auto text-muted-foreground hover:text-foreground" onClick={() => dlg.edit(p)} aria-label="Edit" data-testid={`button-edit-program-${p.id}`}><Pencil className="h-3.5 w-3.5" /></button></div>
+              <div className="flex items-center gap-2 text-sm font-medium"><ProgramTag p={p.program ?? p.title} />{PROGRAM_NAMES[(p.program ?? "").toUpperCase()] ?? p.title}<StatusPill value={p.status} />{isAdmin && <button className="ml-auto text-muted-foreground hover:text-foreground" onClick={() => dlg.edit(p)} aria-label={`Edit ${p.program ?? p.title} configuration`} data-testid={`button-edit-program-${p.id}`}><Pencil className="h-3.5 w-3.5" /></button>}</div>
               {p.description && <p className="mt-1 text-xs text-muted-foreground">{p.description}</p>}
             </div>
           ))}

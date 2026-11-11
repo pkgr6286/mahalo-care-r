@@ -55,6 +55,13 @@ test("RTM supply and management boundaries",()=>{
   assert.equal(evidence({program:"RTM",minutes:10},"98979").met,true);
   assert.equal(evidence({program:"RTM",minutes:20},"98980").met,true);
 });
+test("Respiratory RTM uses distinct mutually exclusive supply codes",()=>{
+  const short=evaluateBilling({...base,program:"RTM",rtmVariant:"respiratory",deviceDays:15});
+  assert.equal(short.find(e=>e.cpt==="98984")?.met,true);
+  assert.equal(short.find(e=>e.cpt==="98976")?.met,false);
+  assert.ok(!short.some(e=>["98985","98977"].includes(e.cpt)));
+  assert.equal(evaluateBilling({...base,program:"RTM",rtmVariant:"respiratory",deviceDays:16}).find(e=>e.cpt==="98976")?.met,true);
+});
 test("CCM requires two conditions",()=>{
   assert.equal(evidence({program:"CCM",conditionCount:1},"99490").met,false);
   assert.equal(evidence({program:"CCM",conditionCount:2},"99490").met,true);

@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { openai, pLimit } from "@workspace/integrations-openai-ai-server";
+import pLimit from "p-limit";
 import { addRecord, getPatientRow, allRecords, writeAudit, type Actor } from "./store";
 import { AppError } from "./errors";
 import type { Action } from "./actions";
+import {buildNumericEvidence,assessNumericText} from "./ai-quality";
 
 const limiter=pLimit(2), lastRequest=new Map<string,number>();
 const resultSchema=z.object({text:z.string().min(1).max(18000),reviewWarnings:z.array(z.string()).max(15)});
@@ -14,13 +15,16 @@ export function isLiveDraft(a:Action) {return capabilities.has(a.action)&&a.payl
 export async function generateLiveDraft(actor:Actor,a:Action) {
   if(process.env.DATA_CLASS&&process.env.DATA_CLASS!=="synthetic") throw new AppError(403,"This AI adapter is restricted to synthetic development data");
   if(a.payload?.syntheticConfirmed!==true) throw new AppError(400,"Confirm that the chart contains synthetic demo data only");
+  if(limiter.pendingCount>=6) throw new AppError(503,"AI drafting is busy. Retry later; no draft or clinical record has been created.");
   if(Date.now()-(lastRequest.get(actor.id)||0)<10000) throw new AppError(429,"Wait ten seconds between live AI requests");
   lastRequest.set(actor.id,Date.now());
   const patient=await getPatientRow(db,a.patientId), records=(await allRecords(db)).filter(r=>r.patientId===patient.id);
   const sources=records.filter(r=>["careplans","observations","exceptions","interactions","responses","time","notes"].includes(r.kind)).slice(0,45);
+  const numericEvidence=buildNumericEvidence(sources,patient.medications);
   const context={
     synthetic:true,conditions:patient.conditions,medications:patient.medications,
-    sourceRecords:sources.map(r=>({id:r.id,kind:r.kind,title:r.title,status:r.status,date:r.date,value:r.value,unit:r.unit,description:r.description.slice(0,1500)})),
+    sourceRecords:sources.map(r=>({id:r.id,kind:r.kind,title:r.title,status:r.status,date:r.date,value:r.value,unit:r.unit,description:r.description.slice(0,1500),valid:r.metadata.valid!==false,diastolic:typeof r.metadata.diastolic==="number"?r.metadata.diastolic:undefined,instrument:typeof r.metadata.instrument==="string"?r.metadata.instrument:undefined})),
+    numericFacts:numericEvidence.facts,
   };
   const instructions=[
     "You draft documentation for an entirely synthetic care-management demonstration.",
@@ -32,11 +36,13 @@ export async function generateLiveDraft(actor:Actor,a:Action) {
     "For prioritizeQueue: list existing exceptions by configured severity and age, with source IDs; do not independently assign a diagnosis or acuity.",
     "For draftMessage: use supportive non-clinical language and ask the care team to review; do not include record IDs in patient-facing text.",
     "For summaries/notes: distinguish signed plans from drafts and resolved exceptions from current concerns.",
+    "The supplied context is bounded, not the complete chart. State that limitation. Preserve numeric values and units exactly; do not infer missing quantities.",
     "Return JSON text and reviewWarnings. Always warn that clinician review is required and this is not autonomous clinical advice.",
   ].join("\n");
   const prompt=JSON.stringify({capability:a.action,program:a.program||null,context});
   const requestHash=createHash("sha256").update(instructions+prompt).digest("hex"),started=Date.now();
   try {
+    const {openai}=await import("@workspace/integrations-openai-ai-server");
     const response=await limiter(()=>openai.chat.completions.create({
       model:"gpt-5.4-mini",max_completion_tokens:8192,
       messages:[{role:"system",content:instructions},{role:"user",content:prompt}],
@@ -47,9 +53,10 @@ export async function generateLiveDraft(actor:Actor,a:Action) {
     const content=response.choices[0]?.message.content;
     if(!content) throw new Error("The provider returned no draft content");
     const parsed=resultSchema.parse(JSON.parse(content));
+    const numericCheck=assessNumericText(parsed.text,numericEvidence);
     return db.transaction(async s=>addRecord(s,"drafts",{
       title:`${a.action} · AI draft`,patientId:patient.id,program:a.program,status:"pending",description:parsed.text,
-      metadata:{capability:a.action,provider:"replit-openai",model:response.model,promptVersion:"synthetic-drafting.1",sourceIds:sources.map(r=>r.id),requestHash,responseHash:createHash("sha256").update(content).digest("hex"),reviewRequired:true,reviewWarnings:parsed.reviewWarnings,usage:response.usage||{},generationMs:Date.now()-started,synthetic:true},
+      metadata:{capability:a.action,provider:"replit-openai",model:response.model,promptVersion:"synthetic-drafting.2",sourceIds:sources.map(r=>r.id),sourceSnapshot:context,numericEvidence,numericCheck,requestHash,responseHash:createHash("sha256").update(content).digest("hex"),reviewRequired:true,reviewWarnings:[...parsed.reviewWarnings,"Bounded synthetic context only; clinician review is required. Source quantity checks do not establish clinical correctness.",...(numericCheck.unsupported.length?["Some recognized numeric claims do not match the frozen sources. Edit them or document an explicit human review exception."]:[])],usage:response.usage||{},generationMs:Date.now()-started,synthetic:true},
     },actor));
   } catch {
     await writeAudit(db,actor,"ai_draft_failed","practice",patient.id,{capability:a.action,requestHash});

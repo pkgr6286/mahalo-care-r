@@ -355,3 +355,11 @@
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
   .lift:hover { transform: none; }
 }
+
+/* Workspace density (set on AppShell root via data-density, persisted per user) */
+:root { --wl-py: 0.7rem; --wl-text: 13.5px; }
+[data-density="compact"] { --wl-py: 0.3rem; --wl-text: 12.5px; }
+.wl-cell { padding-top: var(--wl-py); padding-bottom: var(--wl-py); font-size: var(--wl-text); line-height: 1.35; }
+[data-density="compact"] main { padding-top: 1.25rem; padding-bottom: 1.25rem; }
+[data-density="compact"] [data-testid^="row-exception-"],
+[data-density="compact"] [data-testid^="row-task-"] { padding-top: 0.375rem; padding-bottom: 0.375rem; }

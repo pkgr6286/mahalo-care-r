@@ -5,6 +5,8 @@
  * Mahalo Care single-practice synthetic-data demo API
  * OpenAPI spec version: 1.0.0
  */
+import type { CommunicationPreferences } from './communicationPreferences';
+import type { PatientInputStatus } from './patientInputStatus';
 
 export interface PatientInput {
   /** @minLength 1 */
@@ -17,9 +19,10 @@ export interface PatientInput {
   phone?: string;
   location: string;
   timezone?: string;
-  status?: string;
+  status?: PatientInputStatus;
   conditions?: string[];
   medications?: string[];
   payer?: string;
   careManager?: string;
+  communicationPreferences?: CommunicationPreferences;
 }

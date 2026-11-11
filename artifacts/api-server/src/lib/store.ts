@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import { and, eq, desc } from "drizzle-orm";
 import { db, records, patients, audit, type RecordRow, type PatientRow } from "@workspace/db";
 import { requireValue, AppError } from "./errors";
+import { latestPatientContact } from "./patient-contact";
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type Store = Pick<typeof db, "select" | "insert" | "update" | "delete" | "execute">;
-export type Actor = { id: string; name: string; role: string; credential: string; email: string; patientId?: string | null };
+export type Actor = { id: string; name: string; role: string; credential: string; email: string; patientId?: string | null; locationScopes?: string[]; permissions?: string[] };
 export type RecordInput = {
   title: string; patientId?: string | null; program?: string | null; status?: string;
   severity?: string; description?: string; assignee?: string; date?: string;
@@ -59,7 +60,7 @@ export function patientView(p: PatientRow, rs: RecordRow[]) {
   const mine = rs.filter(r => r.patientId === p.id);
   const es = mine.filter(r => r.kind === "enrollments" && r.status === "active");
   const open = mine.filter(r => r.kind === "exceptions" && ["open", "acknowledged"].includes(r.status));
-  const contact = mine.filter(r => r.kind === "interactions" && r.status === "completed").sort((a,b) => b.date.localeCompare(a.date))[0];
+  const contact = latestPatientContact(mine);
   const cutoff = now().slice(0,7);
   const committed = mine.filter(r => r.kind === "time" && r.status === "committed" && r.date.startsWith(cutoff));
   const observations = mine.filter(r => r.kind === "observations" && r.metadata.valid !== false && r.date.startsWith(cutoff));
@@ -68,7 +69,7 @@ export function patientView(p: PatientRow, rs: RecordRow[]) {
   return {
     ...p, createdAt: p.createdAt.toISOString(), programs: [...new Set(es.map(e => e.program || ""))],
     risk: open.some(e => e.severity === "critical") ? "critical" : open.some(e => e.severity === "high") ? "high" : open.length ? "medium" : "low",
-    lastContact: contact?.date || p.createdAt.toISOString(),
+    lastContact: contact,
     minutes: committed.reduce((n,r) => n + r.value,0), deviceDays: days,
     adherence: tasks.length ? Math.round(tasks.filter(t => t.status === "completed").length / tasks.length * 100) : 0,
   };

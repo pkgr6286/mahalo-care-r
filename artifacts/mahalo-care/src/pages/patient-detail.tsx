@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft, Ban, ListChecks, CalendarDays, FileDown, FileSignature, FileText, Gauge, Pause, Pencil, Play, Plus, RefreshCw, Send, Sparkles, Square, Video, X,
+  ArrowLeft, Ban, ListChecks, CalendarDays, FileDown, FileSignature, FileText, Gauge, Pause, Pencil, Play, Plus, RefreshCw, Send, Sparkles, Square, Video,
 } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
@@ -13,18 +13,26 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import {
   Btn, ConfirmButton, EmptyState, ErrorState, Field, Panel, Pill, ProgramTag, RecordDialog, SimLabel, SkeletonRows, StatusPill, Tabs, inputCls, toneFor, useRecordDialog,
 } from "@/components/kit";
+import { ReadOnlyHint, usePermission } from "@/components/access";
 import { ExceptionRow, TaskRow, isOpen } from "@/components/records";
 import { DocButton } from "@/components/doc-viewer";
-import { errMsg, fmtDate, fmtDateTime, fmtRel, initials, mArr, mBool, mNum, mStr, PROGRAMS, PROGRAM_NAMES, ACTIVITIES, activityLabel, useAction, useSaveRecord } from "@/lib/api";
+import { DraftLifecycle } from "@/components/draft-lifecycle";
+import { DraftCard } from "@/components/ai/draft-card";
+import { PatientAttachments } from "@/components/attachments/patient-attachments";
+import { CarePlansSection } from "@/components/careplan-editor";
+import { EhrTab } from "@/components/ehr-context";
+import {EnrollmentPolicySummary,useEnrollmentPolicy} from "@/components/enrollment-policy";
+import {NoteEditor} from "@/components/note-editor";
+import { errMsg, fmtDate, fmtDateTime, fmtRel, initials, mBool, mNum, mStr, PROGRAMS, PROGRAM_NAMES, ACTIVITIES, activityLabel, useAction, useSaveRecord } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-type Tab = "timeline" | "readings" | "careplans" | "enrollment" | "notes" | "time" | "messages" | "work";
+type Tab = "timeline" | "readings" | "careplans" | "enrollment" | "notes" | "time" | "messages" | "work" | "ehr" | "files";
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const q = useGetPatient(id);
-  const [tab, setTab] = useState<Tab>("timeline");
+  const [tab, setTab] = useState<Tab>(() => (new URLSearchParams(window.location.search).get("tab") === "time" ? "time" : "timeline"));
 
   if (q.isLoading) return <div className="space-y-4"><div className="h-28 animate-pulse rounded-xl bg-muted" /><SkeletonRows rows={6} /></div>;
   if (q.isError || !q.data) return <ErrorState error={q.error ?? new Error("Patient not found")} onRetry={() => q.refetch()} />;
@@ -49,6 +57,8 @@ export default function PatientDetailPage() {
           { id: "notes", label: "Notes", count: by("notes").length },
           { id: "time", label: "Time", count: by("time").length },
           { id: "messages", label: "Messages & EHR", count: by("messages").length },
+          { id: "ehr", label: "EHR context" },
+          { id: "files", label: "Files" },
         ]}
       />
       <div className="mt-5" key={tab}>
@@ -60,6 +70,8 @@ export default function PatientDetailPage() {
         {tab === "notes" && <NotesTab p={p} notes={by("notes")} drafts={by("drafts")} />}
         {tab === "time" && <TimeTab p={p} time={by("time")} />}
         {tab === "messages" && <MessagesTab p={p} messages={by("messages")} interactions={by("interactions")} />}
+        {tab === "ehr" && <EhrTab p={p} interactions={by("interactions")} />}
+        {tab === "files" && <PatientAttachments patientId={p.id} audience="staff" />}
       </div>
     </div>
   );
@@ -73,6 +85,7 @@ function age(dob: string) {
 
 /* ---------------- Header ---------------- */
 function PatientHeader({ p, records }: { p: Patient; records: CareRecord[] }) {
+  const { allow } = usePermission();
   const running = records.find((r) => r.kind === "time" && r.status === "running");
   const [edit, setEdit] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
@@ -102,11 +115,11 @@ function PatientHeader({ p, records }: { p: Patient; records: CareRecord[] }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {running ? <RunningTimer r={running} /> : <Btn variant="navy" onClick={() => setTimerOpen(true)} data-testid="button-start-timer"><Play className="h-3.5 w-3.5" />Start timer</Btn>}
-          <ConfirmButton size="md" label="Sync EHR" icon={<RefreshCw className="h-3.5 w-3.5" />} title="Sync with EHR (simulated)" desc="Pulls problems, medications and encounters from the simulated EHR connector. No live EHR is connected in this demo." confirmLabel="Run sync" pending={pending} onConfirm={(_, close) => run({ action: "syncEhr", patientId: p.id }, close)} testid="button-sync-ehr" />
-          <ConfirmButton size="md" label="Evaluate rules" icon={<Gauge className="h-3.5 w-3.5" />} title="Evaluate rules now" desc="Runs every active rule against this patient's current readings, check-ins and contact gaps. New exceptions appear in the worklist." confirmLabel="Evaluate" pending={pending} onConfirm={(_, close) => run({ action: "evaluateRules", patientId: p.id }, close)} testid="button-evaluate-rules" />
-          <ConfirmButton size="md" label="Generate tasks" icon={<ListChecks className="h-3.5 w-3.5" />} title="Generate follow-up tasks" desc="Creates tasks for missing evidence: unsigned plans, consent gaps, device days and time thresholds." confirmLabel="Generate" pending={pending} onConfirm={(_, close) => run({ action: "generateTasks", patientId: p.id }, close)} testid="button-generate-tasks" />
-          <Btn onClick={() => setEdit(true)} data-testid="button-edit-patient"><Pencil className="h-3.5 w-3.5" />Edit</Btn>
+          {running ? <RunningTimer r={running} /> : allow("time.write") && <Btn variant="navy" onClick={() => setTimerOpen(true)} data-testid="button-start-timer"><Play className="h-3.5 w-3.5" />Start timer</Btn>}
+          {allow("clinical.write") && <ConfirmButton size="md" label="Sync EHR" icon={<RefreshCw className="h-3.5 w-3.5" />} title="Sync with EHR (simulated)" desc="Pulls problems, medications and encounters from the simulated EHR connector. No live EHR is connected in this demo." confirmLabel="Run sync" pending={pending} onConfirm={(_, close) => run({ action: "syncEhr", patientId: p.id }, close)} testid="button-sync-ehr" />}
+          {allow("clinical.write") && <ConfirmButton size="md" label="Evaluate rules" icon={<Gauge className="h-3.5 w-3.5" />} title="Evaluate rules now" desc="Runs every active rule against this patient's current readings, check-ins and contact gaps. New exceptions appear in the worklist." confirmLabel="Evaluate" pending={pending} onConfirm={(_, close) => run({ action: "evaluateRules", patientId: p.id }, close)} testid="button-evaluate-rules" />}
+          {allow("clinical.write") && <ConfirmButton size="md" label="Generate tasks" icon={<ListChecks className="h-3.5 w-3.5" />} title="Generate follow-up tasks" desc="Creates tasks for missing evidence: unsigned plans, consent gaps, device days and time thresholds." confirmLabel="Generate" pending={pending} onConfirm={(_, close) => run({ action: "generateTasks", patientId: p.id }, close)} testid="button-generate-tasks" />}
+          {allow("patients.write") && <Btn onClick={() => setEdit(true)} data-testid="button-edit-patient"><Pencil className="h-3.5 w-3.5" />Edit</Btn>}
         </div>
       </div>
       <div className="grid grid-cols-2 border-t border-border sm:grid-cols-4">
@@ -114,7 +127,7 @@ function PatientHeader({ p, records }: { p: Patient; records: CareRecord[] }) {
           { l: "Minutes this month", v: p.minutes },
           { l: "Device days", v: `${p.deviceDays}/16` },
           { l: "Adherence", v: `${p.adherence}%` },
-          { l: "Last contact", v: fmtRel(p.lastContact) },
+          { l: "Last contact", v: p.lastContact ? fmtRel(p.lastContact) : "No contact recorded" },
         ].map((s, i) => (
           <div key={s.l} className={cn("px-5 py-3", i > 0 && "sm:border-l border-border", i % 2 === 1 && "border-l")}>
             <div className="text-[11px] text-muted-foreground">{s.l}</div>
@@ -129,6 +142,7 @@ function PatientHeader({ p, records }: { p: Patient; records: CareRecord[] }) {
 }
 
 function RunningTimer({ r }: { r: CareRecord }) {
+  const { allow, user } = usePermission();
   const { run, pending } = useAction();
   const started = new Date(mStr(r, "startedAt") || r.createdAt).getTime();
   const [now, setNow] = useState(Date.now());
@@ -144,7 +158,7 @@ function RunningTimer({ r }: { r: CareRecord }) {
       <span className="h-2 w-2 rounded-full bg-primary pulse-dot" />
       <span className="tnum font-mono text-sm font-medium text-accent-foreground">{mm}:{ss}</span>
       <span className="text-xs text-muted-foreground">{activityLabel(mStr(r, "activity")) || r.title} · {r.program}</span>
-      <Btn variant="primary" disabled={pending} onClick={() => run({ action: "stopTimer", id: r.id })} data-testid="button-stop-timer"><Square className="h-3 w-3" />Stop</Btn>
+      {allow("time.write") && mStr(r, "userId") === user?.id && <Btn variant="primary" disabled={pending} onClick={() => run({ action: "stopTimer", id: r.id })} data-testid="button-stop-timer"><Square className="h-3 w-3" />Stop</Btn>}
     </div>
   );
 }
@@ -201,7 +215,7 @@ function EditPatientDialog({ p, open, onOpenChange }: { p: Patient; open: boolea
             <Field label="First name"><input className={inputCls} value={v.firstName} onChange={set("firstName")} required data-testid="input-edit-first" /></Field>
             <Field label="Last name"><input className={inputCls} value={v.lastName} onChange={set("lastName")} required data-testid="input-edit-last" /></Field>
             <Field label="Date of birth"><input type="date" className={inputCls} value={v.dob} onChange={set("dob")} required /></Field>
-            <Field label="Status"><select className={inputCls} value={v.status} onChange={set("status")} data-testid="select-edit-status">{["active", "paused", "pending", "discharged"].map((s) => <option key={s}>{s}</option>)}</select></Field>
+            <Field label="Status" hint="Pause or discharge individual programs in Enrollments."><select className={inputCls} value={v.status} onChange={set("status")} data-testid="select-edit-status">{["active", "inactive"].map((s) => <option key={s}>{s}</option>)}</select></Field>
             <Field label="Email"><input className={inputCls} value={v.email} onChange={set("email")} /></Field>
             <Field label="Phone"><input className={inputCls} value={v.phone} onChange={set("phone")} /></Field>
             <Field label="Location"><input className={inputCls} value={v.location} onChange={set("location")} required /></Field>
@@ -275,11 +289,12 @@ function Timeline({ records }: { records: CareRecord[] }) {
 
 /* ---------------- Work ---------------- */
 function WorkTab({ p, ex, tasks }: { p: Patient; ex: CareRecord[]; tasks: CareRecord[] }) {
+  const { allow } = usePermission();
   const dlg = useRecordDialog();
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       <Panel title="Exceptions" bodyClass="py-1">{ex.length ? ex.map((r) => <ExceptionRow key={r.id} r={r} showPatient={false} />) : <div className="py-3"><EmptyState title="No exceptions" /></div>}</Panel>
-      <Panel title="Tasks" action={<Btn size="sm" onClick={dlg.create} data-testid="button-add-task"><Plus className="h-3.5 w-3.5" />Task</Btn>} bodyClass="py-1">
+      <Panel title="Tasks" action={allow("clinical.write") ? <Btn size="sm" onClick={dlg.create} data-testid="button-add-task"><Plus className="h-3.5 w-3.5" />Task</Btn> : undefined} bodyClass="py-1">
         {tasks.length ? tasks.map((r) => <TaskRow key={r.id} r={r} showPatient={false} />) : <div className="py-3"><EmptyState title="No tasks" /></div>}
       </Panel>
       <RecordDialog open={dlg.open} onOpenChange={dlg.onOpenChange} kind="tasks" title="New task" fields={["program", "assignee", "date", "description"]} defaults={{ patientId: p.id, status: "open" }} />
@@ -289,6 +304,7 @@ function WorkTab({ p, ex, tasks }: { p: Patient; ex: CareRecord[]; tasks: CareRe
 
 /* ---------------- Readings ---------------- */
 function ReadingsTab({ p, obs, devices }: { p: Patient; obs: CareRecord[]; devices: CareRecord[] }) {
+  const { allow } = usePermission();
   const sorted = [...obs].sort((a, b) => (a.date ?? a.createdAt).localeCompare(b.date ?? b.createdAt));
   const data = sorted.map((r) => ({ label: fmtDate(r.date ?? r.createdAt, "MMM d"), sys: r.value, dia: mNum(r, "diastolic") }));
   const [sys, setSys] = useState("142");
@@ -320,7 +336,7 @@ function ReadingsTab({ p, obs, devices }: { p: Patient; obs: CareRecord[]; devic
             <Field label="Systolic"><input type="number" className={inputCls} value={sys} onChange={(e) => setSys(e.target.value)} data-testid="input-systolic" /></Field>
             <Field label="Diastolic"><input type="number" className={inputCls} value={dia} onChange={(e) => setDia(e.target.value)} data-testid="input-diastolic" /></Field>
           </div>
-          <Btn variant="primary" className="mt-3 w-full" disabled={pending || !sys || !dia} onClick={() => run({ action: "simulateReading", patientId: p.id, program: "RPM", payload: { systolic: Number(sys), diastolic: Number(dia) } })} data-testid="button-simulate-reading">Submit reading</Btn>
+          {allow("devices.write") ? <Btn variant="primary" className="mt-3 w-full" disabled={pending || !sys || !dia} onClick={() => run({ action: "simulateReading", patientId: p.id, program: "RPM", payload: { systolic: Number(sys), diastolic: Number(dia) } })} data-testid="button-simulate-reading">Submit reading</Btn> : <p className="mt-3 text-xs text-muted-foreground" data-testid="hint-no-simulate">Sending readings needs device access.</p>}
         </Panel>
         <Panel title="Devices">
           {devices.length ? devices.map((d) => (
@@ -348,70 +364,24 @@ function ReadingsTab({ p, obs, devices }: { p: Patient; obs: CareRecord[]; devic
 
 /* ---------------- Care plans ---------------- */
 function CarePlansTab({ p, plans }: { p: Patient; plans: CareRecord[] }) {
-  const dlg = useRecordDialog();
-  const { run, pending } = useAction();
-  const sorted = [...plans].sort((a, b) => (mNum(b, "version") ?? 0) - (mNum(a, "version") ?? 0));
-  return (
-    <div>
-      <div className="mb-3 flex justify-end"><Btn variant="primary" onClick={dlg.create} data-testid="button-new-careplan"><Plus className="h-4 w-4" />New care plan</Btn></div>
-      {!sorted.length ? <EmptyState title="No care plan yet" desc="CCM, PCM and BHI require a signed, comprehensive plan before time can bill." action={<Btn variant="primary" onClick={dlg.create}>Draft a plan</Btn>} /> : (
-        <div className="space-y-4">
-          {sorted.map((c) => {
-            const signed = c.status === "signed" || c.status === "active";
-            const draft = c.status === "draft";
-            return (
-              <Panel key={c.id} title={<span className="flex items-center gap-2">{c.title} <ProgramTag p={c.program} /> <StatusPill value={c.status} /> <span className="text-xs font-normal text-muted-foreground">v{mStr(c, "version") || 1}</span></span>}
-                sub={signed ? `Signed by ${mStr(c, "signedBy")} on ${fmtDate(mStr(c, "signedAt"))}` : `Review every ${mStr(c, "reviewDays") || "90"} days`}
-                action={<>
-                  {signed && <DocButton r={c} />}
-                  <Btn size="sm" onClick={() => dlg.edit(c)} data-testid={`button-edit-plan-${c.id}`}><Pencil className="h-3.5 w-3.5" />{signed ? "Revise as draft" : "Edit"}</Btn>
-                  {draft && <ConfirmButton label="Sign" icon={<FileSignature className="h-3.5 w-3.5" />} variant="primary" title="Sign care plan" desc="Signing attests the plan is comprehensive and was shared with the patient. Description, goals and interventions must be complete." confirmLabel="Sign plan" pending={pending} onConfirm={(_, close) => run({ action: "signPlan", id: c.id }, close)} testid={`button-sign-plan-${c.id}`} />}
-                </>}
-              >
-                {c.description && <p className="mb-4 text-sm text-foreground/85">{c.description}</p>}
-                <div className="grid gap-4 md:grid-cols-2">
-                  {(["goals", "interventions"] as const).map((k) => (
-                    <div key={k}>
-                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{k}</div>
-                      {mArr(c, k).length ? <ul className="space-y-1">{mArr(c, k).map((g, i) => <li key={i} className="flex gap-2 text-sm"><span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-primary" />{g}</li>)}</ul> : <p className="text-xs text-destructive">Missing. Required to sign.</p>}
-                    </div>
-                  ))}
-                </div>
-              </Panel>
-            );
-          })}
-        </div>
-      )}
-      <RecordDialog
-        open={dlg.open}
-        onOpenChange={dlg.onOpenChange}
-        kind="careplans"
-        record={dlg.record}
-        title={dlg.record ? (dlg.record.status === "draft" ? "Edit care plan" : "Revise signed care plan") : "New care plan"}
-        overrideStatus={dlg.record && dlg.record.status !== "draft" ? "draft" : undefined}
-        fields={["program", "description"]}
-        descLabel="Assessment and summary"
-        defaults={{ patientId: p.id, status: "draft", program: p.programs[0] ?? "CCM", metadata: { version: 1, reviewDays: 90 } }}
-        meta={[{ key: "goals", label: "Goals", type: "list" }, { key: "interventions", label: "Interventions", type: "list" }, { key: "reviewDays", label: "Review interval (days)", type: "number" }]}
-      />
-    </div>
-  );
+  return <CarePlansSection p={p} plans={plans} />;
 }
 
 /* ---------------- Enrollment ---------------- */
 function EnrollmentTab({ p, enrollments, consents }: { p: Patient; enrollments: CareRecord[]; consents: CareRecord[] }) {
+  const { allow } = usePermission();
   const [open, setOpen] = useState(false);
   const { run, pending } = useAction();
   return (
     <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-      <Panel title="Program enrollments" action={<Btn size="sm" variant="primary" onClick={() => setOpen(true)} data-testid="button-enroll"><Plus className="h-3.5 w-3.5" />Enroll</Btn>} bodyClass="p-0">
+      <Panel title="Program enrollments" action={allow("clinical.write") ? <Btn size="sm" variant="primary" onClick={() => setOpen(true)} data-testid="button-enroll"><Plus className="h-3.5 w-3.5" />Enroll</Btn> : undefined} bodyClass="p-0">
         {enrollments.length ? enrollments.map((e) => (
           <div key={e.id} className="flex flex-col gap-2 border-b border-border px-4 py-3 last:border-b-0 sm:flex-row sm:items-center" data-testid={`row-enrollment-${e.id}`}>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-sm font-medium"><ProgramTag p={e.program} />{PROGRAM_NAMES[e.program ?? ""] ?? e.title}<StatusPill value={e.status} /></div>
               <div className="text-xs text-muted-foreground">Since {fmtDate(e.date ?? e.createdAt)}{mStr(e, "billingProvider") && ` · Billing ${mStr(e, "billingProvider")}`}{mStr(e, "condition") && ` · ${mStr(e, "condition")}`}</div>
             </div>
-            {e.status === "active" && (
+            {allow("clinical.write") && e.status === "active" && (
               <div className="flex gap-1.5">
                 <ConfirmButton label="Pause" icon={<Pause className="h-3.5 w-3.5" />} title={`Pause ${e.program}`} desc="Paused enrollments stop accruing billable time until resumed." confirmLabel="Pause" pending={pending} onConfirm={(_, close) => run({ action: "pauseEnrollment", id: e.id }, close)} testid={`button-pause-${e.id}`} />
                 <ConfirmButton label="Discharge" icon={<Ban className="h-3.5 w-3.5" />} variant="danger" title={`Discharge from ${e.program}`} desc="The patient leaves this program. Open work for the program will close." reason confirmLabel="Discharge" pending={pending} onConfirm={(reason, close) => run({ action: "discharge", id: e.id, reason }, close)} testid={`button-discharge-${e.id}`} />
@@ -424,7 +394,7 @@ function EnrollmentTab({ p, enrollments, consents }: { p: Patient; enrollments: 
         {consents.length ? consents.map((c) => (
           <div key={c.id} className="flex items-center justify-between border-b border-border py-2 text-sm last:border-b-0" data-testid={`row-consent-${c.id}`}>
             <div><div className="flex items-center gap-2">{c.title}<ProgramTag p={c.program} /></div><div className="text-xs text-muted-foreground">{fmtDate(c.date ?? c.createdAt)} · {mStr(c, "method") || "verbal"}</div></div>
-            <div className="flex items-center gap-1.5"><StatusPill value={c.status} /><DocButton r={c} />{!["revoked", "withdrawn"].includes(c.status) && <ConfirmButton label="Revoke" variant="danger" title="Revoke consent" desc="Revoking stops billable activity under this consent. The patient's enrollment for this program will need new consent." reason confirmLabel="Revoke consent" pending={pending} onConfirm={(reason, close) => run({ action: "revokeConsent", id: c.id, reason }, close)} testid={`button-revoke-${c.id}`} />}</div>
+            <div className="flex items-center gap-1.5"><StatusPill value={c.status} /><DocButton r={c} />{allow("clinical.write") && !["revoked", "withdrawn"].includes(c.status) && <ConfirmButton label="Revoke" variant="danger" title="Revoke consent" desc="Revoking stops billable activity under this consent. The patient's enrollment for this program will need new consent." reason confirmLabel="Revoke consent" pending={pending} onConfirm={(reason, close) => run({ action: "revokeConsent", id: c.id, reason }, close)} testid={`button-revoke-${c.id}`} />}</div>
           </div>
         )) : <p className="text-xs text-muted-foreground">No consents on file.</p>}
       </Panel>
@@ -438,29 +408,46 @@ export function EnrollDialog({ p, open, onOpenChange }: { p: Patient; open: bool
   const [condition, setCondition] = useState(p.conditions?.[0] ?? "");
   const [provider, setProvider] = useState("");
   const [consent, setConsent] = useState(false);
+  const [consentMethod, setConsentMethod] = useState<"verbal" | "written" | "electronic">("verbal");
+  const [variant, setVariant] = useState("msk");
+  const [deviceSharing,setDeviceSharing]=useState(false);
+  const [conditionMonths,setConditionMonths]=useState("");
+  const [initiatingVisit,setInitiatingVisit]=useState("");
+  const policy=useEnrollmentPolicy(program,open);
+  useEffect(()=>{setConsent(false);setDeviceSharing(false);},[program,policy.selected?.id]);
   const { run, pending } = useAction();
   const staff = useListRecords("staff", { query: { enabled: open, queryKey: getListRecordsQueryKey("staff") } });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90dvh] max-w-md overflow-y-auto">
         <DialogHeader><DialogTitle>Enroll {p.firstName} in a program</DialogTitle><DialogDescription>Consent must be documented before enrollment is accepted.</DialogDescription></DialogHeader>
         <div className="space-y-3">
           <Field label="Program"><select className={inputCls} value={program} onChange={(e) => setProgram(e.target.value)} data-testid="select-enroll-program">{PROGRAMS.map((g) => <option key={g} value={g} disabled={p.programs.includes(g)}>{g} · {PROGRAM_NAMES[g]}</option>)}</select></Field>
           <Field label="Qualifying condition"><input className={inputCls} value={condition} onChange={(e) => setCondition(e.target.value)} data-testid="input-enroll-condition" /></Field>
+          {(program==="PCM"||policy.conditionMonths>0)&&<Field label="Qualifying condition duration" hint={policy.conditionMonths?`At least ${policy.conditionMonths} months required by this policy`:"Months of the qualifying condition"}><input type="number" min={1} className={inputCls} value={conditionMonths} onChange={e=>setConditionMonths(e.target.value)} data-testid="input-condition-months"/></Field>}
+          <Field label="Initiating visit date" hint={policy.visitMonths?`Required within ${policy.visitMonths} months`:"Optional unless required by the selected policy"}><input type="date" max={new Date().toISOString().slice(0,10)} className={inputCls} value={initiatingVisit} onChange={e=>setInitiatingVisit(e.target.value)} data-testid="input-initiating-visit"/></Field>
+          {program === "RTM" && <Field label="Therapeutic data stream"><select className={inputCls} value={variant} onChange={e=>setVariant(e.target.value)} data-testid="select-rtm-variant"><option value="msk">Musculoskeletal</option><option value="respiratory">Respiratory</option></select></Field>}
           <Field label="Billing provider">
             <select className={inputCls} value={provider} onChange={(e) => setProvider(e.target.value)} data-testid="select-billing-provider">
               <option value="">Practice default</option>
               {(staff.data ?? []).map((s) => <option key={s.id} value={s.title}>{s.title}</option>)}
             </select>
           </Field>
+          {policy.query.isError?<ErrorState error={policy.query.error} onRetry={()=>policy.query.refetch()}/>:<EnrollmentPolicySummary selected={policy.selected}/>}
           <label className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm">
             <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]" checked={consent} onChange={(e) => setConsent(e.target.checked)} data-testid="checkbox-consent" />
-            <span>Patient gave informed consent, including cost-sharing, and understands they may stop at any time.</span>
+            <span>Patient gave informed consent, including cost-sharing, and understands they may stop at any time.<span className="mt-1 block text-[11px] text-muted-foreground">Staff attestation recorded under your name with the consent text version and time. Not a verified cryptographic patient e-signature.</span></span>
           </label>
+          <Field label="Consent method">
+            <select className={inputCls} value={consentMethod} onChange={(e) => setConsentMethod(e.target.value as "verbal" | "written" | "electronic")} data-testid="select-consent-method">
+              <option value="verbal">Verbal</option><option value="written">Written</option><option value="electronic">Electronic</option>
+            </select>
+          </Field>
+          {policy.requiresDeviceSharing&&<label className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]" checked={deviceSharing} onChange={e=>setDeviceSharing(e.target.checked)} data-testid="checkbox-device-sharing"/><span>Patient explicitly consents to sharing device or app monitoring data with the care team.</span></label>}
         </div>
         <DialogFooter>
           <Btn variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Btn>
-          <Btn variant="primary" disabled={!consent || pending} onClick={() => run({ action: "enroll", patientId: p.id, program, payload: { consent: true, condition: condition || undefined, billingProvider: provider || undefined } }, () => { onOpenChange(false); setConsent(false); })} data-testid="button-confirm-enroll">Enroll</Btn>
+          <Btn variant="primary" disabled={!consent||pending||!policy.selected||policy.query.isError||(policy.requiresDeviceSharing&&!deviceSharing)||(policy.conditionMonths>0&&Number(conditionMonths)<policy.conditionMonths)||(policy.visitMonths>0&&!initiatingVisit)} onClick={() => run({ action: "enroll", patientId: p.id, program, payload: { consent: true,consentMethod,rulepackId:policy.selected?.id,deviceSharing,conditionDurationMonths:conditionMonths?Number(conditionMonths):undefined,initiatingVisitAt:initiatingVisit||undefined, condition: condition || undefined, billingProvider: provider || undefined, ...(program==="RTM"?{variant}:{}) } }, () => { onOpenChange(false); setConsent(false); })} data-testid="button-confirm-enroll">Enroll</Btn>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -469,6 +456,7 @@ export function EnrollDialog({ p, open, onOpenChange }: { p: Patient; open: bool
 
 /* ---------------- Notes ---------------- */
 function NotesTab({ p, notes, drafts }: { p: Patient; notes: CareRecord[]; drafts: CareRecord[] }) {
+  const { allow } = usePermission();
   const dlg = useRecordDialog();
   const { run, pending } = useAction();
   const pendingDrafts = drafts.filter((d) => !["accepted", "rejected"].includes(d.status));
@@ -476,15 +464,16 @@ function NotesTab({ p, notes, drafts }: { p: Patient; notes: CareRecord[]; draft
     <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
       <div className="space-y-3">
         <div className="flex justify-end gap-2">
-          <AssistChooser p={p} />
-          <Btn variant="primary" onClick={dlg.create} data-testid="button-new-note"><Plus className="h-4 w-4" />New note</Btn>
+          {allow("clinical.write") && <AssistChooser p={p} />}
+          {allow("clinical.write") && <Btn variant="primary" onClick={dlg.create} data-testid="button-new-note"><Plus className="h-4 w-4" />New note</Btn>}
         </div>
         {!notes.length ? <EmptyState icon={<FileText className="h-4 w-4" />} title="No notes" /> : [...notes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((n) => (
           <Panel key={n.id} title={<span className="flex items-center gap-2">{n.title}<ProgramTag p={n.program} /><StatusPill value={n.status} /></span>} sub={`${n.assignee ?? "Care team"} · ${fmtDateTime(n.date ?? n.createdAt)}`}
             action={<>
-              {n.status !== "signed" && <Btn size="sm" onClick={() => dlg.edit(n)} data-testid={`button-edit-note-${n.id}`}><Pencil className="h-3.5 w-3.5" /></Btn>}
-              {n.status !== "signed" && <ConfirmButton label="Sign" icon={<FileSignature className="h-3.5 w-3.5" />} variant="primary" title="Sign note" desc="Signed notes are locked. Addenda require a new note." confirmLabel="Sign" pending={pending} onConfirm={(_, close) => run({ action: "signNote", id: n.id }, close)} testid={`button-sign-note-${n.id}`} />}
-              {n.status === "signed" && <DocButton r={n} />}
+              <DraftLifecycle r={n} />
+              {allow("clinical.write") && n.status !== "cancelled" && <Btn size="sm" onClick={() => dlg.edit(n)} data-testid={`button-edit-note-${n.id}`}><Pencil className="h-3.5 w-3.5" />{n.status==="signed"?"Addendum":"Edit"}</Btn>}
+              {allow("notes.sign") && n.status === "draft" && <ConfirmButton label="Sign" icon={<FileSignature className="h-3.5 w-3.5" />} variant="primary" title="Sign note" desc="Signed notes are locked. Addenda require a new note." confirmLabel="Sign" pending={pending} onConfirm={(_, close) => run({ action: "signNote", id: n.id, payload: { expectedUpdatedAt: n.updatedAt } }, close)} testid={`button-sign-note-${n.id}`} />}
+              {n.status !== "draft" && <DocButton r={n} />}
             </>}
           >
             <p className="whitespace-pre-wrap text-sm text-foreground/85">{n.description || <span className="text-muted-foreground">Empty note body.</span>}</p>
@@ -495,21 +484,29 @@ function NotesTab({ p, notes, drafts }: { p: Patient; notes: CareRecord[]; draft
         {pendingDrafts.length ? pendingDrafts.map((d) => (
           <DraftCard key={d.id} d={d} />
         )) : <p className="text-xs text-muted-foreground">No drafts waiting.</p>}
+        {drafts.length > pendingDrafts.length && (
+          <details className="mt-3 text-xs" data-testid="details-reviewed-drafts">
+            <summary className="cursor-pointer text-muted-foreground">Reviewed drafts ({drafts.length - pendingDrafts.length})</summary>
+            <div className="mt-2">{drafts.filter((d) => !pendingDrafts.includes(d)).map((d) => <DraftCard key={d.id} d={d} />)}</div>
+          </details>
+        )}
       </Panel>
-      <RecordDialog open={dlg.open} onOpenChange={dlg.onOpenChange} kind="notes" record={dlg.record} title={dlg.record ? "Edit note" : "New note"} fields={["program", "description"]} descLabel="Note body" defaults={{ patientId: p.id, status: "draft", program: p.programs[0] ?? null }} />
+      {dlg.open&&<NoteEditor key={dlg.record?.id??"new"} patient={p} record={dlg.record??null} onClose={()=>dlg.onOpenChange(false)}/>}
     </div>
   );
 }
 
 /* ---------------- Time ---------------- */
 function TimeTab({ p, time }: { p: Patient; time: CareRecord[] }) {
+  const { allow, user } = usePermission();
+  const canVoid = (t: CareRecord) => !!user && (mStr(t, "userId") === user.id || ["admin", "clinical_admin"].includes(user.role));
   const { run, pending } = useAction();
   const [open, setOpen] = useState(false);
   const committed = time.filter((t) => !["voided", "running"].includes(t.status));
   const byProgram = PROGRAMS.map((g) => ({ g, m: committed.filter((t) => t.program === g).reduce((s, t) => s + (t.value ?? 0), 0) })).filter((x) => x.m > 0);
   return (
     <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-      <Panel title="Time entries" action={<Btn size="sm" variant="primary" onClick={() => setOpen(true)} data-testid="button-log-time"><Plus className="h-3.5 w-3.5" />Log time</Btn>} bodyClass="p-0">
+      <Panel title="Time entries" action={allow("time.write") ? <Btn size="sm" variant="primary" onClick={() => setOpen(true)} data-testid="button-log-time"><Plus className="h-3.5 w-3.5" />Log time</Btn> : undefined} bodyClass="p-0">
         {time.length ? [...time].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((t) => (
           <div key={t.id} className={cn("flex flex-col gap-2 border-b border-border px-4 py-2.5 last:border-b-0 sm:flex-row sm:items-center", t.status === "voided" && "opacity-55")} data-testid={`row-time-${t.id}`}>
             <div className="min-w-0 flex-1">
@@ -517,7 +514,7 @@ function TimeTab({ p, time }: { p: Patient; time: CareRecord[] }) {
               <div className="text-xs text-muted-foreground">{fmtDateTime(mStr(t, "startedAt") || t.createdAt)} {mStr(t, "endedAt") && `to ${fmtDate(mStr(t, "endedAt"), "h:mm a")}`} · {t.assignee ?? "Care team"} · {mStr(t, "source") || "manual"}</div>
             </div>
             <span className="tnum font-mono text-sm font-medium">{t.value ?? 0} min</span>
-            {t.status !== "voided" && t.status !== "running" && (
+            {allow("time.write") && canVoid(t) && t.status !== "voided" && t.status !== "running" && (
               <ConfirmButton label="Void" variant="ghost" title="Void time entry" desc="Voided time is excluded from billing but kept in the audit trail." reason confirmLabel="Void entry" pending={pending} onConfirm={(reason, close) => run({ action: "voidTime", id: t.id, reason }, close)} testid={`button-void-${t.id}`} />
             )}
           </div>
@@ -544,6 +541,7 @@ function LogTimeDialog({ p, open, onOpenChange }: { p: Patient; open: boolean; o
   const [start, setStart] = useState(local(new Date(now.getTime() - 20 * 60000)));
   const [end, setEnd] = useState(local(now));
   const [interactive, setInteractive] = useState(false);
+  const [manualReason, setManualReason] = useState("");
   const { run, pending } = useAction();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -555,10 +553,12 @@ function LogTimeDialog({ p, open, onOpenChange }: { p: Patient; open: boolean; o
           <Field label="Started"><input type="datetime-local" className={inputCls} value={start} onChange={(e) => setStart(e.target.value)} data-testid="input-time-start" /></Field>
           <Field label="Ended"><input type="datetime-local" className={inputCls} value={end} onChange={(e) => setEnd(e.target.value)} data-testid="input-time-end" /></Field>
         </div>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={interactive} onChange={(e) => setInteractive(e.target.checked)} data-testid="checkbox-interactive" />Interactive communication with patient or caregiver</label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={interactive} onChange={(e) => setInteractive(e.target.checked)} data-testid="checkbox-interactive" />Activity involved patient communication</label>
+        <p className="text-xs text-muted-foreground">A completed phone or video interaction must be logged separately to support live-contact billing evidence.</p>
+        <Field label="Manual-entry reason" hint="Required for entries longer than 30 minutes"><input className={inputCls} value={manualReason} onChange={e=>setManualReason(e.target.value)} data-testid="input-manual-time-reason" /></Field>
         <DialogFooter>
           <Btn variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Btn>
-          <Btn variant="primary" disabled={pending || !activity.trim()} onClick={() => run({ action: "commitTime", patientId: p.id, program, payload: { startedAt: new Date(start).toISOString(), endedAt: new Date(end).toISOString(), activity, isInteractive: interactive } }, () => onOpenChange(false))} data-testid="button-commit-time">Commit time</Btn>
+          <Btn variant="primary" disabled={pending || !activity.trim() || !Number.isFinite(Date.parse(start)) || !Number.isFinite(Date.parse(end)) || Date.parse(end)<=Date.parse(start) || (Date.parse(end)-Date.parse(start)>30*60000&&!manualReason.trim())} onClick={() => run({ action: "commitTime", patientId: p.id, program, reason:manualReason.trim()||undefined, payload: { startedAt: new Date(start).toISOString(), endedAt: new Date(end).toISOString(), activity, isInteractive: interactive } }, () => {onOpenChange(false);setManualReason("");})} data-testid="button-commit-time">Commit time</Btn>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -567,6 +567,7 @@ function LogTimeDialog({ p, open, onOpenChange }: { p: Patient; open: boolean; o
 
 /* ---------------- Messages & EHR ---------------- */
 function MessagesTab({ p, messages, interactions }: { p: Patient; messages: CareRecord[]; interactions: CareRecord[] }) {
+  const { allow } = usePermission();
   const [text, setText] = useState("");
   const { save, pending: saving } = useSaveRecord();
   const { run, pending } = useAction();
@@ -592,17 +593,17 @@ function MessagesTab({ p, messages, interactions }: { p: Patient; messages: Care
             );
           }) : <p className="py-10 text-center text-xs text-muted-foreground">No messages yet.</p>}
         </div>
-        <div className="flex gap-2 border-t border-border p-3">
+        {allow("messages.write") ? <div className="flex gap-2 border-t border-border p-3">
           <input className={inputCls} placeholder={`Message ${p.firstName}`} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} data-testid="input-message" />
           <Btn variant="primary" disabled={saving || !text.trim()} onClick={send} data-testid="button-send-message"><Send className="h-3.5 w-3.5" /></Btn>
-        </div>
+        </div> : <div className="border-t border-border p-3"><ReadOnlyHint text="Your role can read this thread but not send messages" /></div>}
       </Panel>
       <div className="space-y-5">
         <Panel title="EHR and visits" action={<SimLabel />}>
           <p className="mb-3 text-xs text-muted-foreground">No live EHR or video vendor is connected. These actions exercise the simulated connectors and record what would be exchanged.</p>
           <div className="flex flex-wrap gap-2">
-            <ConfirmButton label="Sync EHR" icon={<RefreshCw className="h-3.5 w-3.5" />} title="Simulated EHR sync" desc="Writes an interaction entry describing the simulated exchange." confirmLabel="Sync" pending={pending} onConfirm={(_, close) => run({ action: "syncEhr", patientId: p.id }, close)} testid="button-sync-ehr-tab" />
-            <ConfirmButton label="Create video visit" icon={<Video className="h-3.5 w-3.5" />} title="Create simulated video visit" desc="Generates a demo visit link. It does not connect to a real video service." confirmLabel="Create" pending={pending} onConfirm={(_, close) => run({ action: "createVideo", patientId: p.id }, (r) => { setVideoUrl(r.url ?? null); close(); })} testid="button-create-video" />
+            {allow("clinical.write") && <ConfirmButton label="Sync EHR" icon={<RefreshCw className="h-3.5 w-3.5" />} title="Simulated EHR sync" desc="Writes an interaction entry describing the simulated exchange." confirmLabel="Sync" pending={pending} onConfirm={(_, close) => run({ action: "syncEhr", patientId: p.id }, close)} testid="button-sync-ehr-tab" />}
+            {allow("clinical.write") && <ConfirmButton label="Create video visit" icon={<Video className="h-3.5 w-3.5" />} title="Create simulated video visit" desc="Generates a demo visit link. It does not connect to a real video service." confirmLabel="Create" pending={pending} onConfirm={(_, close) => run({ action: "createVideo", patientId: p.id }, (r) => { setVideoUrl(r.url ?? null); close(); })} testid="button-create-video" />}
           </div>
           {videoUrl && <div className="mt-3 rounded-md border border-dashed border-border p-2 text-xs"><span className="text-muted-foreground">Demo link: </span><span className="break-all font-mono" data-testid="text-video-url">{videoUrl}</span></div>}
         </Panel>
@@ -684,40 +685,3 @@ function AssistChooser({ p }: { p: Patient }) {
   );
 }
 
-function DraftCard({ d }: { d: CareRecord }) {
-  const { run, pending } = useAction();
-  const provider = mStr(d, "provider") || "deterministic";
-  const isLive = !provider.startsWith("deterministic");
-  const warnings = mArr(d, "reviewWarnings");
-  const kind = (mStr(d, "capability") || mStr(d, "action") || mStr(d, "draftType") || mStr(d, "type")).toLowerCase();
-  const accept = kind.includes("message")
-    ? { label: "Accept as message", desc: "Creates a secure message to the patient from this text." }
-    : kind.includes("time")
-      ? { label: "Accept suggestion", desc: "Records that you reviewed the suggestion. No minutes are committed; log time separately." }
-      : kind.includes("priorit")
-        ? { label: "Accept", desc: "Marks the prioritization as reviewed." }
-        : { label: "Accept as note", desc: "Creates an unsigned draft note for you to edit and sign." };
-  const ms = mNum(d, "generationMs");
-  return (
-    <div className="mb-3 rounded-lg border border-dashed border-primary/30 bg-accent/40 p-3 last:mb-0" data-testid={`card-draft-${d.id}`}>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-sm font-medium">{d.title}</span>
-        {isLive ? <Pill tone="indigo">{provider}{mStr(d, "model") ? ` · ${mStr(d, "model")}` : ""}</Pill> : <SimLabel text="Deterministic" />}
-      </div>
-      <p className="mt-1 whitespace-pre-wrap text-xs text-foreground/80">{d.description}</p>
-      {warnings.length > 0 && (
-        <div className="mt-2 rounded-md border border-[hsl(38_80%_78%)] bg-[hsl(38_95%_96%)] p-2 text-[11px] text-[hsl(30_70%_28%)]" data-testid={`warnings-${d.id}`}>
-          <div className="font-semibold">Review before accepting</div>
-          {warnings.map((w, i) => <div key={i}>{w}</div>)}
-        </div>
-      )}
-      <div className="mt-1.5 text-[10px] text-muted-foreground">
-        {[mStr(d, "promptVersion") && `prompt ${mStr(d, "promptVersion")}`, mArr(d, "sourceIds").length ? `${mArr(d, "sourceIds").length} sources` : "", ms !== undefined ? `${(ms / 1000).toFixed(1)}s` : ""].filter(Boolean).join(" · ")}
-      </div>
-      <div className="mt-2 flex gap-1.5">
-        <ConfirmButton label={accept.label} variant="primary" title="Accept draft" desc={accept.desc} confirmLabel="Accept" pending={pending} onConfirm={(_, close) => run({ action: "acceptDraft", id: d.id }, close)} testid={`button-accept-draft-${d.id}`} />
-        <Btn size="sm" variant="ghost" disabled={pending} onClick={() => run({ action: "rejectDraft", id: d.id })} data-testid={`button-reject-draft-${d.id}`}><X className="h-3.5 w-3.5" />Reject</Btn>
-      </div>
-    </div>
-  );
-}

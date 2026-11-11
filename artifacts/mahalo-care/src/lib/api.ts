@@ -60,17 +60,22 @@ export function useSaveRecord() {
   const { toast } = useToast();
   const c = useCreateRecord();
   const u = useUpdateRecord();
-  const save = (kind: Kind, data: RecordInput, id?: string, onDone?: (r: CareRecord) => void) => {
-    const opts = {
+  /** opts.expectedUpdatedAt: updatedAt of the record when the user STARTED editing; a stale write returns 409. */
+  const save = (kind: Kind, data: RecordInput, id?: string, onDone?: (r: CareRecord) => void, opts?: { expectedUpdatedAt?: string; onError?: (e: unknown) => void }) => {
+    const cb = {
       onSuccess: (r: CareRecord) => {
         qc.invalidateQueries();
         toast({ title: id ? "Changes saved" : "Created", description: r.title });
         onDone?.(r);
       },
-      onError: (e: unknown) => toast({ title: "Could not save", description: errMsg(e), variant: "destructive" }),
+      onError: (e: unknown) => {
+        const conflict = !!e && typeof e === "object" && "status" in e && (e as { status: number }).status === 409;
+        toast({ title: conflict ? "Not saved: record changed" : "Could not save", description: conflict ? "Someone else saved a newer version. Your unsaved text is kept in the editor." : errMsg(e), variant: "destructive" });
+        opts?.onError?.(e);
+      },
     };
-    if (id) u.mutate({ kind, id, data }, opts);
-    else c.mutate({ kind, data }, opts);
+    if (id) u.mutate({ kind, id, data: opts?.expectedUpdatedAt ? { ...data, expectedUpdatedAt: opts.expectedUpdatedAt } : data }, cb);
+    else c.mutate({ kind, data }, cb);
   };
   return { save, pending: c.isPending || u.isPending };
 }

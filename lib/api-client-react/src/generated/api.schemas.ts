@@ -5,55 +5,150 @@
  * Mahalo Care single-practice synthetic-data demo API
  * OpenAPI spec version: 1.0.0
  */
-export interface HealthStatus {
-  status: string;
+export type AttachmentUploadInputMimeType = typeof AttachmentUploadInputMimeType[keyof typeof AttachmentUploadInputMimeType];
+
+
+export const AttachmentUploadInputMimeType = {
+  'application/pdf': 'application/pdf',
+} as const;
+
+export interface AttachmentUploadInput {
+  uploadId: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  filename: string;
+  /**
+     * @minimum 1
+     * @maximum 1048576
+     */
+  sizeBytes: number;
+  mimeType: AttachmentUploadInputMimeType;
 }
 
-export interface LoginInput {
-  email: string;
-  /** @minLength 1 */
-  password: string;
-}
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  credential: string;
+export interface AttachmentUploadTicket {
+  attachmentId: string;
   /** @nullable */
-  patientId?: string | null;
+  uploadURL: string | null;
+  expiresAt: string;
+  alreadyComplete: boolean;
 }
 
-export interface PatientInput {
-  /** @minLength 1 */
-  firstName: string;
-  /** @minLength 1 */
-  lastName: string;
-  dob: string;
-  sex?: string;
-  email?: string;
-  phone?: string;
-  location: string;
-  timezone?: string;
-  status?: string;
-  conditions?: string[];
-  medications?: string[];
-  payer?: string;
-  careManager?: string;
+export type AttachmentReviewInputDecision = typeof AttachmentReviewInputDecision[keyof typeof AttachmentReviewInputDecision];
+
+
+export const AttachmentReviewInputDecision = {
+  release_demo: 'release_demo',
+  reject: 'reject',
+  revoke: 'revoke',
+  cancel: 'cancel',
+} as const;
+
+export interface AttachmentReviewInput {
+  decision: AttachmentReviewInputDecision;
+  /**
+     * @minLength 20
+     * @maxLength 2000
+     */
+  reason: string;
+  expectedUpdatedAt: string;
+  syntheticSourceConfirmed?: boolean;
+  unscannedRiskAcknowledged?: boolean;
 }
 
-export type Patient = PatientInput & {
+export type PatientAttachmentStatus = typeof PatientAttachmentStatus[keyof typeof PatientAttachmentStatus];
+
+
+export const PatientAttachmentStatus = {
+  awaiting_upload: 'awaiting_upload',
+  quarantined: 'quarantined',
+  released_demo: 'released_demo',
+  rejected: 'rejected',
+  revoked: 'revoked',
+  canceled: 'canceled',
+} as const;
+
+export interface PatientAttachment {
   id: string;
-  mrn: string;
-  programs: string[];
-  risk: string;
-  lastContact: string;
-  minutes: number;
-  deviceDays: number;
-  adherence: number;
+  patientId: string;
+  filename: string;
+  sizeBytes: number;
+  mimeType: string;
+  status: PatientAttachmentStatus;
+  /** @nullable */
+  sha256: string | null;
+  uploadedBy: string;
   createdAt: string;
-};
+  updatedAt: string;
+  /** @nullable */
+  reviewedBy: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  /** @nullable */
+  reviewReason: string | null;
+  /** @nullable */
+  validationError: string | null;
+  canCancel: boolean;
+  canReview: boolean;
+  canDownload: boolean;
+}
+
+export interface DocumentVersion {
+  id: string;
+  recordId: string;
+  version: number;
+  sourceVersion: string;
+  origin: string;
+  sha256: string;
+  sourceHash: string;
+  size: number;
+  contentType: string;
+  storageBackend: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export type WorklistKind = typeof WorklistKind[keyof typeof WorklistKind];
+
+
+export const WorklistKind = {
+  my_exceptions: 'my_exceptions',
+  team_queue: 'team_queue',
+  due_today: 'due_today',
+  tasks: 'tasks',
+  at_risk: 'at_risk',
+  unsigned: 'unsigned',
+  device_issues: 'device_issues',
+  cocm_registry: 'cocm_registry',
+} as const;
+
+export type WorklistFiltersStatus = typeof WorklistFiltersStatus[keyof typeof WorklistFiltersStatus];
+
+
+export const WorklistFiltersStatus = {
+  open: 'open',
+  closed: 'closed',
+  all: 'all',
+} as const;
+
+export interface WorklistFilters {
+  /** @maxLength 200 */
+  q?: string;
+  program?: string;
+  /** @maxItems 100 */
+  locations?: string[];
+  assignee?: string;
+  ownerRole?: string;
+  status?: WorklistFiltersStatus;
+  period?: string;
+  /**
+     * @minimum 10
+     * @maximum 100
+     */
+  pageSize?: number;
+  includeInactive?: boolean;
+}
 
 export type RecordInputMetadata = { [key: string]: unknown };
 
@@ -87,6 +182,696 @@ export type CareRecord = RecordInput & {
   createdAt: string;
   updatedAt: string;
 }, 'status'>>;
+
+export interface WorklistItem {
+  id: string;
+  patientId: string;
+  patientName: string;
+  mrn: string;
+  location: string;
+  timezone: string;
+  title: string;
+  status: string;
+  severity: string;
+  assignee: string;
+  /** @nullable */
+  ownerRole?: string | null;
+  /** @nullable */
+  program: string | null;
+  record: CareRecord;
+  /** @nullable */
+  dueAt: string | null;
+  ageHours: number;
+  /** @nullable */
+  daysLeft?: number | null;
+  /** @nullable */
+  shortfall?: number | null;
+  /** @nullable */
+  cpt?: string | null;
+  /** @nullable */
+  latestPhq9?: number | null;
+  /** @nullable */
+  latestGad7?: number | null;
+  /** @nullable */
+  scoreTrend?: number | null;
+  /** @nullable */
+  lastContactAt?: string | null;
+  /** @nullable */
+  consultantReviewAt?: string | null;
+  /** @nullable */
+  nextConsultantReviewAt?: string | null;
+  consultantReviewDue?: boolean;
+  issueReasons: string[];
+}
+
+export type WorklistPageOptionsAssigneesItem = {
+  id: string;
+  name: string;
+  role: string;
+};
+
+export type WorklistPageOptions = {
+  locations: string[];
+  assignees: WorklistPageOptionsAssigneesItem[];
+  ownerRoles: string[];
+  programs: string[];
+};
+
+export interface WorklistPage {
+  kind: WorklistKind;
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  generatedAt: string;
+  appliedFilters: WorklistFilters;
+  options: WorklistPageOptions;
+  items: WorklistItem[];
+}
+
+export interface WorklistAssignmentInput {
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  ids: string[];
+  /** @nullable */
+  assigneeId: string | null;
+}
+
+export interface WorklistAssignmentResult {
+  success: boolean;
+  count: number;
+  records: CareRecord[];
+}
+
+export interface ConsultantReviewInput {
+  patientId: string;
+  /**
+     * @minLength 20
+     * @maxLength 12000
+     */
+  summary: string;
+  /**
+     * @minimum 1
+     * @maximum 90
+     */
+  nextReviewDays: number;
+  assessmentCompleted?: boolean;
+}
+
+export type WorkspacePreferencesDensity = typeof WorkspacePreferencesDensity[keyof typeof WorkspacePreferencesDensity];
+
+
+export const WorkspacePreferencesDensity = {
+  comfortable: 'comfortable',
+  compact: 'compact',
+} as const;
+
+export type WorkspacePreferencesWorklists = {[key: string]: WorklistFilters};
+
+export interface WorkspacePreferences {
+  density: WorkspacePreferencesDensity;
+  lastWorklist: WorklistKind;
+  worklists: WorkspacePreferencesWorklists;
+}
+
+export type WorkspacePreferenceInputDensity = typeof WorkspacePreferenceInputDensity[keyof typeof WorkspacePreferenceInputDensity];
+
+
+export const WorkspacePreferenceInputDensity = {
+  comfortable: 'comfortable',
+  compact: 'compact',
+} as const;
+
+export type WorkspacePreferenceInputWorklist = {
+  kind: WorklistKind;
+  filters: WorklistFilters;
+};
+
+export interface WorkspacePreferenceInput {
+  density?: WorkspacePreferenceInputDensity;
+  worklist?: WorkspacePreferenceInputWorklist;
+}
+
+export type ProgramPolicyInputKind = typeof ProgramPolicyInputKind[keyof typeof ProgramPolicyInputKind];
+
+
+export const ProgramPolicyInputKind = {
+  rulepack: 'rulepack',
+  payer_override: 'payer_override',
+  careplan_template: 'careplan_template',
+  note_template: 'note_template',
+} as const;
+
+export type ProgramPolicyInputProgram = typeof ProgramPolicyInputProgram[keyof typeof ProgramPolicyInputProgram];
+
+
+export const ProgramPolicyInputProgram = {
+  RPM: 'RPM',
+  RTM: 'RTM',
+  CCM: 'CCM',
+  PCM: 'PCM',
+  BHI: 'BHI',
+} as const;
+
+export type ProgramPolicyInputBody = { [key: string]: unknown };
+
+export interface ProgramPolicyInput {
+  kind: ProgramPolicyInputKind;
+  program: ProgramPolicyInputProgram;
+  version: string;
+  payer?: string;
+  effectiveFrom: string;
+  sourceRef?: string;
+  body: ProgramPolicyInputBody;
+}
+
+export type ProgramPolicyStatus = typeof ProgramPolicyStatus[keyof typeof ProgramPolicyStatus];
+
+
+export const ProgramPolicyStatus = {
+  bundled: 'bundled',
+  draft: 'draft',
+  reviewed: 'reviewed',
+  published: 'published',
+  retired: 'retired',
+} as const;
+
+export type ProgramPolicy = ProgramPolicyInput & ({
+  id: string;
+  status: ProgramPolicyStatus;
+  immutable: boolean;
+  fingerprint: string;
+  provisional: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  reviewNote: string;
+  /** @nullable */
+  reviewedBy?: string | null;
+  /** @nullable */
+  reviewedAt?: string | null;
+  /** @nullable */
+  publishedAt?: string | null;
+  /** @nullable */
+  retiredAt?: string | null;
+  enrollmentCount?: number;
+});
+
+export interface ProgramPolicyList {
+  items: ProgramPolicy[];
+  canManage: boolean;
+  canReview: boolean;
+}
+
+export interface ProgramPolicyReviewInput {
+  /** @minLength 20 */
+  note: string;
+  /** @minLength 1 */
+  sourceRef: string;
+  attested: true;
+}
+
+export interface PolicyReasonInput {
+  /** @minLength 10 */
+  reason: string;
+}
+
+export interface PolicyCloneInput {
+  version: string;
+  effectiveFrom: string;
+}
+
+export type ProgramPolicyValidationBody = { [key: string]: unknown };
+
+export type ProgramPolicyValidationEvidenceItem = {
+  cpt: string;
+  units: number;
+  met: boolean;
+  blockers: string[];
+  minutes: number;
+  deviceDays: number;
+};
+
+export interface ProgramPolicyValidation {
+  valid: boolean;
+  body: ProgramPolicyValidationBody;
+  warnings: string[];
+  evidence: ProgramPolicyValidationEvidenceItem[];
+}
+
+export interface HealthStatus {
+  status: string;
+}
+
+export interface LoginInput {
+  email: string;
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  credential: string;
+  /** @nullable */
+  patientId?: string | null;
+  locationScopes?: string[];
+  permissions?: string[];
+}
+
+export interface RecoveryInput {
+  /** @maxLength 254 */
+  email: string;
+}
+
+export type MaintenanceInputKind = typeof MaintenanceInputKind[keyof typeof MaintenanceInputKind];
+
+
+export const MaintenanceInputKind = {
+  rule_sweep: 'rule_sweep',
+  task_materialize: 'task_materialize',
+  notifications: 'notifications',
+} as const;
+
+export interface MaintenanceInput {
+  kind: MaintenanceInputKind;
+}
+
+export type DeviceSimulationInputPattern = typeof DeviceSimulationInputPattern[keyof typeof DeviceSimulationInputPattern];
+
+
+export const DeviceSimulationInputPattern = {
+  normal: 'normal',
+  critical: 'critical',
+  invalid: 'invalid',
+} as const;
+
+export interface DeviceSimulationInput {
+  deviceId: string;
+  pattern: DeviceSimulationInputPattern;
+}
+
+export type DeviceReadingInputLoinc = typeof DeviceReadingInputLoinc[keyof typeof DeviceReadingInputLoinc];
+
+
+export const DeviceReadingInputLoinc = {
+  '8480-6': '8480-6',
+  '8462-4': '8462-4',
+  '29463-7': '29463-7',
+  '2339-0': '2339-0',
+  '8867-4': '8867-4',
+  '59408-5': '59408-5',
+} as const;
+
+export interface DeviceReadingInput {
+  loinc: DeviceReadingInputLoinc;
+  value: number;
+  /** @maxLength 30 */
+  unit: string;
+  measuredAt: string;
+  diastolic?: number;
+}
+
+export interface DeviceEventInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  eventId: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  deviceSerial: string;
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  readings: DeviceReadingInput[];
+}
+
+export type JobInfoResult = { [key: string]: unknown };
+
+export interface JobInfo {
+  id: string;
+  kind: string;
+  status: string;
+  attempts: number;
+  maxAttempts: number;
+  runAt: string;
+  createdAt: string;
+  /** @nullable */
+  finishedAt?: string | null;
+  /** @nullable */
+  error?: string | null;
+  result: JobInfoResult;
+}
+
+export interface InboxInfo {
+  id: string;
+  source: string;
+  eventId: string;
+  deviceId: string;
+  status: string;
+  signatureValid: boolean;
+  receivedAt: string;
+  /** @nullable */
+  processedAt?: string | null;
+  /** @nullable */
+  error?: string | null;
+}
+
+export interface PasswordResetInput {
+  /**
+     * @minLength 64
+     * @maxLength 64
+     */
+  token: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export interface PasswordChangeInput {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  currentPassword: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export type AccountRole = typeof AccountRole[keyof typeof AccountRole];
+
+
+export const AccountRole = {
+  admin: 'admin',
+  clinical_admin: 'clinical_admin',
+  billing_provider: 'billing_provider',
+  care_manager: 'care_manager',
+  behavioral_care_manager: 'behavioral_care_manager',
+  psychiatric_consultant: 'psychiatric_consultant',
+  therapist: 'therapist',
+  front_desk: 'front_desk',
+  billing: 'billing',
+  read_only: 'read_only',
+  patient: 'patient',
+} as const;
+
+export type AccountInputCredential = typeof AccountInputCredential[keyof typeof AccountInputCredential];
+
+
+export const AccountInputCredential = {
+  MD: 'MD',
+  DO: 'DO',
+  NP: 'NP',
+  PA: 'PA',
+  RN: 'RN',
+  LPN: 'LPN',
+  MA: 'MA',
+  PT: 'PT',
+  OT: 'OT',
+  SLP: 'SLP',
+  LCSW: 'LCSW',
+  psych_consultant: 'psych_consultant',
+  admin: 'admin',
+  billing: 'billing',
+  patient: 'patient',
+} as const;
+
+export interface AccountInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name: string;
+  /** @maxLength 254 */
+  email: string;
+  role: AccountRole;
+  credential: AccountInputCredential;
+  /** @nullable */
+  patientId?: string | null;
+  /**
+     * @maxItems 100
+     * @items.minLength 1
+     */
+  locationScopes: string[];
+}
+
+export type AccountUpdateCredential = typeof AccountUpdateCredential[keyof typeof AccountUpdateCredential];
+
+
+export const AccountUpdateCredential = {
+  MD: 'MD',
+  DO: 'DO',
+  NP: 'NP',
+  PA: 'PA',
+  RN: 'RN',
+  LPN: 'LPN',
+  MA: 'MA',
+  PT: 'PT',
+  OT: 'OT',
+  SLP: 'SLP',
+  LCSW: 'LCSW',
+  psych_consultant: 'psych_consultant',
+  admin: 'admin',
+  billing: 'billing',
+  patient: 'patient',
+} as const;
+
+export type AccountUpdateStatus = typeof AccountUpdateStatus[keyof typeof AccountUpdateStatus];
+
+
+export const AccountUpdateStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export interface AccountUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name?: string;
+  role?: AccountRole;
+  credential?: AccountUpdateCredential;
+  status?: AccountUpdateStatus;
+  /**
+     * @maxItems 100
+     * @items.minLength 1
+     */
+  locationScopes?: string[];
+}
+
+export type Account = User & ({
+  status: string;
+  createdAt: string;
+  /** @nullable */
+  lastLoginAt?: string | null;
+  /** @nullable */
+  lockedUntil?: string | null;
+});
+
+export interface AccountInvitation {
+  account: Account;
+  path: string;
+  expiresAt: string;
+  delivery: string;
+}
+
+export interface SessionInfo {
+  id: string;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  current: boolean;
+}
+
+export type PatientInputStatus = typeof PatientInputStatus[keyof typeof PatientInputStatus];
+
+
+export const PatientInputStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export interface QuietHours {
+  enabled: boolean;
+  /**
+     * Inclusive start in the patient's timezone
+     * @pattern ^(?:[01][0-9]|2[0-3]):[0-5][0-9]$
+     */
+  start: string;
+  /**
+     * Exclusive end in the patient's timezone; must differ from start
+     * @pattern ^(?:[01][0-9]|2[0-3]):[0-5][0-9]$
+     */
+  end: string;
+}
+
+export interface CommunicationPreferences {
+  email: boolean;
+  sms: boolean;
+  push: boolean;
+  quietHours?: QuietHours;
+}
+
+export interface PatientInput {
+  /** @minLength 1 */
+  firstName: string;
+  /** @minLength 1 */
+  lastName: string;
+  dob: string;
+  sex?: string;
+  email?: string;
+  phone?: string;
+  location: string;
+  timezone?: string;
+  status?: PatientInputStatus;
+  conditions?: string[];
+  medications?: string[];
+  payer?: string;
+  careManager?: string;
+  communicationPreferences?: CommunicationPreferences;
+}
+
+export type PatientUpdateStatus = typeof PatientUpdateStatus[keyof typeof PatientUpdateStatus];
+
+
+export const PatientUpdateStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export interface PatientUpdate {
+  /** @minLength 1 */
+  firstName?: string;
+  /** @minLength 1 */
+  lastName?: string;
+  dob?: string;
+  sex?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  timezone?: string;
+  status?: PatientUpdateStatus;
+  conditions?: string[];
+  medications?: string[];
+  payer?: string;
+  careManager?: string;
+  communicationPreferences?: CommunicationPreferences;
+}
+
+export type Patient = PatientInput & {
+  id: string;
+  mrn: string;
+  programs: string[];
+  risk: string;
+  lastContact: string;
+  minutes: number;
+  deviceDays: number;
+  adherence: number;
+  createdAt: string;
+};
+
+export interface AiDraftTextInput {
+  /**
+     * @minLength 1
+     * @maxLength 18000
+     */
+  finalText: string;
+}
+
+export type AiNumericCheckStatus = typeof AiNumericCheckStatus[keyof typeof AiNumericCheckStatus];
+
+
+export const AiNumericCheckStatus = {
+  checked: 'checked',
+  needs_review: 'needs_review',
+  no_numeric_claims: 'no_numeric_claims',
+  unavailable: 'unavailable',
+} as const;
+
+export type AiNumericCheckUnsupportedItem = {
+  claim: string;
+  reason: string;
+};
+
+export interface AiNumericCheck {
+  version?: number;
+  status: AiNumericCheckStatus;
+  recognizedClaims: number;
+  supportedClaims: number;
+  scope: string;
+  unsupported: AiNumericCheckUnsupportedItem[];
+}
+
+export type AiReviewMetricsCapabilitiesItem = {
+  capability: string;
+  total: number;
+  pending: number;
+  accepted: number;
+  rejected: number;
+};
+
+export interface AiReviewMetrics {
+  since: string;
+  scope: string;
+  total: number;
+  pending: number;
+  accepted: number;
+  rejected: number;
+  /** @nullable */
+  acceptanceRate: number | null;
+  acceptedWithEditMetrics: number;
+  editedAccepted: number;
+  /** @nullable */
+  meanEditRatio: number | null;
+  sourceCheckedDrafts: number;
+  unsupportedDrafts: number;
+  recognizedClaims: number;
+  supportedClaims: number;
+  /** @nullable */
+  supportedClaimRate: number | null;
+  humanNumericExceptions: number;
+  tokenReportingDrafts: number;
+  totalTokens: number;
+  /** @nullable */
+  medianGenerationMs: number | null;
+  limitations: string[];
+  capabilities: AiReviewMetricsCapabilitiesItem[];
+}
+
+export type RecordUpdateInputMetadata = { [key: string]: unknown };
+
+export interface RecordUpdateInput {
+  /** Timestamp from the record being edited. A stale write returns 409. */
+  expectedUpdatedAt?: string;
+  /** @minLength 1 */
+  title?: string;
+  /** @nullable */
+  patientId?: string | null;
+  /** @nullable */
+  program?: string | null;
+  status?: string;
+  severity?: string;
+  description?: string;
+  assignee?: string;
+  date?: string;
+  value?: number;
+  unit?: string;
+  metadata?: RecordUpdateInputMetadata;
+}
 
 export interface PatientDetail {
   patient: Patient;
@@ -133,7 +918,10 @@ export const ActionInputAction = {
   pauseEnrollment: 'pauseEnrollment',
   discharge: 'discharge',
   signPlan: 'signPlan',
+  reviewPlan: 'reviewPlan',
   signNote: 'signNote',
+  discardDraft: 'discardDraft',
+  restoreDraft: 'restoreDraft',
   acknowledge: 'acknowledge',
   resolve: 'resolve',
   dismiss: 'dismiss',
@@ -141,14 +929,19 @@ export const ActionInputAction = {
   voidTime: 'voidTime',
   startTimer: 'startTimer',
   stopTimer: 'stopTimer',
+  discardTimer: 'discardTimer',
   completeTask: 'completeTask',
   submitCheckin: 'submitCheckin',
+  acknowledgeEducation: 'acknowledgeEducation',
   recordAdherence: 'recordAdherence',
+  updatePreferences: 'updatePreferences',
+  disconnectDevice: 'disconnectDevice',
   simulateReading: 'simulateReading',
   calculateBilling: 'calculateBilling',
   closePeriod: 'closePeriod',
   reopenPeriod: 'reopenPeriod',
   approveLine: 'approveLine',
+  bulkApproveLines: 'bulkApproveLines',
   rejectLine: 'rejectLine',
   draftSummary: 'draftSummary',
   acceptDraft: 'acceptDraft',
@@ -206,9 +999,69 @@ export interface ReportData {
   integrationHealth: CareRecord[];
 }
 
+export type GetWorklistParams = {
+kind: WorklistKind;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 10
+ * @maximum 100
+ */
+pageSize?: number;
+/**
+ * @maxLength 200
+ */
+q?: string;
+program?: string;
+/**
+ * Comma-separated location names
+ */
+locations?: string;
+assignee?: string;
+ownerRole?: string;
+status?: GetWorklistStatus;
+period?: string;
+includeInactive?: boolean;
+};
+
+export type GetWorklistStatus = typeof GetWorklistStatus[keyof typeof GetWorklistStatus];
+
+
+export const GetWorklistStatus = {
+  open: 'open',
+  closed: 'closed',
+  all: 'all',
+} as const;
+
 export type ListPatientsParams = {
 search?: string;
 program?: string;
 status?: string;
+};
+
+export type ExportDataParams = {
+/**
+ * @pattern ^\d{4}-(0[1-9]|1[0-2])$
+ */
+period?: string;
+format?: ExportDataFormat;
+};
+
+export type ExportDataFormat = typeof ExportDataFormat[keyof typeof ExportDataFormat];
+
+
+export const ExportDataFormat = {
+  csv: 'csv',
+  xlsx: 'xlsx',
+} as const;
+
+export type GetDocumentSource200Source = { [key: string]: unknown };
+
+export type GetDocumentSource200 = {
+  documentId: string;
+  sourceHash: string;
+  source: GetDocumentSource200Source;
 };
 

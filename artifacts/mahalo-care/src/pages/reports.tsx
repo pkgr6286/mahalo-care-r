@@ -4,6 +4,8 @@ import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContai
 import { useExportData, useGetReports, getExportDataQueryKey } from "@workspace/api-client-react";
 import { Btn, ErrorState, PageHeader, Panel, SimLabel, SkeletonRows, StatusPill } from "@/components/kit";
 import { fmtRel, mStr } from "@/lib/api";
+import { PermissionOnly } from "@/components/access";
+import { AiReviewMetricsPanel } from "@/components/ai/ai-review-metrics";
 
 type ExportKind = "billing" | "patients" | "audit" | "configuration";
 const axis = { fontSize: 11, fill: "hsl(220 4% 42%)" };
@@ -11,7 +13,7 @@ const axis = { fontSize: 11, fill: "hsl(220 4% 42%)" };
 export default function ReportsPage() {
   const r = useGetReports();
   const [preview, setPreview] = useState<ExportKind | null>(null);
-  const exp = useExportData(preview ?? "patients", { query: { enabled: !!preview, queryKey: getExportDataQueryKey(preview ?? "patients") } });
+  const exp = useExportData(preview ?? "patients", undefined, { query: { enabled: !!preview, queryKey: getExportDataQueryKey(preview ?? "patients") } });
 
   return (
     <div>
@@ -53,6 +55,7 @@ export default function ReportsPage() {
               </div>
             ))}
           </Panel>
+          <PermissionOnly any={["clinical.read"]}><AiReviewMetricsPanel /></PermissionOnly>
           <Panel title="Exports" sub="CSV from the synthetic dataset">
             <div className="space-y-2">
               {(["patients", "billing", "audit", "configuration"] as ExportKind[]).map((k) => (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, KeyRound, ShieldCheck, Waves } from "lucide-react";
 import { useHealthCheck, useLogin, getGetCurrentUserQueryKey } from "@workspace/api-client-react";
@@ -27,9 +27,10 @@ export default function LoginPage() {
       { data: { email: email.trim(), password } },
       {
         onSuccess: (user) => {
+          qc.clear();
           qc.setQueryData(getGetCurrentUserQueryKey(), user);
           qc.invalidateQueries();
-          setLocation(user.role === "patient" ? "/patient" : "/");
+          setLocation(user.role === "patient" ? "/patient" : user.permissions?.includes("clinical.read") ? "/" : "/patients");
         },
         onError: (err) => setError(errMsg(err)),
       },
@@ -81,6 +82,7 @@ export default function LoginPage() {
               <Field label="Password">
                 <input type="password" autoComplete="current-password" className={`${inputCls} !h-11`} value={password} onChange={(e) => setPassword(e.target.value)} required data-testid="input-password" />
               </Field>
+              <div className="-mt-2 flex justify-end"><Link href="/forgot-password" className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline" data-testid="link-forgot-password">Forgot password?</Link></div>
               {error && <div className="rounded-lg border border-destructive/25 bg-[hsl(352_80%_97.5%)] px-3 py-2 text-xs text-destructive" data-testid="text-login-error">{error}</div>}
               <Btn type="submit" variant="primary" className="h-11 w-full" disabled={login.isPending} data-testid="button-login">
                 {login.isPending ? "Signing in…" : <>Sign in <ArrowRight className="h-4 w-4" /></>}

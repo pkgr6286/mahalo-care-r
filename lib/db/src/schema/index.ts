@@ -1,3 +1,8 @@
+export * from "./operations";
+export * from "./policies";
+export * from "./documents";
+export * from "./preferences";
+export * from "./attachments";
 // Export your models here. Add one export per file
 // export * from "./posts";
 //

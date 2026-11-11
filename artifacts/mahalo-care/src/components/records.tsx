@@ -1,8 +1,11 @@
 import { Link } from "wouter";
-import { Check, CheckCheck, CircleSlash, Eye } from "lucide-react";
+import { CheckCheck, Clock, Eye } from "lucide-react";
 import type { CareRecord } from "@workspace/api-client-react";
 import { ConfirmButton, Pill, ProgramTag, StatusPill, toneFor } from "@/components/kit";
-import { fmtRel, useAction } from "@/lib/api";
+import { fmtRel, mStr, useAction } from "@/lib/api";
+import { usePermission } from "@/components/access";
+import { ExceptionCloseButton } from "@/components/exception-resolve";
+import { resolutionLabel } from "@/lib/rule-schema";
 import { cn } from "@/lib/utils";
 
 const sevBar: Record<string, string> = {
@@ -18,6 +21,7 @@ export function isOpen(r: CareRecord) {
 
 export function ExceptionRow({ r, showPatient = true }: { r: CareRecord; showPatient?: boolean }) {
   const { run, pending } = useAction();
+  const canWrite = usePermission().allow("clinical.write");
   const open = isOpen(r);
   return (
     <div className="group relative flex flex-col gap-3 border-b border-border py-3 pl-4 pr-1 last:border-b-0 sm:flex-row sm:items-center" data-testid={`row-exception-${r.id}`}>
@@ -36,14 +40,21 @@ export function ExceptionRow({ r, showPatient = true }: { r: CareRecord; showPat
           {r.description && <span className="truncate max-w-[52ch]">{r.description}</span>}
           <span>{fmtRel(r.date ?? r.createdAt)}</span>
         </div>
+        {!open && (r.metadata?.resolutionCode || r.metadata?.resolution) ? (
+          <div className="mt-0.5 text-[11px] text-muted-foreground" data-testid={`text-resolution-${r.id}`}>
+            {r.metadata?.resolutionCode ? <span className="font-medium text-foreground/80">{resolutionLabel(r.metadata.resolutionCode)}</span> : null}
+            {r.metadata?.resolution ? <span>{r.metadata?.resolutionCode ? " · " : ""}{String(r.metadata.resolution)}</span> : null}
+            {r.metadata?.linkedNoteId ? <span> · linked note</span> : null}
+          </div>
+        ) : null}
       </div>
-      {open && (
+      {open && canWrite && (
         <div className="flex shrink-0 items-center gap-1.5">
           {(r.status ?? "").toLowerCase() !== "acknowledged" && (
-            <ConfirmButton label="Acknowledge" icon={<Eye className="h-3.5 w-3.5" />} title="Acknowledge exception" desc={`You are taking ownership of "${r.title}" for ${r.patientName}.`} confirmLabel="Acknowledge" pending={pending} onConfirm={(_, close) => run({ action: "acknowledge", id: r.id }, close)} testid={`button-ack-${r.id}`} />
+            <ConfirmButton label="Acknowledge" icon={<Eye className="h-3.5 w-3.5" />} title="Acknowledge exception" desc={`You are taking ownership of "${r.title}" for ${r.patientName}. This does not start a timer; start one separately if you document time.`} confirmLabel="Acknowledge" pending={pending} onConfirm={(_, close) => run({ action: "acknowledge", id: r.id }, close)} testid={`button-ack-${r.id}`} />
           )}
-          <ConfirmButton label="Resolve" icon={<Check className="h-3.5 w-3.5" />} title="Resolve exception" desc="Document the clinical response. This is recorded in the patient's timeline." reason reasonLabel="Resolution note" confirmLabel="Resolve" pending={pending} variant="primary" onConfirm={(reason, close) => run({ action: "resolve", id: r.id, reason }, close)} testid={`button-resolve-${r.id}`} />
-          <ConfirmButton label="" icon={<CircleSlash className="h-3.5 w-3.5" />} title="Dismiss exception" desc="Dismissed exceptions stay in the audit trail with your reason." reason confirmLabel="Dismiss" pending={pending} variant="ghost" onConfirm={(reason, close) => run({ action: "dismiss", id: r.id, reason }, close)} testid={`button-dismiss-${r.id}`} />
+          <ExceptionCloseButton r={r} mode="resolve" />
+          <ExceptionCloseButton r={r} mode="dismiss" />
         </div>
       )}
     </div>
@@ -52,11 +63,13 @@ export function ExceptionRow({ r, showPatient = true }: { r: CareRecord; showPat
 
 export function TaskRow({ r, showPatient = true }: { r: CareRecord; showPatient?: boolean }) {
   const { run, pending } = useAction();
+  const canWrite = usePermission().allow("clinical.write");
   const open = isOpen(r);
   const overdue = open && r.date && new Date(r.date) < new Date(new Date().toDateString());
+  const timeReminder = mStr(r, "source") === "uncommitted_time";
   return (
     <div className="flex items-center gap-3 border-b border-border py-2.5 last:border-b-0" data-testid={`row-task-${r.id}`}>
-      <ConfirmButtonCheck done={!open} pending={pending} title={r.title} onConfirm={(close) => run({ action: "completeTask", id: r.id }, close)} id={r.id} />
+      {timeReminder && open ? <Clock className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.6} aria-hidden="true" /> : <ConfirmButtonCheck readOnly={!canWrite} done={!open} pending={pending} title={r.title} onConfirm={(close) => run({ action: "completeTask", id: r.id }, close)} id={r.id} />}
       <div className="min-w-0 flex-1">
         <div className={cn("flex flex-wrap items-center gap-2 text-sm", !open && "text-muted-foreground line-through")}>
           {r.title} <ProgramTag p={r.program} />
@@ -67,15 +80,17 @@ export function TaskRow({ r, showPatient = true }: { r: CareRecord; showPatient?
           {r.date && <span className={cn(overdue && "font-medium text-destructive")}>{overdue ? "Overdue · " : "Due "}{new Date(r.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
         </div>
       </div>
+      {timeReminder && open && r.patientId && <Link href={`/patients/${r.patientId}?tab=time`} className="inline-flex h-7 items-center rounded-full border border-input px-3 text-xs font-medium hover:bg-secondary" title="Closes on its own once the time is committed, discarded or voided" data-testid={`link-review-time-${r.id}`}>Review time</Link>}
       <StatusPill value={r.status} />
     </div>
   );
 }
 
-function ConfirmButtonCheck({ done, pending, title, onConfirm, id }: { done: boolean; pending: boolean; title: string; onConfirm: (close: () => void) => void; id: string }) {
+function ConfirmButtonCheck({ done, pending, title, onConfirm, id, readOnly }: { readOnly?: boolean; done: boolean; pending: boolean; title: string; onConfirm: (close: () => void) => void; id: string }) {
   if (done) {
     return <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[hsl(162_55%_40%)] text-white"><CheckCheck className="h-3 w-3" /></span>;
   }
+  if (readOnly) return <span role="img" aria-label="Open task" className="flex h-5 w-5 items-center justify-center text-muted-foreground"><span className="block h-3.5 w-3.5 rounded-full border-[1.5px] border-current" /></span>;
   return (
     <ConfirmButton
       label=""

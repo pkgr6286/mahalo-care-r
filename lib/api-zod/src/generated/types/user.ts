@@ -14,4 +14,6 @@ export interface User {
   credential: string;
   /** @nullable */
   patientId?: string | null;
+  locationScopes?: string[];
+  permissions?: string[];
 }

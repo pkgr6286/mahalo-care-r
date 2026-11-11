@@ -16,6 +16,7 @@ export const patients = pgTable("care_patients", {
   medications: jsonb("medications").$type<string[]>().notNull().default([]),
   payer: text("payer").notNull().default("Medicare"),
   careManager: text("care_manager").notNull().default("Sarah Mitchell"),
+  communicationPreferences: jsonb("communication_preferences").$type<{email:boolean;sms:boolean;push:boolean;quietHours?:{enabled:boolean;start:string;end:string}}>().notNull().default({email:true,sms:true,push:true}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -38,6 +38,7 @@ A single-practice care-management demonstration covering RPM, RTM, CCM, PCM and 
 - EHR, video and outbound notifications use explicit simulated adapters. They must never be presented as live.
 - Live AI drafting is opt-in, uses synthetic charts only and requires human acceptance. Deterministic test mode remains the default. No draft signs a note or commits time automatically.
 - The current demo serializes conflicting clinical mutations with a PostgreSQL advisory transaction lock. Revisit this bottleneck and owner-level bootstrap DDL before production.
+- Local durable work uses a PostgreSQL queue with transactional claims, savepoints, bounded retries and deduplication. This deliberately avoids an additional Redis service for the single-practice local build; the specification's BullMQ/Redis production topology remains a later infrastructure decision.
 
 ## Product
 
@@ -52,6 +53,7 @@ Staff have a today dashboard, worklists, unified patient chart, five program wor
 - Native mobile is the next step, not part of this build.
 - Ignore GitHub Actions, automatic PR workflows and the document's Claude Code implementation workflow.
 - Build and verify locally; help with GCP deployment later. Do not provision or publish cloud resources without a separate user decision.
+- The requested deliverable is the complete single-practice specification, not just a branded demo. Branding is an added requirement, not a stopping point. Track remaining acceptance gaps in `docs/IMPLEMENTATION-COVERAGE.md`.
 
 ## Gotchas
 

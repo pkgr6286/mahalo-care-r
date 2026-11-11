@@ -1,0 +1,4 @@
+- [Generic JSX compatibility](generic-jsx-compatibility.md) — preview instrumentation can break explicit JSX type arguments even when TypeScript passes.
+- [PDF brand-font verification](pdf-brand-fonts.md) — browser font support and a minimal PDF test do not prove composite-glyph PDF embedding works.
+- [OpenAPI request-body naming](openapi-body-naming.md) — use named request schemas to avoid duplicate body exports from the generated SDK and validators.
+- [Private clinical files](clinical-file-storage.md) — private development cloud storage was approved; GCP provisioning/publishing remains a separate approval.
