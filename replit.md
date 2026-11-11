@@ -51,8 +51,8 @@ Staff have a today dashboard, worklists, unified patient chart, five program wor
 - Use Mahalo's official logos and fonts from the supplied brand kit and https://mahalo.health/brand; make the UI modern and aesthetic. See `docs/BRAND-ASSETS.md` for usage constraints and asset sources.
 - Use email/password authentication now; add other authentication systems later.
 - Native mobile is the next step, not part of this build.
-- Ignore GitHub Actions, automatic PR workflows and the document's Claude Code implementation workflow.
-- Build and verify locally; help with GCP deployment later. Do not provision or publish cloud resources without a separate user decision.
+- Do not use GitHub Actions to test the code. GitHub source control, commits and pushes are part of the requested workflow; this is not a prohibition on GitHub. Ignore the document's Claude Code workflow.
+- Build on Replit, test locally in the Preview server, push the source to GitHub, then publish on Replit servers. Replit is the current publishing target; do not provision GCP unless separately requested. Actual publishing remains a user action.
 - The requested deliverable is the complete single-practice specification, not just a branded demo. Branding is an added requirement, not a stopping point. Track remaining acceptance gaps in `docs/IMPLEMENTATION-COVERAGE.md`.
 
 ## Gotchas
