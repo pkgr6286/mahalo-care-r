@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, UserRound } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, UserRound } from "lucide-react";
 import { useCreatePatient, useListPatients, useListRecords, getListRecordsQueryKey, type PatientInput } from "@workspace/api-client-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Btn, EmptyState, ErrorState, Field, PageHeader, Pill, ProgramTag, SkeletonRows, inputCls, toneFor } from "@/components/kit";
@@ -10,6 +10,14 @@ import { errMsg, fmtRel, initials, PROGRAMS } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {usePermission} from "@/components/access";
+import { sortPatients, type PatientSortKey, type SortDirection } from "@/lib/patient-sort";
+
+// Zero intrinsic minimums keep long clinical text from moving individual rows' columns.
+const patientGrid = "lg:grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,.75fr)_minmax(0,.75fr)_minmax(0,1.1fr)_minmax(0,1.1fr)]";
+const columns: { key: PatientSortKey; label: string; right?: boolean }[] = [
+  {key:"patient",label:"Patient"},{key:"programs",label:"Programs"},{key:"location",label:"Location"},
+  {key:"risk",label:"Risk"},{key:"minutes",label:"Minutes",right:true},{key:"adherence",label:"Adherence",right:true},{key:"lastContact",label:"Last contact",right:true},
+];
 
 export default function PatientsPage() {
   const {allow}=usePermission();
@@ -18,12 +26,15 @@ export default function PatientsPage() {
   const [program, setProgram] = useState("");
   const [status, setStatus] = useState("");
   const [open, setOpen] = useState(false);
+  const [sort, setSort] = useState<{key:PatientSortKey;direction:SortDirection}>({key:"patient",direction:"asc"});
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q), 250);
     return () => clearTimeout(t);
   }, [q]);
   const params = { ...(debounced ? { search: debounced } : {}), ...(program ? { program } : {}), ...(status ? { status } : {}) };
   const list = useListPatients(Object.keys(params).length ? params : undefined);
+  const sorted = useMemo(()=>sortPatients(list.data??[],sort.key,sort.direction),[list.data,sort]);
+  const changeSort = (key:PatientSortKey) => setSort(current=>({key,direction:current.key===key?(current.direction==="asc"?"desc":"asc"):["risk","minutes","adherence","lastContact"].includes(key)?"desc":"asc"}));
 
   return (
     <div>
@@ -47,26 +58,40 @@ export default function PatientsPage() {
           {["active", "inactive"].map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
+      <div className="mb-3 flex items-center gap-2 lg:hidden">
+        <label htmlFor="patient-sort" className="shrink-0 text-xs text-muted-foreground">Sort by</label>
+        <select id="patient-sort" className={cn(inputCls,"flex-1")} value={sort.key} onChange={e=>changeSort(e.target.value as PatientSortKey)} data-testid="select-patient-sort">
+          {columns.map(c=><option key={c.key} value={c.key}>{c.label}</option>)}
+        </select>
+        <button type="button" onClick={()=>changeSort(sort.key)} className="inline-flex items-center gap-1 rounded-lg border border-input px-3 py-2 text-xs" aria-label={`Sort ${sort.direction==="asc"?"descending":"ascending"}`} data-testid="button-patient-sort-direction">
+          {sort.direction==="asc"?<ArrowUp className="h-3.5 w-3.5"/>:<ArrowDown className="h-3.5 w-3.5"/>}{sort.direction==="asc"?"Ascending":"Descending"}
+        </button>
+      </div>
 
       {list.isLoading ? <SkeletonRows rows={8} /> : list.isError ? <ErrorState error={list.error} onRetry={() => list.refetch()} /> : !list.data?.length ? (
         <EmptyState icon={<UserRound className="h-4 w-4" />} title="No patients match" desc="Try a different search, or add a synthetic patient." action={<Btn variant="primary" onClick={() => setOpen(true)}>Add patient</Btn>} />
       ) : (
         <div className="rise overflow-hidden rounded-xl border border-card-border bg-card">
-          <div className="hidden grid-cols-[2fr_1.1fr_1fr_0.7fr_0.8fr_0.9fr_0.9fr] gap-3 border-b border-border bg-muted/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:grid">
-            <span>Patient</span><span>Programs</span><span>Location</span><span>Risk</span><span className="text-right">Minutes</span><span className="text-right">Adherence</span><span className="text-right">Last contact</span>
+          <div className={cn("hidden gap-3 border-b border-border bg-muted/50 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground lg:grid",patientGrid)}>
+            {columns.map(c=>{
+              const active=sort.key===c.key, Icon=active?(sort.direction==="asc"?ArrowUp:ArrowDown):ArrowUpDown;
+              return <button key={c.key} type="button" onClick={()=>changeSort(c.key)} className={cn("flex min-w-0 items-center gap-1 rounded-sm py-1 text-left uppercase tracking-wider transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary",c.right&&"flex-row-reverse text-right",active&&"text-foreground")} aria-label={`Sort by ${c.label}${active?`, currently ${sort.direction==="asc"?"ascending":"descending"}`:""}`} aria-pressed={active} data-testid={`sort-patients-${c.key}`}>
+                <span className="truncate">{c.label}</span><Icon className={cn("h-3 w-3 shrink-0",!active&&"opacity-50")} strokeWidth={1.6}/>
+              </button>;
+            })}
           </div>
-          <PagedList items={list.data} pageSize={25} noun="patients" testid="pager-patients" render={(p) => (
-            <Link key={p.id} href={`/patients/${p.id}`} className="grid grid-cols-1 gap-2 border-b border-border px-4 py-3 transition-colors last:border-b-0 hover:bg-accent/40 lg:grid-cols-[2fr_1.1fr_1fr_0.7fr_0.8fr_0.9fr_0.9fr] lg:items-center lg:gap-3" data-testid={`row-patient-${p.id}`}>
-              <div className="flex items-center gap-3">
+          <PagedList key={`${sort.key}:${sort.direction}:${debounced}:${program}:${status}`} items={sorted} pageSize={25} noun="patients" testid="pager-patients" render={(p) => (
+            <Link key={p.id} href={`/patients/${p.id}`} className={cn("grid grid-cols-1 gap-2 border-b border-border px-4 py-3 transition-colors last:border-b-0 hover:bg-accent/40 lg:items-center lg:gap-3",patientGrid)} data-testid={`row-patient-${p.id}`}>
+              <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-foreground">{initials(`${p.firstName} ${p.lastName}`)}</div>
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">{p.lastName}, {p.firstName}</div>
-                  <div className="truncate text-xs text-muted-foreground">{p.conditions?.length ? p.conditions.slice(0, 2).join(", ") : "No conditions recorded"}{(p.conditions?.length ?? 0) > 2 ? ` +${(p.conditions?.length ?? 0) - 2}` : ""}</div>
+                  <div className="truncate text-sm font-medium" title={`${p.lastName}, ${p.firstName}`}>{p.lastName}, {p.firstName}</div>
+                  <div className="truncate text-xs text-muted-foreground" title={p.conditions?.join(", ")}>{p.conditions?.length ? p.conditions.slice(0, 2).join(", ") : "No conditions recorded"}{(p.conditions?.length ?? 0) > 2 ? ` +${(p.conditions?.length ?? 0) - 2}` : ""}</div>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-1">{p.programs.length ? p.programs.map((g) => <ProgramTag key={g} p={g} />) : <span className="text-xs text-muted-foreground">Not enrolled</span>}</div>
-              <div className="text-xs text-muted-foreground">{p.location}</div>
-              <div><Pill tone={toneFor(p.risk)} dot>{p.risk}</Pill></div>
+              <div className="flex min-w-0 flex-wrap gap-1">{p.programs.length ? p.programs.map((g) => <ProgramTag key={g} p={g} />) : <span className="text-xs text-muted-foreground">Not enrolled</span>}</div>
+              <div className="min-w-0 truncate text-xs text-muted-foreground" title={p.location}>{p.location}</div>
+              <div className="min-w-0"><Pill tone={toneFor(p.risk)} dot>{p.risk}</Pill></div>
               <div className="tnum text-right text-sm lg:block hidden">{p.minutes}</div>
               <div className="hidden items-center justify-end gap-2 lg:flex">
                 <div className="h-1 w-12 overflow-hidden rounded-full bg-muted"><div className={cn("h-full", p.adherence < 60 ? "bg-destructive" : p.adherence < 80 ? "bg-[hsl(38_90%_52%)]" : "bg-primary")} style={{ width: `${Math.min(100, p.adherence)}%` }} /></div>
