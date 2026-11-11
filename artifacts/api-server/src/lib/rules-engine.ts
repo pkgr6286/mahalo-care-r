@@ -58,7 +58,7 @@ export function evaluateRule(definition:RuleDefinition|ClinicalRule,signals:Rule
       return out(matched,barrier?1:r.missed_consecutive_gte!==undefined?misses:rate*100,`${tasks.length} due items; ${(rate*100).toFixed(1)}% complete; ${misses} consecutive misses${barrier?"; configured barrier reported":""}`,tasks,barrier?"barrier":r.missed_consecutive_gte!==undefined?"consecutive_misses":"percent");
     }
     case "score": {
-      const scores=all.filter(s=>s.kind==="responses"&&(!r.instrument_key||s.metadata.instrument===r.instrument_key)),latest=scores[0];
+      const scores=all.filter(s=>s.kind==="responses"&&s.metadata.nonValidatedDemo!==true&&(!r.instrument_key||s.metadata.instrument===r.instrument_key)),latest=scores[0];
       if(!latest||Date.parse(latest.date)<now-r.window_days*86400000) return out(false,0,"No matching scored instrument in the configured window",[],"score");
       let matched=false,observed=latest.value,metric="score";
       if(r.item_flag) {const answer=Array.isArray(latest.metadata.answers)?latest.metadata.answers[r.item_flag.index-1]:undefined;matched=typeof answer==="number"&&compare(answer,r.item_flag.op,r.item_flag.value);observed=typeof answer==="number"?answer:0;metric=`item_${r.item_flag.index}`;}

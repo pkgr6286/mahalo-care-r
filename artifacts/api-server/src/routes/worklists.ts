@@ -4,6 +4,7 @@ import {db,users,type PatientRow} from "@workspace/db";
 import {AssignWorklistRecordsBody,RecordConsultantReviewBody,UpdateWorkspacePreferencesBody,GetWorklistResponse} from "@workspace/api-zod";
 import {getRecord,patchRecord,serializeRecord,type Actor} from "../lib/store";
 import {authorize,assertPatientAccess,inLocation,hasPermission} from "../lib/access";
+import {staffRoleAt} from "../lib/staff-identity";
 import {AppError} from "../lib/errors";
 import {queryWorklist} from "../lib/worklist-query";
 import {parseWorklistQuery,WorklistKindSchema,isStaffCareTask} from "../lib/worklist-filters";
@@ -35,10 +36,11 @@ worklistsRouter.post("/worklists/assign",async(req,res)=>{
       const eligible=r.kind==="devices"||r.kind==="exceptions"&&["open","acknowledged"].includes(r.status)||r.kind==="tasks"&&["pending","open"].includes(r.status)&&isStaffCareTask(r.metadata)||["notes","careplans"].includes(r.kind)&&r.status==="draft"||r.kind==="enrollments"&&["active","paused"].includes(r.status);
       if(!eligible) throw new AppError(409,"Only open staff work and draft documents can be reassigned; signed records and patient activities cannot");
       if(r.kind==="devices"&&["returned","retired","inactive"].includes(r.status)) throw new AppError(409,"Returned or retired equipment cannot be reassigned");
-      if(target&&(!inLocation({role:target.role,locationScopes:target.locationScopes} as Actor,p.location)||!hasPermission({role:target.role} as Actor,r.kind==="devices"?"devices.write":"clinical.write"))) throw new AppError(403,"The selected staff member cannot manage every selected patient's work");
+      const targetRole=target&&staffRoleAt(target,p.location);
+      if(target&&(!targetRole||!hasPermission({role:targetRole} as Actor,r.kind==="devices"?"devices.write":"clinical.write"))) throw new AppError(403,"The selected staff member cannot manage every selected patient's work");
     }
     const changed=[];
-    for(const r of selected) changed.push(await patchRecord(s,r,{assignee:target?.name??"",metadata:{...r.metadata,ownerUserId:target?.id??null,ownerRole:target?.role??r.metadata.ownerRole??null,assignmentSource:"manual",assignedById:actor.id,assignedAt:new Date().toISOString()}},actor,"assign_worklist_record"));
+    for(const r of selected) changed.push(await patchRecord(s,r,{assignee:target?.name??"",metadata:{...r.metadata,ownerUserId:target?.id??null,ownerRole:target?staffRoleAt(target,ps.find(p=>p.id===r.patientId)!.location):r.metadata.ownerRole??null,assignmentSource:"manual",assignedById:actor.id,assignedAt:new Date().toISOString()}},actor,"assign_worklist_record"));
     return changed.map(r=>serializeRecord(r,ps));
   });
   res.json({success:true,count:result.length,records:result});

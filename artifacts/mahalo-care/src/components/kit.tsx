@@ -342,6 +342,11 @@ function RecordForm({ kind, record, title, fields, meta, defaults, statusOptions
     else initialMeta[f.key] = raw === undefined || raw === null ? "" : String(raw);
   }
   const [m, setM] = useState(initialMeta);
+  const linked = kind === "staff" && record?.metadata?.identitySource === "staff_account";
+  const LOCKED_META = ["role", "credential", "email", "npi", "location", "locationScopes", "siteRoles", "accountStatus", "userId"];
+  const lockedMeta = (k: string) => linked && LOCKED_META.includes(k);
+  const siteRoles = linked && record?.metadata?.siteRoles && typeof record.metadata.siteRoles === "object" ? Object.entries(record.metadata.siteRoles as Record<string, unknown>).filter(([, r]) => typeof r === "string" && r) as [string, string][] : [];
+  const nice = (x: unknown) => (typeof x === "string" && x ? x.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()) : "");
   const { save, pending } = useSaveRecord();
   const needPatients = fields.includes("patient");
   const patients = useListPatients(undefined, { query: { enabled: needPatients, queryKey: ["/api/patients"] } });
@@ -351,6 +356,7 @@ function RecordForm({ kind, record, title, fields, meta, defaults, statusOptions
     e.preventDefault();
     const metadata: Record<string, unknown> = { ...(record?.metadata ?? defaults.metadata ?? {}) };
     for (const f of meta) {
+      if (lockedMeta(f.key)) continue; // identity fields managed through Staff accounts; keep originals untouched
       const val = m[f.key];
       if (f.type === "list") metadata[f.key] = String(val).split("\n").map((s) => s.trim()).filter(Boolean);
       else if (f.type === "number") metadata[f.key] = val === "" ? undefined : Number(val);
@@ -358,14 +364,15 @@ function RecordForm({ kind, record, title, fields, meta, defaults, statusOptions
     }
     const data: RecordInput = {
       ...(defaults as RecordInput),
-      title: v.title.trim(),
+      title: linked && record ? record.title : v.title.trim(),
       metadata,
     };
     if (fields.includes("patient")) data.patientId = v.patientId || null;
     else if (record) data.patientId = record.patientId ?? null;
     if (fields.includes("program")) data.program = v.program || null;
     else if (record) data.program = record.program ?? null;
-    if (fields.includes("status") && v.status) data.status = v.status;
+    if (linked && record) data.status = record.status;
+    else if (fields.includes("status") && v.status) data.status = v.status;
     else if (record) data.status = record.status;
     if (fields.includes("severity") && v.severity) data.severity = v.severity;
     if (fields.includes("assignee")) data.assignee = v.assignee || undefined;
@@ -381,10 +388,19 @@ function RecordForm({ kind, record, title, fields, meta, defaults, statusOptions
     <form onSubmit={submit} className="space-y-4">
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{record ? "Changes are written to the audit trail." : "Saved to the synthetic practice dataset."}</DialogDescription>
+        <DialogDescription>{record ? "Changes are audited." : "Creates a new entry. All changes are audited."}</DialogDescription>
       </DialogHeader>
+      {linked && (
+        <div className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground" data-testid="note-linked-identity">
+          Linked to a staff sign-in account. Name, role, credential, email, NPI, site roles and status are managed in Administration, Accounts, and shown read only here.
+          {siteRoles.length > 0 ? (
+            <div className="mt-2 space-y-0.5 text-foreground" data-testid="text-linked-site-roles">{siteRoles.map(([site, r]) => <div key={site}>{nice(r)} at {site}</div>)}</div>
+          ) : nice(record?.metadata?.role) ? <div className="mt-2 text-foreground">{nice(record?.metadata?.role)}{Array.isArray(record?.metadata?.locationScopes) && (record?.metadata?.locationScopes as unknown[]).length ? ` at ${(record?.metadata?.locationScopes as string[]).join(", ")}` : ""}</div> : null}
+          {nice(record?.metadata?.accountStatus) && <div className="mt-1">Account status: {nice(record?.metadata?.accountStatus)}</div>}
+        </div>
+      )}
       <Field label={titleLabel}>
-        <input className={inputCls} value={v.title} onChange={set("title")} required data-testid="input-title" autoFocus />
+        <input className={cn(inputCls, linked && "cursor-not-allowed bg-muted/50")} value={v.title} onChange={set("title")} readOnly={linked} required data-testid="input-title" autoFocus={!linked} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         {fields.includes("patient") && (
@@ -408,8 +424,8 @@ function RecordForm({ kind, record, title, fields, meta, defaults, statusOptions
         {fields.includes("status") && (
           <Field label="Status">
             {statusOptions ? (
-              <select className={inputCls} value={v.status} onChange={set("status")} data-testid="select-status">
-                {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+              <select className={inputCls} value={v.status} onChange={set("status")} disabled={linked} data-testid="select-status">
+                {statusOptions.map((s) => <option key={s} value={s}>{s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}</option>)}
               </select>
             ) : (
               <input className={inputCls} value={v.status} onChange={set("status")} data-testid="input-status" />
@@ -420,7 +436,7 @@ function RecordForm({ kind, record, title, fields, meta, defaults, statusOptions
           <Field label="Severity">
             <select className={inputCls} value={v.severity} onChange={set("severity")} data-testid="select-severity">
               <option value="">None</option>
-              {["low", "medium", "high", "critical"].map((s) => <option key={s} value={s}>{s}</option>)}
+              {["low", "medium", "high", "critical"].map((s) => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
             </select>
           </Field>
         )}
@@ -449,7 +465,7 @@ function RecordForm({ kind, record, title, fields, meta, defaults, statusOptions
           ) : f.type === "list" || f.type === "textarea" ? (
             <textarea className={cn(inputCls, "h-20 py-2")} value={String(m[f.key] ?? "")} onChange={(e) => setM((s) => ({ ...s, [f.key]: e.target.value }))} data-testid={`input-meta-${f.key}`} />
           ) : (
-            <input type={f.type === "number" ? "number" : "text"} className={inputCls} value={String(m[f.key] ?? "")} onChange={(e) => setM((s) => ({ ...s, [f.key]: e.target.value }))} data-testid={`input-meta-${f.key}`} />
+            <input type={f.type === "number" ? "number" : "text"} className={cn(inputCls, lockedMeta(f.key) && "cursor-not-allowed bg-muted/50")} value={lockedMeta(f.key) && f.key === "role" && siteRoles.length ? "Varies by site (see above)" : String(m[f.key] ?? "")} readOnly={lockedMeta(f.key)} onChange={(e) => setM((s) => ({ ...s, [f.key]: e.target.value }))} data-testid={`input-meta-${f.key}`} />
           )}
         </Field>
       ))}

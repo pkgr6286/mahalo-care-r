@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Copy, Eye, FlaskConical, Pencil, Plus, Search, ShieldAlert } from "lucide-react";
 import { useListRecords, getListRecordsQueryKey, type CareRecord } from "@workspace/api-client-react";
 import { Btn, EmptyState, ErrorState, Pill, ProgramTag, SkeletonRows, StatusPill, inputCls, toneFor } from "@/components/kit";
+import { PagedList } from "@/components/list-tools";
 import { usePermission } from "@/components/access";
 import { PROGRAMS, fmtRel } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -61,7 +62,7 @@ export function RulesManager() {
         <EmptyState icon={<FlaskConical className="h-4 w-4" strokeWidth={1.6} />} title={rows.length ? "No rules match" : "No rules yet"} desc={rows.length ? "Clear a filter to see more." : isAdmin ? "Start from an example or create a rule." : "An administrator configures rules."} />
       ) : (
         <ul className="rise overflow-hidden rounded-xl border border-card-border bg-card" aria-label="Clinical rules">
-          {list.map(({ r, rule }) => (
+          <PagedList items={list} pageSize={20} noun="rules" testid="pager-rules" render={({ r, rule }) => (
             <li key={r.id} className="flex flex-col gap-2 border-b border-border px-4 py-3 last:border-b-0 sm:flex-row sm:items-center" data-testid={`row-rules-${r.id}`}>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 text-sm font-medium">{r.title}<Pill tone="neutral">{kindLabel(rule.rule.kind)}</Pill><ProgramTag p={r.program} />{r.severity && <Pill tone={toneFor(r.severity)}>{r.severity}</Pill>}<StatusPill value={r.status} />{rule.aliases.length > 0 && <Pill tone="amber">legacy fields</Pill>}</div>
@@ -74,7 +75,7 @@ export function RulesManager() {
                   : <Btn size="sm" variant="ghost" onClick={() => setOpen({ record: r, readOnly: true })} data-testid={`button-view-${r.id}`}><Eye className="h-3.5 w-3.5" />View</Btn>}
               </div>
             </li>
-          ))}
+          )} />
         </ul>
       )}
       {open && <RuleEditor key={open.record?.id ?? open.preset?.title ?? "new"} record={open.record} preset={open.preset} readOnly={open.readOnly} canPreview={canPreview} onClose={() => setOpen(null)} />}

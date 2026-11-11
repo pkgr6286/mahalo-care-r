@@ -14,6 +14,12 @@ import { can } from "@/components/access";
 import { GlobalTimer } from "@/components/global-timer";
 import { CommandPalette, SearchTrigger } from "@/components/command-palette";
 import { usePrefs } from "@/hooks/use-workspace-prefs";
+import { CaregiverPortal } from "@/pages/caregiver";
+import { SessionLockGuard, setSessionLocked } from "@/components/session-lock";
+import { LocationContextSwitcher } from "@/components/location-context";
+import { EmergencyAccessAction, EmergencyBanner, emergencyOf, purgeContext } from "@/components/emergency-access";
+import { onContextChange } from "@/lib/context-sync";
+import { roleLabel } from "@/pages/account";
 export { Logo, Mark } from "@/components/brand";
 
 export function SyntheticRibbon() {
@@ -43,7 +49,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
   const me = useGetCurrentUser({ query: { retry: false, queryKey: getGetCurrentUserQueryKey(), refetchInterval:60_000, refetchOnWindowFocus:true } });
   const isPatient = me.data?.role === "patient";
-  const settings = useGetSettings({ query: { enabled: !!me.data && !isPatient, queryKey: getGetSettingsQueryKey() } });
+  const isCaregiver = (me.data?.role as string | undefined) === "caregiver";
+  const settings = useGetSettings({ query: { enabled: !!me.data && !isPatient && !isCaregiver, queryKey: getGetSettingsQueryKey() } });
   const logout = useLogout();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -53,12 +60,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   const density = prefs.q.data?.density === "compact" ? "compact" : "comfortable";
 
   useEffect(() => setOpen(false), [location]);
+  const myId = me.data?.id;
+  useEffect(() => {
+    if (!myId) return;
+    return onContextChange(myId, () => { void purgeContext(qc).then(() => qc.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() })); setLocation("/"); });
+  }, [myId, qc, setLocation]);
   useEffect(() => {
     if (me.isError && isUnauthorized(me.error)) {qc.clear();setLocation("/login");}
   }, [me.isError, me.error, setLocation, qc]);
   useEffect(() => {
     if (isPatient && location !== "/patient" && location !== "/account") setLocation("/patient");
   }, [isPatient, location, setLocation]);
+  useEffect(() => {
+    if (isCaregiver && location !== "/caregiver" && location !== "/account") setLocation("/caregiver");
+  }, [isCaregiver, location, setLocation]);
 
   if (me.isLoading) {
     return (
@@ -75,14 +90,27 @@ export function AppShell({ children }: { children: ReactNode }) {
     return <div className="p-10"><ErrorState error={me.error} onRetry={() => me.refetch()} /></div>;
   }
   const user = me.data!;
-  const doLogout = () =>
+  const doLogout = () => {
+    setSessionLocked(false);
     logout.mutate(undefined, {
       onSettled: () => {
         qc.clear();
         setLocation("/login");
       },
     });
+  };
 
+  if ((user.role as string) === "caregiver") {
+    if (location === "/account") {
+      return (
+        <div className="min-h-[100dvh] bg-background">
+          <div className="flex items-center justify-between border-b border-border px-5 py-3"><Link href="/caregiver" aria-label="Back to shared care"><Logo /></Link></div>
+          {children}
+        </div>
+      );
+    }
+    return <CaregiverPortal name={user.name} onSignOut={doLogout} signingOut={logout.isPending} />;
+  }
   if (user.role === "patient") {
     if (location === "/account") {
       return (
@@ -117,6 +145,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Practice</div>
         <div className="mt-0.5 truncate font-serif text-[15px] text-foreground" data-testid="text-practice-name">{settings.data?.name ?? "Loading…"}</div>
       </div>
+      {!emergencyOf(user) && <LocationContextSwitcher user={user} />}
       <div className="mx-3 mb-3"><SearchTrigger onOpen={openSearch} /></div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3" aria-label="Primary">
         {NAV.filter((n) => !n.perms || can(user, ...n.perms)).map((n) => (
@@ -136,12 +165,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         ))}
       </nav>
+      <EmergencyAccessAction user={user} />
       <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[hsl(var(--brand-orange))]/40 bg-accent text-[11px] font-semibold text-accent-foreground">{initials(user.name)}</div>
           <div className="min-w-0 flex-1">
             <div className="truncate text-[13px] font-medium text-foreground" data-testid="text-user-name">{user.name}{user.credential ? `, ${user.credential}` : ""}</div>
-            <div className="truncate text-[11px] capitalize text-muted-foreground">{user.role}</div>
+            <div className="truncate text-[11px] text-muted-foreground">{roleLabel(user.role)}</div>
           </div>
           <Link href="/account" className={cn("rounded-full p-2 transition-colors hover:bg-[hsl(40_15%_92%)] hover:text-foreground", isActive("/account") ? "text-primary" : "text-muted-foreground")} aria-label="Account and security" title="Account and security" data-testid="link-nav-account">
             <UserCog className="h-4 w-4" strokeWidth={1.6} />
@@ -156,6 +186,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-[100dvh] flex-col" data-density={density}>
+      <SessionLockGuard enabled serverLocked={(user as { sessionLocked?: boolean }).sessionLocked === true} onSignOut={doLogout} />
       <SyntheticRibbon />
       <div className="flex flex-1">
         <div className="sticky top-0 hidden h-[calc(100dvh-28px)] md:block">{sidebar}</div>
@@ -166,10 +197,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur md:hidden">
+          <div className="sticky top-0 z-30">
+          <div className="flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur md:hidden">
             <button onClick={() => setOpen(true)} aria-label="Open menu" className="rounded-full p-1.5 hover:bg-secondary" data-testid="button-menu"><Menu className="h-5 w-5" strokeWidth={1.5} /></button>
             <Logo />
             <SearchTrigger onOpen={openSearch} compact />
+          </div>
+          <EmergencyBanner user={user} />
           </div>
           <CommandPalette user={user} nav={NAV} open={searchOpen} onOpenChange={(next) => { if(next) openSearch(); else setSearchOpen(false); }} />
           <GlobalTimer user={user} />

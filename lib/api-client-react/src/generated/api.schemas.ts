@@ -5,6 +5,390 @@
  * Mahalo Care single-practice synthetic-data demo API
  * OpenAPI spec version: 1.0.0
  */
+export interface EmergencyAccessInput {
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  mrn: string;
+  /**
+     * @minLength 20
+     * @maxLength 1000
+     */
+  reason: string;
+  attested: true;
+}
+
+/**
+ * @nullable
+ */
+export type EmergencyAccessContext = {
+  patientId: string;
+  patientName: string;
+  mrn: string;
+  location: string;
+  reason: string;
+  startedAt: string;
+  expiresAt: string;
+} | null;
+
+export interface LocationContextInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  location: string;
+}
+
+export interface LocationRoleAssignments {[key: string]: 'clinical_admin' | 'billing_provider' | 'care_manager' | 'behavioral_care_manager' | 'psychiatric_consultant' | 'therapist' | 'front_desk' | 'billing' | 'read_only'}
+
+export interface CaregiverMutationResult {
+  success: boolean;
+}
+
+export type CaregiverScope = typeof CaregiverScope[keyof typeof CaregiverScope];
+
+
+export const CaregiverScope = {
+  careplansread: 'careplans.read',
+  readingsread: 'readings.read',
+  tasksread: 'tasks.read',
+  messagesread: 'messages.read',
+  messagessend: 'messages.send',
+  educationread: 'education.read',
+  appointmentsread: 'appointments.read',
+} as const;
+
+export type CaregiverGrantInputMethod = typeof CaregiverGrantInputMethod[keyof typeof CaregiverGrantInputMethod];
+
+
+export const CaregiverGrantInputMethod = {
+  verbal: 'verbal',
+  written: 'written',
+} as const;
+
+export interface CaregiverGrantInput {
+  contactId: string;
+  userId: string;
+  /**
+     * @minItems 1
+     * @maxItems 7
+     */
+  scopes: CaregiverScope[];
+  method: CaregiverGrantInputMethod;
+  /**
+     * @minLength 20
+     * @maxLength 4000
+     */
+  consentText: string;
+  attested: true;
+  expiresAt?: string;
+}
+
+export interface CaregiverRevocationInput {
+  /**
+     * @minLength 10
+     * @maxLength 2000
+     */
+  reason: string;
+}
+
+export interface CaregiverMessageInput {
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  message: string;
+}
+
+export interface CaregiverPatientSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  dob: string;
+  scopes: CaregiverScope[];
+}
+
+export interface CaregiverSharedRecord {
+  id: string;
+  title: string;
+  status?: string;
+  date?: string;
+  description?: string;
+  goals?: string;
+  interventions?: string;
+  careTeam?: string;
+  value?: number;
+  unit?: string;
+  fromName?: string;
+  body?: string;
+}
+
+export interface CaregiverPatientIdentity {
+  id: string;
+  firstName: string;
+  lastName: string;
+  dob: string;
+}
+
+export interface CaregiverPatientDetail {
+  patient: CaregiverPatientIdentity;
+  scopes: CaregiverScope[];
+  programs: string[];
+  careplans?: CaregiverSharedRecord[];
+  readings?: CaregiverSharedRecord[];
+  tasks?: CaregiverSharedRecord[];
+  messages?: CaregiverSharedRecord[];
+  education?: CaregiverSharedRecord[];
+  appointments?: CaregiverSharedRecord[];
+}
+
+export interface WorkspaceUnlockInput {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export interface WorkspaceUnlockResult {
+  ok: boolean;
+}
+
+export type DemonstrationPreparationInputConfirmation = typeof DemonstrationPreparationInputConfirmation[keyof typeof DemonstrationPreparationInputConfirmation];
+
+
+export const DemonstrationPreparationInputConfirmation = {
+  PREPARE_SYNTHETIC_PRACTICE: 'PREPARE SYNTHETIC PRACTICE',
+} as const;
+
+export interface DemonstrationPreparationInput {
+  confirmation: DemonstrationPreparationInputConfirmation;
+}
+
+export interface DemonstrationStatus {
+  prepared: boolean;
+  patients: number;
+  documentsPending: boolean;
+  synthetic: boolean;
+  preparing?: boolean;
+  /** @nullable */
+  error?: string | null;
+}
+
+export type ClinicalConditionClinicalStatus = typeof ClinicalConditionClinicalStatus[keyof typeof ClinicalConditionClinicalStatus];
+
+
+export const ClinicalConditionClinicalStatus = {
+  active: 'active',
+  resolved: 'resolved',
+  inactive: 'inactive',
+} as const;
+
+export interface ClinicalCondition {
+  id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 30
+     */
+  code: string;
+  /** @maxLength 80 */
+  codeSystem?: string;
+  /**
+     * @minLength 1
+     * @maxLength 250
+     */
+  display: string;
+  /** @nullable */
+  onsetDate?: string | null;
+  chronic: boolean;
+  clinicalStatus: ClinicalConditionClinicalStatus;
+  /**
+     * @minLength 1
+     * @maxLength 250
+     */
+  source: string;
+}
+
+export type ClinicalMedicationStatus = typeof ClinicalMedicationStatus[keyof typeof ClinicalMedicationStatus];
+
+
+export const ClinicalMedicationStatus = {
+  active: 'active',
+  stopped: 'stopped',
+  on_hold: 'on_hold',
+} as const;
+
+export interface ClinicalMedication {
+  id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 250
+     */
+  name: string;
+  /**
+     * @maxLength 30
+     * @nullable
+     */
+  rxnormCode?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 150
+     */
+  dose: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  route: string;
+  /**
+     * @minLength 1
+     * @maxLength 150
+     */
+  frequency: string;
+  /** @maxLength 250 */
+  indication?: string;
+  status: ClinicalMedicationStatus;
+  /** @nullable */
+  startedOn?: string | null;
+  /** @nullable */
+  reconciledAt?: string | null;
+  /**
+     * @maxLength 250
+     * @nullable
+     */
+  reconciledBy?: string | null;
+}
+
+export type ClinicalCoverageStatus = typeof ClinicalCoverageStatus[keyof typeof ClinicalCoverageStatus];
+
+
+export const ClinicalCoverageStatus = {
+  active: 'active',
+  inactive: 'inactive',
+  pending: 'pending',
+} as const;
+
+export interface ClinicalCoverage {
+  id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  payer: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  plan: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  memberId: string;
+  effectiveFrom: string;
+  /** @nullable */
+  effectiveTo?: string | null;
+  status: ClinicalCoverageStatus;
+  /** @nullable */
+  verifiedAt?: string | null;
+}
+
+export type ClinicalContactSharingScopeItem = typeof ClinicalContactSharingScopeItem[keyof typeof ClinicalContactSharingScopeItem];
+
+
+export const ClinicalContactSharingScopeItem = {
+  readings: 'readings',
+  careplans: 'careplans',
+  tasks: 'tasks',
+  messages: 'messages',
+  appointments: 'appointments',
+  education: 'education',
+} as const;
+
+export interface ClinicalContact {
+  id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  relationship: string;
+  /** @maxLength 80 */
+  phone?: string;
+  /** @maxLength 250 */
+  email?: string;
+  emergency: boolean;
+  sharingAllowed: boolean;
+  /** @maxItems 6 */
+  sharingScope?: ClinicalContactSharingScopeItem[];
+  /** @nullable */
+  consentRecordedAt?: string | null;
+}
+
+export interface ClinicalIdentifier {
+  id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 250
+     */
+  system: string;
+  /**
+     * @minLength 1
+     * @maxLength 250
+     */
+  value: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  source: string;
+}
+
+export interface ClinicalProfileInput {
+  expectedUpdatedAt: string;
+  /** @maxItems 100 */
+  conditions?: ClinicalCondition[];
+  /** @maxItems 100 */
+  medications?: ClinicalMedication[];
+  /** @maxItems 20 */
+  coverage?: ClinicalCoverage[];
+  /** @maxItems 30 */
+  contacts?: ClinicalContact[];
+  /** @maxItems 30 */
+  identifiers?: ClinicalIdentifier[];
+}
+
+export type ClinicalProfile = ClinicalProfileInput & {
+  patientId: string;
+  updatedAt: string;
+} & Required<Pick<ClinicalProfileInput & {
+  patientId: string;
+  updatedAt: string;
+}, 'conditions' | 'medications' | 'coverage' | 'contacts' | 'identifiers'>>;
+
+export interface ProgramProgress {
+  enrollmentId: string;
+  program: string;
+  periodLabel: string;
+  windowStart: string;
+  windowEnd: string;
+  supplyWindowComplete: boolean;
+  minutes: number;
+  minuteTarget: number;
+  deviceDays: number;
+  deviceDayTarget: number;
+  liveInteractions: number;
+  signedPlan: boolean;
+  consent: boolean;
+  policyLabel?: string;
+  nextSteps: string[];
+}
+
 export type AttachmentUploadInputMimeType = typeof AttachmentUploadInputMimeType[keyof typeof AttachmentUploadInputMimeType];
 
 
@@ -431,6 +815,177 @@ export interface LoginInput {
   password: string;
 }
 
+export type SecurityReportKind = typeof SecurityReportKind[keyof typeof SecurityReportKind];
+
+
+export const SecurityReportKind = {
+  access_review: 'access_review',
+  audit_integrity: 'audit_integrity',
+  weekly_emergency_access: 'weekly_emergency_access',
+} as const;
+
+export interface SecurityReportCreateInput {
+  kind: SecurityReportKind;
+  /** YYYY-MM for monthly reports; Monday YYYY-MM-DD for weekly reports */
+  period?: string;
+  timeZone?: string;
+  /** Include retained legacy/verification account or emergency-access entries. Root only. Audit integrity always covers all retained audit events; this flag does not run verification. */
+  includeVerification?: boolean;
+}
+
+export type SecurityOverviewDefaults = {
+  month: string;
+  previousMonth: string;
+  weekStart: string;
+  timeZone: string;
+};
+
+export interface SecurityOverview {
+  defaults: SecurityOverviewDefaults;
+  reportKinds: SecurityReportKind[];
+  locationScopes: string[];
+  isPracticeAdmin: boolean;
+}
+
+export interface SecurityReportSummary {
+  sourceRows: number;
+  activeAccounts?: number;
+  invitedAccounts?: number;
+  inactiveAccounts?: number;
+  portalAccounts?: number;
+  missingProviderNpis?: number;
+  uniqueStaff?: number;
+  uniquePatients?: number;
+  activeAtCapture?: number;
+  chainHead?: string;
+  includesRetainedHistory?: boolean;
+}
+
+export interface SecurityReportInfo {
+  id: string;
+  documentId: string;
+  kind: SecurityReportKind;
+  period: string;
+  timeZone: string;
+  createdAt: string;
+  createdBy: string;
+  digest: string;
+  pdfSha256: string;
+  sourceHash: string;
+  sourceRows: number;
+  summary: SecurityReportSummary;
+  scopeLocations: string[];
+  includeVerification: boolean;
+  pdfUrl: string;
+  jsonUrl: string;
+}
+
+export interface SecurityReportPage {
+  reports: SecurityReportInfo[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export type SecurityReportAccountSiteRoles = {[key: string]: string};
+
+export interface SecurityReportAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  credential: string;
+  /** @nullable */
+  npi: string | null;
+  status: string;
+  locationScopes: string[];
+  siteRoles: SecurityReportAccountSiteRoles;
+  /** @nullable */
+  lastLoginAt: string | null;
+  /** @nullable */
+  lockedUntil: string | null;
+  activeSessions: number;
+  emergencySessionsAtCapture: number;
+}
+
+export type SecurityEmergencyReviewStatus = typeof SecurityEmergencyReviewStatus[keyof typeof SecurityEmergencyReviewStatus];
+
+
+export const SecurityEmergencyReviewStatus = {
+  active: 'active',
+  ended: 'ended',
+  expired: 'expired',
+} as const;
+
+export interface SecurityEmergencyReview {
+  eventId: string;
+  actorName: string;
+  /** @nullable */
+  roleAtAccess: string | null;
+  /** @nullable */
+  credentialAtAccess: string | null;
+  patientName: string;
+  mrn: string;
+  location: string;
+  reason: string;
+  openedAt: string;
+  expiresAt: string;
+  /** @nullable */
+  endedAt: string | null;
+  status: SecurityEmergencyReviewStatus;
+  scope: string;
+}
+
+/**
+ * @nullable
+ */
+export type SecurityReportViewAuditIntegrity = {
+  algorithm: string;
+  chainHead: string;
+  scope: string;
+  notice: string;
+} | null;
+
+export interface SecurityReportView {
+  report: SecurityReportInfo;
+  /** @nullable */
+  notice: string | null;
+  /** @nullable */
+  accounts: SecurityReportAccount[] | null;
+  /** @nullable */
+  emergencyAccess: SecurityEmergencyReview[] | null;
+  /** @nullable */
+  auditIntegrity: SecurityReportViewAuditIntegrity;
+}
+
+export type SecurityReportVerificationVerificationScope = typeof SecurityReportVerificationVerificationScope[keyof typeof SecurityReportVerificationVerificationScope];
+
+
+export const SecurityReportVerificationVerificationScope = {
+  retained_snapshot: 'retained_snapshot',
+  audit_events: 'audit_events',
+} as const;
+
+export interface SecurityReportVerification {
+  valid: boolean;
+  frozenSourceValid: boolean;
+  privatePdfValid: boolean;
+  snapshotDigestValid: boolean;
+  verificationScope: SecurityReportVerificationVerificationScope;
+  capturedRows: number;
+  /** @nullable */
+  missingRows: number | null;
+  /** @nullable */
+  changedRows: number | null;
+  /** @nullable */
+  chainMatches: boolean | null;
+  /** @nullable */
+  currentRowCount: number | null;
+  /** @nullable */
+  unlistedEvents: number | null;
+  checkedAt: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -439,6 +994,15 @@ export interface User {
   credential: string;
   /** @nullable */
   patientId?: string | null;
+  sessionLocked?: boolean;
+  canUseEmergencyAccess?: boolean;
+  emergencyContext?: EmergencyAccessContext | null;
+  /** @nullable */
+  npi?: string | null;
+  baseRole?: string;
+  /** @nullable */
+  activeLocation?: string | null;
+  siteRoles?: LocationRoleAssignments;
   locationScopes?: string[];
   permissions?: string[];
 }
@@ -586,6 +1150,7 @@ export const AccountRole = {
   billing: 'billing',
   read_only: 'read_only',
   patient: 'patient',
+  caregiver: 'caregiver',
 } as const;
 
 export type AccountInputCredential = typeof AccountInputCredential[keyof typeof AccountInputCredential];
@@ -607,6 +1172,7 @@ export const AccountInputCredential = {
   admin: 'admin',
   billing: 'billing',
   patient: 'patient',
+  caregiver: 'caregiver',
 } as const;
 
 export interface AccountInput {
@@ -621,6 +1187,12 @@ export interface AccountInput {
   credential: AccountInputCredential;
   /** @nullable */
   patientId?: string | null;
+  /**
+     * @nullable
+     * @pattern ^[12][0-9]{9}$
+     */
+  npi?: string | null;
+  siteRoles?: LocationRoleAssignments;
   /**
      * @maxItems 100
      * @items.minLength 1
@@ -647,6 +1219,7 @@ export const AccountUpdateCredential = {
   admin: 'admin',
   billing: 'billing',
   patient: 'patient',
+  caregiver: 'caregiver',
 } as const;
 
 export type AccountUpdateStatus = typeof AccountUpdateStatus[keyof typeof AccountUpdateStatus];
@@ -666,6 +1239,12 @@ export interface AccountUpdate {
   role?: AccountRole;
   credential?: AccountUpdateCredential;
   status?: AccountUpdateStatus;
+  /**
+     * @nullable
+     * @pattern ^[12][0-9]{9}$
+     */
+  npi?: string | null;
+  siteRoles?: LocationRoleAssignments;
   /**
      * @maxItems 100
      * @items.minLength 1
@@ -999,6 +1578,37 @@ export interface ReportData {
   integrationHealth: CareRecord[];
 }
 
+export type ListPatientCaregivers200GrantsItem = { [key: string]: unknown };
+
+export type ListPatientCaregivers200ContactsItem = { [key: string]: unknown };
+
+export type ListPatientCaregivers200 = {
+  grants: ListPatientCaregivers200GrantsItem[];
+  contacts: ListPatientCaregivers200ContactsItem[];
+};
+
+export type GrantCaregiverAccess201Grant = { [key: string]: unknown };
+
+export type GrantCaregiverAccess201 = {
+  grant: GrantCaregiverAccess201Grant;
+  /** @nullable */
+  documentId: string | null;
+};
+
+export type ListCaregiverPatients200 = {
+  patients: CaregiverPatientSummary[];
+};
+
+export type GetDependencyReadiness200 = { [key: string]: unknown };
+
+export type GetDependencyReadiness503 = { [key: string]: unknown };
+
+export type PrepareDemonstration202 = {
+  status: string;
+  jobId: string;
+  message: string;
+};
+
 export type GetWorklistParams = {
 kind: WorklistKind;
 /**
@@ -1064,4 +1674,20 @@ export type GetDocumentSource200 = {
   sourceHash: string;
   source: GetDocumentSource200Source;
 };
+
+export type ListSecurityReportsParams = {
+kind?: SecurityReportKind;
+period?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+pageSize?: number;
+};
+
+export type DownloadSecurityReportJson200 = { [key: string]: unknown };
 

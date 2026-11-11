@@ -8,7 +8,7 @@ import { FormAlert, PasswordInput, StrengthMeter, passwordProblem } from "@/comp
 import { errMsg, fmtDateTime, fmtRel } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
-const ROLE_LABEL: Record<string, string> = { admin: "Administrator", clinical_admin: "Clinical administrator", billing_provider: "Billing provider", care_manager: "Care manager", therapist: "Therapist", front_desk: "Front desk", billing: "Billing", read_only: "Read only", patient: "Patient", behavioral_care_manager: "Behavioral care manager", psychiatric_consultant: "Psychiatric consultant" };
+const ROLE_LABEL: Record<string, string> = { emergency_read_only: "Emergency read-only", caregiver: "Family caregiver", admin: "Administrator", clinical_admin: "Clinical administrator", billing_provider: "Billing provider", care_manager: "Care manager", therapist: "Therapist", front_desk: "Front desk", billing: "Billing", read_only: "Read only", patient: "Patient", behavioral_care_manager: "Behavioral care manager", psychiatric_consultant: "Psychiatric consultant" };
 export const roleLabel = (r: string) => ROLE_LABEL[r] ?? r.replace(/_/g, " ");
 
 export default function AccountPage() {
@@ -28,13 +28,14 @@ export default function AccountPage() {
               <div className="min-w-0">
                 <div className="truncate font-medium" data-testid="text-account-name">{user.name}{user.credential && !patient ? ", " + user.credential : ""}</div>
                 <div className="truncate text-xs text-muted-foreground" data-testid="text-account-email">{user.email}</div>
+                {!patient && user.npi && <div className="tnum text-[11px] text-muted-foreground" data-testid="text-account-npi">NPI {user.npi}</div>}
               </div>
               <span className="ml-auto"><Pill tone="neutral">{roleLabel(user.role)}</Pill></span>
             </div>
             {!patient && (
               <div className="mt-4 flex items-start gap-2 border-t border-border pt-3 text-xs text-muted-foreground" data-testid="text-account-scopes">
                 <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
-                {(user.locationScopes ?? []).length ? <span>Sites: {(user.locationScopes ?? []).join(", ")}</span> : <span>All practice sites</span>}
+                {Object.keys(user.siteRoles ?? {}).length ? <span>{Object.entries(user.siteRoles ?? {}).map(([k, v]) => `${k} (${roleLabel(v)})`).join(", ")}{user.activeLocation ? ` · now at ${user.activeLocation}` : ""}</span> : (user.locationScopes ?? []).length ? <span>Sites: {(user.locationScopes ?? []).join(", ")}</span> : <span>All practice sites</span>}
               </div>
             )}
             <p className="mt-3 text-[11px] text-muted-foreground">Name, role and site access are managed by a practice administrator.</p>

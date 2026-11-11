@@ -10,6 +10,8 @@ import { PatientPreferences } from "@/components/patient-preferences";
 import { PatientAttachments } from "@/components/attachments/patient-attachments";
 import { EducationCard, isExerciseMaterial } from "@/components/patient/education-card";
 import { instrumentGate } from "@/components/admin/instrument-review";
+import { readRange } from "@/components/admin/questionnaire-builder";
+import { UrgentSupportNotice, isCanonicalPhq9, readAnswerLabels, readInstructions } from "@/components/questionnaire-content";
 
 type Screen = "today" | "checkin" | "exercises" | "meds" | "messages" | "plan";
 type Mode = "staff" | "patient";
@@ -136,42 +138,63 @@ const INSTRUMENTS: Record<string, { label: string; count: number; min: number; m
 function CheckinScreen({ p }: { p: Patient }) {
   const inst = useListRecords("instruments");
   const { run, pending } = useAction();
-  const available = (inst.data ?? []).filter((i) => INSTRUMENTS[mStr(i, "key")]);
+  const available = (inst.data ?? []).filter((i) => i.status !== "retired" && (INSTRUMENTS[mStr(i, "key")] || (readRange(i) && mArr(i, "questions").length > 0)));
   const [iid, setIid] = useState("");
   const instrument = available.find((i) => i.id === iid) ?? available[0];
   const key = mStr(instrument, "key");
-  const cfg = INSTRUMENTS[key];
+  const configured = readRange(instrument);
+  const builtIn = INSTRUMENTS[key];
+  const configuredCount = mArr(instrument, "questions").length;
+  const cfg = configured ? { label: instrument?.title ?? "Check-in", count: configuredCount || builtIn?.count || 0, min: configured.min, max: configured.max } : builtIn;
+  const practice = instrument?.metadata?.nonValidatedDemo === true;
   const supplied = mArr(instrument, "questions");
   const gate = instrument ? instrumentGate(instrument) : { custom: false, ok: true, missing: [] as string[] };
-  const items = useMemo(() => (cfg ? Array.from({ length: cfg.count }, (_, i) => (supplied.length === cfg.count ? supplied[i] : `${cfg.label} item ${i + 1}`)) : []), [cfg, supplied.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const items = useMemo(() => (cfg ? Array.from({ length: cfg.count }, (_, i) => (supplied.length === cfg.count ? supplied[i] : practice ? `Practice prompt ${i + 1}` : `${cfg.label} item ${i + 1}`)) : []), [cfg, practice, supplied.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [done, setDone] = useState(false);
+  const [urgentSeen, setUrgentSeen] = useState(false);
+  const canonPhq9 = isCanonicalPhq9(instrument) && !practice;
+  const urgentNow = canonPhq9 && (answers[8] ?? 0) > 0;
   const program = instrument?.program && p.programs.includes(instrument.program) ? instrument.program : p.programs[0];
-  if (done) return <div className="py-10 text-center"><CheckCircle2 className="mx-auto h-8 w-8 text-primary" strokeWidth={1.5} /><div className="mt-2 font-semibold">Submitted</div><p className="text-xs text-muted-foreground">The care team will review the responses.</p>{key==="phq9"&&answers[8]>0&&<div className="mt-5 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-left text-sm" role="alert" data-testid="patient-urgent-help"><h2 className="font-semibold">Do not wait for an app response if you need urgent help</h2><p className="mt-2">If you may harm yourself or are in immediate danger, call 911 in the US or your local emergency number. In the US, call or text 988 for crisis support. This demo is not an emergency monitoring service.</p></div>}<Btn className="mt-4" onClick={() => { setDone(false); setAnswers({}); }}>Start another</Btn></div>;
+  if (done) return <div className="py-10 text-center"><CheckCircle2 className="mx-auto h-8 w-8 text-primary" strokeWidth={1.5} /><div className="mt-2 font-semibold">Submitted</div><p className="text-xs text-muted-foreground">The care team will review the responses.</p>{(urgentSeen || urgentNow) && <UrgentSupportNotice after className="mt-5" />}<Btn className="mt-4" onClick={() => { setDone(false); setAnswers({}); }}>Start another</Btn></div>;
   if (inst.isLoading) return <SkeletonRows rows={3} />;
   if (inst.isError) return <ErrorState error={inst.error} onRetry={() => inst.refetch()} />;
   if (!program) return <EmptyState title="Check-ins are not active" desc="Ask your care team to confirm your enrollment before sharing another check-in." />;
   if (!instrument || !cfg) return <EmptyState title="No check-in available" desc="No supported instrument is configured." />;
   const scale = Array.from({ length: cfg.max - cfg.min + 1 }, (_, i) => cfg.min + i);
+  const labels = readAnswerLabels(instrument, scale.length);
+  const instructions = readInstructions(instrument);
   return (
     <div className="space-y-4">
       <div className="font-serif text-[22px]">Check-in</div>
       {available.length > 1 && (
-        <select className={inputCls} value={instrument.id} onChange={(e) => { setIid(e.target.value); setAnswers({}); }} data-testid="select-instrument">{available.map((i) => <option key={i.id} value={i.id}>{i.title}</option>)}</select>
+        <select className={inputCls} value={instrument.id} onChange={(e) => { setIid(e.target.value); setAnswers({}); }} data-testid="select-instrument">{available.map((i, n) => <option key={i.id} value={i.id}>{i.metadata?.nonValidatedDemo === true ? `Practice check-in ${n + 1}` : i.title}</option>)}</select>
       )}
-      {!supplied.length && <p className="rounded-lg border border-dashed border-border bg-muted/40 p-2.5 text-[11px] text-muted-foreground" data-testid="note-synthetic-items">Demo item labels are placeholders. Licensed instrument wording is not reproduced. Scale {cfg.min} to {cfg.max}.</p>}
+      {practice && <div className="rounded-lg border border-dashed border-border bg-muted/40 p-2.5 text-[11px] text-muted-foreground" data-testid="note-practice-prompts"><span className="font-semibold text-foreground">Synthetic practice prompts.</span> These are demo questions, not a validated questionnaire, and the score is not a clinical result. Answer on a scale of {cfg.min} to {cfg.max}.</div>}
+      {!practice && !supplied.length && <p className="rounded-lg border border-dashed border-border bg-muted/40 p-2.5 text-[11px] text-muted-foreground" data-testid="note-synthetic-items">Demo item labels are placeholders. Licensed instrument wording is not reproduced. Scale {cfg.min} to {cfg.max}.</p>}
       {gate.custom && !gate.ok && <div role="alert" className="rounded-lg border border-[hsl(38_80%_82%)] bg-[hsl(38_95%_95%)] p-2.5 text-xs text-[hsl(30_80%_30%)]" data-testid="gate-instrument-content"><div className="font-semibold">This check-in is not ready yet</div>Its question wording is waiting for review by your care team ({gate.missing.join("; ")}). Please check back later.</div>}
+      {urgentSeen && !urgentNow && <UrgentSupportNotice after />}
+      {instructions && !(gate.custom && !gate.ok) && <p className="rounded-xl bg-muted/50 p-3 text-sm leading-snug" data-testid="text-checkin-instructions">{instructions}</p>}
       {gate.custom && !gate.ok ? null : items.map((q, i) => (
         <div key={i} className="rounded-2xl border border-border bg-card p-3.5">
           <div className="text-sm">{q}</div>
-          <div className={cn("mt-2 grid gap-1", scale.length > 7 ? "grid-cols-6" : `grid-cols-${scale.length}`)} style={{ gridTemplateColumns: `repeat(${Math.min(scale.length, 6)}, minmax(0,1fr))` }}>
+          {labels.length ? (
+            <div className="mt-2 grid gap-1" role="radiogroup" aria-label={`Answer for question ${i + 1}`}>
+              {scale.map((v, n) => (
+                <button key={v} role="radio" aria-checked={answers[i] === v} onClick={() => setAnswers((a) => ({ ...a, [i]: v }))} className={cn("flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-sm transition-colors", answers[i] === v ? "border-[hsl(var(--brand-charcoal))] bg-[hsl(var(--brand-charcoal))] text-[hsl(var(--background))]" : "border-border bg-card hover:border-foreground/30")} data-testid={`answer-${i}-${v}`}>
+                  <span className="tnum w-4 shrink-0 text-xs opacity-70">{v}</span><span>{labels[n]}</span>
+                </button>
+              ))}
+            </div>
+          ) : <div className={cn("mt-2 grid gap-1", scale.length > 7 ? "grid-cols-6" : `grid-cols-${scale.length}`)} style={{ gridTemplateColumns: `repeat(${Math.min(scale.length, 6)}, minmax(0,1fr))` }}>
             {scale.map((v) => (
               <button key={v} onClick={() => setAnswers((a) => ({ ...a, [i]: v }))} className={cn("tnum rounded-lg border py-2 text-xs font-medium transition-colors", answers[i] === v ? "border-[hsl(var(--brand-charcoal))] bg-[hsl(var(--brand-charcoal))] text-[hsl(var(--background))]" : "border-border bg-card hover:border-foreground/30")} data-testid={`answer-${i}-${v}`}>{v}</button>
             ))}
-          </div>
+          </div>}
         </div>
       ))}
-      <Btn variant="primary" className="w-full" disabled={pending || !gate.ok || Object.keys(answers).length < items.length} onClick={() => run({ action: "submitCheckin", patientId: p.id, program, payload: { instrument: key, instrumentId: instrument.id, answers: items.map((_, i) => answers[i]) } }, () => setDone(true))} data-testid="button-submit-checkin">Submit</Btn>
+      {urgentNow && <UrgentSupportNotice />}
+      <Btn variant="primary" className="w-full" disabled={pending || !gate.ok || Object.keys(answers).length < items.length} onClick={() => run({ action: "submitCheckin", patientId: p.id, program, payload: { instrument: key, instrumentId: instrument.id, answers: items.map((_, i) => answers[i]) } }, () => { if (urgentNow) setUrgentSeen(true); setDone(true); })} data-testid="button-submit-checkin">Submit</Btn>
     </div>
   );
 }

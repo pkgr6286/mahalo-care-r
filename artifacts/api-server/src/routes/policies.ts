@@ -8,13 +8,14 @@ import {writeAudit,type Actor} from "../lib/store";
 import {policyView,bundledPolicyViews,policyCatalog,normalizedPolicy,policyHash,createPolicy,updatePolicy,pinnedPolicyUsage,selectRulepack} from "../lib/program-policies";
 import {PolicyInputSchema,RulepackSchema,PayerOverrideSchema,tightenRulepack} from "../lib/program-policy-schema";
 import {evaluateBilling} from "../lib/billing-engine";
+import {clinicalPolicy} from "../lib/datasets";
 
 export const policiesRouter=Router();
 const actor=(res:{locals:Record<string,unknown>})=>res.locals.actor as Actor;
 const transitionBody=z.object({reason:z.string().trim().min(10).max(2000)});
 const reviewBody=z.object({note:z.string().trim().min(20).max(5000),sourceRef:z.string().trim().min(1).max(2000),attested:z.literal(true)});
 policiesRouter.get("/policies",async(_req,res)=>{
-  const who=actor(res),rows=await policyCatalog(db);
+  const who=actor(res),rows=await db.select().from(programPolicies).where(clinicalPolicy);
   res.json({items:[...bundledPolicyViews(),...rows.sort((a,b)=>b.createdAt.getTime()-a.createdAt.getTime()).map(policyView)],canManage:hasPermission(who,"admin"),canReview:hasPermission(who,"plans.sign")});
 });
 policiesRouter.get("/policies/:policyId",async(req,res)=>{

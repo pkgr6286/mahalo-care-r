@@ -7,6 +7,8 @@ import {localDay} from "./periods";
 import {clinicalRoles} from "./clinical-rule-schema";
 import type {WorklistKind,WorklistFilters} from "./worklist-filters";
 import {registryDetails} from "./worklist-registry";
+import {clinicalPatient,clinicalRecord,clinicalAccount} from "./datasets";
+import {staffRoleAt} from "./staff-identity";
 
 export async function installWorklistSupport() {
   await db.execute(sql`CREATE OR REPLACE FUNCTION care_safe_timestamp(value text) RETURNS timestamptz LANGUAGE plpgsql STABLE STRICT AS $$ BEGIN RETURN value::timestamptz; EXCEPTION WHEN OTHERS THEN RETURN NULL; END $$`);
@@ -31,14 +33,14 @@ const riskDaysLeft=sql<number>`CASE WHEN ${records.metadata}->>'codeKind'='suppl
 const riskShortfall=sql<number>`CASE WHEN ${records.metadata}->>'codeKind'='supply' THEN GREATEST(0,COALESCE((${records.metadata}->'requirements'->>'device_days_min')::numeric,0)-COALESCE((${records.metadata}->>'deviceDays')::numeric,0)) ELSE GREATEST(0,COALESCE((${records.metadata}->'requirements'->>'minutes_min')::numeric,0)-COALESCE((${records.metadata}->>'minutes')::numeric,0)) END`;
 const safeLike=(value:string)=>`%${value.replace(/[\\%_]/g,"\\$&")}%`;
 export async function worklistOptions(actor:Actor) {
-  const siteRows=await db.selectDistinct({name:patients.location}).from(patients);
-  const locationRows=await db.select({name:records.title}).from(records).where(eq(records.kind,"locations"));
+  const siteRows=await db.selectDistinct({name:patients.location}).from(patients).where(clinicalPatient);
+  const locationRows=await db.select({name:records.title}).from(records).where(and(eq(records.kind,"locations"),clinicalRecord));
   const locations=[...new Set([...siteRows,...locationRows].map(s=>s.name).filter(s=>inLocation(actor,s)))].sort();
-  const staff=(await db.select({id:users.id,name:users.name,role:users.role,locationScopes:users.locationScopes}).from(users).where(eq(users.status,"active"))).filter(u=>u.role!=="patient"&&locations.some(site=>inLocation({role:u.role,locationScopes:u.locationScopes} as Actor,site)));
-  return {locations,assignees:staff.map(({id,name,role})=>({id,name,role})),ownerRoles:[...clinicalRoles,"front_desk","billing","read_only"],programs:["RPM","RTM","CCM","PCM","BHI"]};
+  const staff=(await db.select({id:users.id,name:users.name,role:users.role,locationScopes:users.locationScopes,siteRoles:users.siteRoles}).from(users).where(and(eq(users.status,"active"),clinicalAccount))).filter(u=>!["patient","caregiver"].includes(u.role)&&locations.some(site=>staffRoleAt(u,site)));
+  return {locations,assignees:staff.map(u=>{const roles=[...new Set(locations.map(site=>staffRoleAt(u,site)).filter(Boolean))];return {id:u.id,name:u.name,role:roles.length===1?roles[0]!:"Role by location"};}),ownerRoles:[...clinicalRoles,"front_desk","billing","read_only"],programs:["RPM","RTM","CCM","PCM","BHI"]};
 }
 function viewPredicates(kind:WorklistKind,actor:Actor,f:WorklistFilters):SQL[] {
-  const predicates:SQL[]=[];
+  const predicates:SQL[]=[clinicalPatient,clinicalRecord];
   if(["my_exceptions","team_queue"].includes(kind)) {
     predicates.push(eq(records.kind,"exceptions"));
     if(f.status!=="all") predicates.push(f.status==="open"?open():inArray(records.status,["resolved","dismissed"]));
@@ -80,7 +82,8 @@ export async function queryWorklist(actor:Actor,kind:WorklistKind,filters:Workli
   if(kind==="device_issues") filters={...filters,includeInactive:true};
   if(kind==="at_risk"&&!filters.period) filters={...filters,period:new Date().toISOString().slice(0,7)};
   const predicates=viewPredicates(kind,actor,filters);
-  if(actor.role!=="admin"&&actor.locationScopes?.length) predicates.push(inArray(patients.location,actor.locationScopes));
+  if(actor.emergencyContext)predicates.push(eq(patients.id,actor.emergencyContext.patientId));
+  else if(actor.role!=="admin"&&actor.locationScopes?.length) predicates.push(inArray(patients.location,actor.locationScopes));
   if(!filters.includeInactive) predicates.push(eq(patients.status,"active"));
   if(filters.locations.length) predicates.push(inArray(patients.location,filters.locations));
   if(filters.program) predicates.push(eq(records.program,filters.program));

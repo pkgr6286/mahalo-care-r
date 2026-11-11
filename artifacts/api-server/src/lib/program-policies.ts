@@ -6,6 +6,7 @@ import {AppError} from "./errors";
 import {RulepackSchema,PolicyInputSchema,CareplanTemplateSchema,NoteTemplateSchema,PayerOverrideSchema,tightenRulepack,type Rulepack} from "./program-policy-schema";
 import {allRecords,id,writeAudit,type Actor,type Store} from "./store";
 import {planItems} from "./task-schedules";
+import {clinicalPolicy} from "./datasets";
 
 export const policyHash=(body:unknown):string=>{
   const canonical=(value:unknown):unknown=>Array.isArray(value)?value.map(canonical):value&&typeof value==="object"?Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>[k,canonical(v)])):value;
@@ -24,7 +25,7 @@ export function bundledPolicyViews() {
     return {id:bundledPolicyId(program),kind:"rulepack",program,version:body.version,payer:"",effectiveFrom:body.effective_from,status:"bundled",body,sourceRef:"Supplied specification / existing demonstration thresholds / VERIFY",reviewNote:"Bundled demonstration data, not clinically or CMS approved.",createdBy:"system",reviewedBy:null,reviewedAt:null,publishedAt:null,createdAt:"2026-01-01T00:00:00.000Z",updatedAt:"2026-01-01T00:00:00.000Z",immutable:true,fingerprint:policyHash(body),provisional:true};
   });
 }
-export async function policyCatalog(s:Store) {return s.select().from(programPolicies);}
+export async function policyCatalog(s:Store) {return s.select().from(programPolicies).where(clinicalPolicy);}
 export function choosePublished(rows:ProgramPolicyRow[],kind:string,program:string,asOf=dateNow(),payer="") {
   return rows.filter(r=>r.kind===kind&&r.program===program&&r.status==="published"&&r.effectiveFrom<=asOf&&r.payer.toLowerCase()===payer.toLowerCase())
     .sort((a,b)=>b.effectiveFrom.localeCompare(a.effectiveFrom)||(b.publishedAt?.getTime()??0)-(a.publishedAt?.getTime()??0))[0];

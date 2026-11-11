@@ -3,6 +3,9 @@ export * from "./policies";
 export * from "./documents";
 export * from "./preferences";
 export * from "./attachments";
+export * from "./clinical";
+export * from "./datasets";
+export * from "./caregivers";
 // Export your models here. Add one export per file
 // export * from "./posts";
 //

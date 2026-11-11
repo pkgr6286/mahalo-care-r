@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Ban, ListChecks, CalendarDays, FileDown, FileSignature, FileText, Gauge, Pause, Pencil, Play, Plus, RefreshCw, Send, Sparkles, Square, Video,
 } from "lucide-react";
-import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { TrendPanel } from "@/components/trend-chart";
 import {
   useGetPatient, useListRecords, useUpdatePatient, getListRecordsQueryKey,
   type CareRecord, type Patient,
@@ -15,6 +15,8 @@ import {
 } from "@/components/kit";
 import { ReadOnlyHint, usePermission } from "@/components/access";
 import { ExceptionRow, TaskRow, isOpen } from "@/components/records";
+import { ClinicalExportButton, ClinicalProfileSummary, ClinicalProfileTab, ProgramProgressList, useProgramProgress } from "@/components/clinical-profile";
+import { AdvancedDetails, KV, Pager, ShowMore, usePaged, useShowMore } from "@/components/list-tools";
 import { DocButton } from "@/components/doc-viewer";
 import { DraftLifecycle } from "@/components/draft-lifecycle";
 import { DraftCard } from "@/components/ai/draft-card";
@@ -27,12 +29,12 @@ import { errMsg, fmtDate, fmtDateTime, fmtRel, initials, mBool, mNum, mStr, PROG
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-type Tab = "timeline" | "readings" | "careplans" | "enrollment" | "notes" | "time" | "messages" | "work" | "ehr" | "files";
+type Tab = "overview" | "profile" | "timeline" | "readings" | "careplans" | "enrollment" | "notes" | "time" | "messages" | "work" | "ehr" | "files";
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const q = useGetPatient(id);
-  const [tab, setTab] = useState<Tab>(() => (new URLSearchParams(window.location.search).get("tab") === "time" ? "time" : "timeline"));
+  const [tab, setTab] = useState<Tab>(() => (new URLSearchParams(window.location.search).get("tab") === "time" ? "time" : "overview"));
 
   if (q.isLoading) return <div className="space-y-4"><div className="h-28 animate-pulse rounded-xl bg-muted" /><SkeletonRows rows={6} /></div>;
   if (q.isError || !q.data) return <ErrorState error={q.error ?? new Error("Patient not found")} onRetry={() => q.refetch()} />;
@@ -49,6 +51,8 @@ export default function PatientDetailPage() {
         value={tab}
         onChange={setTab}
         tabs={[
+          { id: "overview", label: "Overview" },
+          { id: "profile", label: "Clinical profile" },
           { id: "timeline", label: "Timeline" },
           { id: "work", label: "Exceptions & tasks", count: openEx.length + by("tasks").filter(isOpen).length },
           { id: "readings", label: "Readings", count: by("observations").length },
@@ -62,9 +66,11 @@ export default function PatientDetailPage() {
         ]}
       />
       <div className="mt-5" key={tab}>
+        {tab === "overview" && <Overview p={p} records={records} go={setTab} />}
+        {tab === "profile" && <ClinicalProfileTab patientId={p.id} />}
         {tab === "timeline" && <Timeline records={records} />}
         {tab === "work" && <WorkTab p={p} ex={by("exceptions")} tasks={by("tasks")} />}
-        {tab === "readings" && <ReadingsTab p={p} obs={by("observations")} devices={by("devices")} />}
+        {tab === "readings" && <ReadingsTab p={p} obs={by("observations")} devices={by("devices")} responses={by("responses")} />}
         {tab === "careplans" && <CarePlansTab p={p} plans={by("careplans")} />}
         {tab === "enrollment" && <EnrollmentTab p={p} enrollments={by("enrollments")} consents={by("consents")} />}
         {tab === "notes" && <NotesTab p={p} notes={by("notes")} drafts={by("drafts")} />}
@@ -90,6 +96,16 @@ function PatientHeader({ p, records }: { p: Patient; records: CareRecord[] }) {
   const [edit, setEdit] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
   const { run, pending } = useAction();
+  const prog = useProgramProgress(p.id);
+  const progressText = useMemo(() => {
+    if (prog.isLoading) return { minutes: "…", device: "…" };
+    if (prog.isError || !prog.data) return { minutes: "Unavailable", device: "Unavailable" };
+    const items = prog.data;
+    const minutes = items.length ? items.map((x) => `${x.program} ${x.minutes}/${x.minuteTarget}`).join(" · ") : "Not enrolled";
+    const dev = items.filter((x) => x.deviceDayTarget > 0);
+    const device = dev.length ? dev.map((x) => `${x.program} ${x.deviceDays}/${x.deviceDayTarget}`).join(" · ") : "Not monitored";
+    return { minutes, device };
+  }, [prog.isLoading, prog.isError, prog.data]);
   return (
     <div className="rise rounded-xl border border-card-border bg-card">
       <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
@@ -102,11 +118,11 @@ function PatientHeader({ p, records }: { p: Patient; records: CareRecord[] }) {
               <StatusPill value={p.status} />
             </div>
             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-              <span className="font-mono">{p.mrn}</span>
+              <span>MRN <span className="font-mono">{p.mrn}</span></span>
               <span>{fmtDate(p.dob)} · {age(p.dob)} · {p.sex}</span>
               <span>{p.location}</span>
               {p.payer && <span>{p.payer}</span>}
-              {p.careManager && <span>CM {p.careManager}</span>}
+              {p.careManager && <span>Care manager {p.careManager}</span>}
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {p.programs.map((g) => <ProgramTag key={g} p={g} />)}
@@ -116,22 +132,29 @@ function PatientHeader({ p, records }: { p: Patient; records: CareRecord[] }) {
         </div>
         <div className="flex flex-wrap gap-2">
           {running ? <RunningTimer r={running} /> : allow("time.write") && <Btn variant="navy" onClick={() => setTimerOpen(true)} data-testid="button-start-timer"><Play className="h-3.5 w-3.5" />Start timer</Btn>}
-          {allow("clinical.write") && <ConfirmButton size="md" label="Sync EHR" icon={<RefreshCw className="h-3.5 w-3.5" />} title="Sync with EHR (simulated)" desc="Pulls problems, medications and encounters from the simulated EHR connector. No live EHR is connected in this demo." confirmLabel="Run sync" pending={pending} onConfirm={(_, close) => run({ action: "syncEhr", patientId: p.id }, close)} testid="button-sync-ehr" />}
-          {allow("clinical.write") && <ConfirmButton size="md" label="Evaluate rules" icon={<Gauge className="h-3.5 w-3.5" />} title="Evaluate rules now" desc="Runs every active rule against this patient's current readings, check-ins and contact gaps. New exceptions appear in the worklist." confirmLabel="Evaluate" pending={pending} onConfirm={(_, close) => run({ action: "evaluateRules", patientId: p.id }, close)} testid="button-evaluate-rules" />}
-          {allow("clinical.write") && <ConfirmButton size="md" label="Generate tasks" icon={<ListChecks className="h-3.5 w-3.5" />} title="Generate follow-up tasks" desc="Creates tasks for missing evidence: unsigned plans, consent gaps, device days and time thresholds." confirmLabel="Generate" pending={pending} onConfirm={(_, close) => run({ action: "generateTasks", patientId: p.id }, close)} testid="button-generate-tasks" />}
+          <ClinicalExportButton patientId={p.id} name={`${p.firstName} ${p.lastName}`} />
           {allow("patients.write") && <Btn onClick={() => setEdit(true)} data-testid="button-edit-patient"><Pencil className="h-3.5 w-3.5" />Edit</Btn>}
         </div>
       </div>
+      {allow("clinical.write") && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-border bg-muted/25 px-5 py-2">
+          <span className="mr-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Chart tools</span>
+          {allow("clinical.write") && <ConfirmButton label="Sync EHR" icon={<RefreshCw className="h-3.5 w-3.5" />} title="Sync with EHR (simulated)" desc="Pulls problems, medications and encounters from the simulated EHR connector. No live EHR is connected in this demo." confirmLabel="Run sync" pending={pending} onConfirm={(_, close) => run({ action: "syncEhr", patientId: p.id }, close)} testid="button-sync-ehr" />}
+          {allow("clinical.write") && <ConfirmButton label="Evaluate rules" icon={<Gauge className="h-3.5 w-3.5" />} title="Evaluate rules now" desc="Runs every active rule against this patient's current readings, check-ins and contact gaps. New exceptions appear in the worklist." confirmLabel="Evaluate" pending={pending} onConfirm={(_, close) => run({ action: "evaluateRules", patientId: p.id }, close)} testid="button-evaluate-rules" />}
+          {allow("clinical.write") && <ConfirmButton label="Generate tasks" icon={<ListChecks className="h-3.5 w-3.5" />} title="Generate follow-up tasks" desc="Creates tasks for missing evidence: unsigned plans, consent gaps, device days and time thresholds." confirmLabel="Generate" pending={pending} onConfirm={(_, close) => run({ action: "generateTasks", patientId: p.id }, close)} testid="button-generate-tasks" />}
+          <span className="ml-auto"><SimLabel text="EHR connector simulated" /></span>
+        </div>
+      )}
       <div className="grid grid-cols-2 border-t border-border sm:grid-cols-4">
         {[
-          { l: "Minutes this month", v: p.minutes },
-          { l: "Device days", v: `${p.deviceDays}/16` },
-          { l: "Adherence", v: `${p.adherence}%` },
+          { l: "Care minutes", v: progressText.minutes },
+          { l: "Device days", v: progressText.device },
+          { l: "Reading adherence", v: `${p.adherence}%` },
           { l: "Last contact", v: p.lastContact ? fmtRel(p.lastContact) : "No contact recorded" },
         ].map((s, i) => (
           <div key={s.l} className={cn("px-5 py-3", i > 0 && "sm:border-l border-border", i % 2 === 1 && "border-l")}>
             <div className="text-[11px] text-muted-foreground">{s.l}</div>
-            <div className="tnum text-base font-semibold">{s.v}</div>
+            <div className="tnum truncate text-base font-semibold" title={String(s.v)}>{s.v}</div>
           </div>
         ))}
       </div>
@@ -191,7 +214,6 @@ function EditPatientDialog({ p, open, onOpenChange }: { p: Patient; open: boolea
   const init = () => ({
     firstName: p.firstName, lastName: p.lastName, dob: p.dob?.slice(0, 10) ?? "", sex: p.sex ?? "", email: p.email ?? "", phone: p.phone ?? "", location: p.location,
     timezone: p.timezone ?? "", status: p.status ?? "active", payer: p.payer ?? "", careManager: p.careManager ?? "",
-    conditions: (p.conditions ?? []).join(", "), medications: (p.medications ?? []).join(", "),
   });
   const [v, setV] = useState(init);
   useEffect(() => { if (open) setV(init()); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -199,7 +221,7 @@ function EditPatientDialog({ p, open, onOpenChange }: { p: Patient; open: boolea
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     upd.mutate(
-      { id: p.id, data: { ...v, conditions: v.conditions.split(",").map((s) => s.trim()).filter(Boolean), medications: v.medications.split(",").map((s) => s.trim()).filter(Boolean) } },
+      { id: p.id, data: v },
       {
         onSuccess: () => { qc.invalidateQueries(); toast({ title: "Patient updated" }); onOpenChange(false); },
         onError: (err) => toast({ title: "Could not update", description: errMsg(err), variant: "destructive" }),
@@ -210,7 +232,7 @@ function EditPatientDialog({ p, open, onOpenChange }: { p: Patient; open: boolea
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
         <form onSubmit={submit} className="space-y-4">
-          <DialogHeader><DialogTitle>Edit demographics</DialogTitle><DialogDescription>Synthetic record. Changes are audited.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Edit demographics</DialogTitle><DialogDescription>Contact and administrative details. Changes are audited.</DialogDescription></DialogHeader>
           <div className="grid grid-cols-2 gap-3">
             <Field label="First name"><input className={inputCls} value={v.firstName} onChange={set("firstName")} required data-testid="input-edit-first" /></Field>
             <Field label="Last name"><input className={inputCls} value={v.lastName} onChange={set("lastName")} required data-testid="input-edit-last" /></Field>
@@ -223,8 +245,11 @@ function EditPatientDialog({ p, open, onOpenChange }: { p: Patient; open: boolea
             <Field label="Payer"><input className={inputCls} value={v.payer} onChange={set("payer")} /></Field>
             <Field label="Timezone"><input className={inputCls} value={v.timezone} onChange={set("timezone")} /></Field>
           </div>
-          <Field label="Conditions" hint="Comma separated"><input className={inputCls} value={v.conditions} onChange={set("conditions")} /></Field>
-          <Field label="Medications" hint="Comma separated"><input className={inputCls} value={v.medications} onChange={set("medications")} /></Field>
+          <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs" data-testid="readonly-clinical-summary">
+            <div className="font-medium text-foreground">Problems and medications</div>
+            <p className="mt-0.5 text-muted-foreground">Read only here. Edit diagnoses and medications in the Clinical profile tab so the chart keeps one source.</p>
+            <dl className="mt-2 space-y-1"><div><dt className="inline text-muted-foreground">Problems: </dt><dd className="inline">{(p.conditions ?? []).join(", ") || "None listed"}</dd></div><div><dt className="inline text-muted-foreground">Medications: </dt><dd className="inline">{(p.medications ?? []).join(", ") || "None listed"}</dd></div></dl>
+          </div>
           <DialogFooter>
             <Btn type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Btn>
             <Btn type="submit" variant="primary" disabled={upd.isPending} data-testid="button-save-patient">{upd.isPending ? "Saving…" : "Save"}</Btn>
@@ -243,8 +268,9 @@ const kindLabel: Record<string, string> = {
 function Timeline({ records }: { records: CareRecord[] }) {
   const [kind, setKind] = useState("");
   const sorted = useMemo(() => [...records].sort((a, b) => (b.date ?? b.createdAt).localeCompare(a.date ?? a.createdAt)), [records]);
-  const kinds = Array.from(new Set(records.map((r) => r.kind)));
-  const list = sorted.filter((r) => (kind ? r.kind === kind : true));
+  const kinds = Array.from(new Set(records.map((r) => r.kind))).filter((k) => k !== "audit" && k !== "billing");
+  const list = useMemo(() => sorted.filter((r) => (kind ? r.kind === kind : r.kind !== "audit" && r.kind !== "billing")), [sorted, kind]);
+  const more = useShowMore(list, 25);
   let lastDay = "";
   return (
     <div>
@@ -255,7 +281,7 @@ function Timeline({ records }: { records: CareRecord[] }) {
       {!list.length ? <EmptyState title="Nothing recorded yet" desc="Readings, notes, contact and time will build this patient's story." /> : (
         <div className="relative pl-6">
           <div className="absolute left-[7px] top-1 bottom-1 w-px bg-border" />
-          {list.map((r) => {
+          {more.visible.map((r) => {
             const day = fmtDate(r.date ?? r.createdAt, "EEEE, MMM d");
             const head = day !== lastDay;
             lastDay = day;
@@ -281,6 +307,7 @@ function Timeline({ records }: { records: CareRecord[] }) {
               </div>
             );
           })}
+          <ShowMore {...more} noun="older events" testid="button-timeline-more" />
         </div>
       )}
     </div>
@@ -291,11 +318,20 @@ function Timeline({ records }: { records: CareRecord[] }) {
 function WorkTab({ p, ex, tasks }: { p: Patient; ex: CareRecord[]; tasks: CareRecord[] }) {
   const { allow } = usePermission();
   const dlg = useRecordDialog();
+  const recent = (a: CareRecord, b: CareRecord) => (b.date ?? b.createdAt).localeCompare(a.date ?? a.createdAt);
+  const openEx = ex.filter(isOpen).sort(recent);
+  const closedEx = ex.filter((r) => !isOpen(r)).sort(recent);
+  const openTasks = tasks.filter(isOpen).sort((a, b) => (a.date ?? a.createdAt).localeCompare(b.date ?? b.createdAt));
+  const doneTasks = tasks.filter((r) => !isOpen(r)).sort(recent);
   return (
     <div className="grid gap-5 lg:grid-cols-2">
-      <Panel title="Exceptions" bodyClass="py-1">{ex.length ? ex.map((r) => <ExceptionRow key={r.id} r={r} showPatient={false} />) : <div className="py-3"><EmptyState title="No exceptions" /></div>}</Panel>
-      <Panel title="Tasks" action={allow("clinical.write") ? <Btn size="sm" onClick={dlg.create} data-testid="button-add-task"><Plus className="h-3.5 w-3.5" />Task</Btn> : undefined} bodyClass="py-1">
-        {tasks.length ? tasks.map((r) => <TaskRow key={r.id} r={r} showPatient={false} />) : <div className="py-3"><EmptyState title="No tasks" /></div>}
+      <Panel title="Open exceptions" sub={`${openEx.length} open · ${ex.length - openEx.length} closed`} bodyClass="py-1">
+        {openEx.length ? openEx.map((r) => <ExceptionRow key={r.id} r={r} showPatient={false} />) : <div className="py-3"><EmptyState title="No open exceptions" desc="Out-of-range readings and missed check-ins appear here when rules fire." /></div>}
+        {closedEx.length > 0 && <ClosedList label={`Closed exceptions (${closedEx.length})`} items={closedEx} render={(r) => <ExceptionRow key={r.id} r={r} showPatient={false} />} testid="details-closed-exceptions" />}
+      </Panel>
+      <Panel title="Open tasks" sub={`${openTasks.length} open · ${tasks.length - openTasks.length} done`} action={allow("clinical.write") ? <Btn size="sm" onClick={dlg.create} data-testid="button-add-task"><Plus className="h-3.5 w-3.5" />Task</Btn> : undefined} bodyClass="py-1">
+        {openTasks.length ? openTasks.map((r) => <TaskRow key={r.id} r={r} showPatient={false} />) : <div className="py-3"><EmptyState title="No open tasks" /></div>}
+        {doneTasks.length > 0 && <ClosedList label={`Completed tasks (${doneTasks.length})`} items={doneTasks} render={(r) => <TaskRow key={r.id} r={r} showPatient={false} />} testid="details-done-tasks" />}
       </Panel>
       <RecordDialog open={dlg.open} onOpenChange={dlg.onOpenChange} kind="tasks" title="New task" fields={["program", "assignee", "date", "description"]} defaults={{ patientId: p.id, status: "open" }} />
     </div>
@@ -303,41 +339,25 @@ function WorkTab({ p, ex, tasks }: { p: Patient; ex: CareRecord[]; tasks: CareRe
 }
 
 /* ---------------- Readings ---------------- */
-function ReadingsTab({ p, obs, devices }: { p: Patient; obs: CareRecord[]; devices: CareRecord[] }) {
+function ReadingsTab({ p, obs, devices, responses }: { p: Patient; obs: CareRecord[]; devices: CareRecord[]; responses: CareRecord[] }) {
   const { allow } = usePermission();
   const sorted = [...obs].sort((a, b) => (a.date ?? a.createdAt).localeCompare(b.date ?? b.createdAt));
-  const data = sorted.map((r) => ({ label: fmtDate(r.date ?? r.createdAt, "MMM d"), sys: r.value, dia: mNum(r, "diastolic") }));
+  const bp = sorted.filter((r) => mNum(r, "diastolic") !== undefined || (r.unit ?? "").toLowerCase().includes("mmhg"));
+  const log = usePaged([...sorted].reverse(), 15);
   const [sys, setSys] = useState("142");
   const [dia, setDia] = useState("88");
   const { run, pending } = useAction();
   return (
     <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-      <Panel title="Blood pressure" sub="Systolic and diastolic, mmHg" action={<SimLabel text="Simulated device feed" />}>
-        {data.length ? (
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} margin={{ left: -18, right: 8, top: 8 }}>
-                <CartesianGrid stroke="hsl(40 12% 91%)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(220 4% 42%)" }} axisLine={false} tickLine={false} />
-                <YAxis domain={[50, 200]} tick={{ fontSize: 11, fill: "hsl(220 4% 42%)" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                <ReferenceLine y={140} stroke="hsl(356 72% 50%)" strokeDasharray="4 4" />
-                <ReferenceLine y={90} stroke="hsl(38 90% 52%)" strokeDasharray="4 4" />
-                <Line type="monotone" dataKey="sys" name="Systolic" stroke="hsl(22 88% 42%)" strokeWidth={2} dot={{ r: 2.5 }} />
-                <Line type="monotone" dataKey="dia" name="Diastolic" stroke="hsl(220 5% 12%)" strokeWidth={1.5} dot={{ r: 2 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        ) : <EmptyState icon={<Gauge className="h-4 w-4" />} title="No readings" desc="Send a simulated reading to see rules evaluate it." />}
-      </Panel>
+      <TrendPanel p={p} obs={obs} responses={responses} />
       <div className="space-y-5">
-        <Panel title="Send a simulated reading" sub="Runs through the same exception rules as device data">
+        {allow("devices.write")&&<Panel title="Test a reading" sub="Simulated input that runs through the same exception rules as device data" action={<SimLabel />}>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Systolic"><input type="number" className={inputCls} value={sys} onChange={(e) => setSys(e.target.value)} data-testid="input-systolic" /></Field>
             <Field label="Diastolic"><input type="number" className={inputCls} value={dia} onChange={(e) => setDia(e.target.value)} data-testid="input-diastolic" /></Field>
           </div>
-          {allow("devices.write") ? <Btn variant="primary" className="mt-3 w-full" disabled={pending || !sys || !dia} onClick={() => run({ action: "simulateReading", patientId: p.id, program: "RPM", payload: { systolic: Number(sys), diastolic: Number(dia) } })} data-testid="button-simulate-reading">Submit reading</Btn> : <p className="mt-3 text-xs text-muted-foreground" data-testid="hint-no-simulate">Sending readings needs device access.</p>}
-        </Panel>
+          <Btn variant="primary" className="mt-3 w-full" disabled={pending || !sys || !dia} onClick={() => run({ action: "simulateReading", patientId: p.id, program: "RPM", payload: { systolic: Number(sys), diastolic: Number(dia) } })} data-testid="button-simulate-reading">Submit reading</Btn>
+        </Panel>}
         <Panel title="Devices">
           {devices.length ? devices.map((d) => (
             <div key={d.id} className="flex items-center justify-between py-1.5 text-sm"><span>{d.title}<span className="ml-2 text-xs text-muted-foreground">{mStr(d, "serial")}</span></span><StatusPill value={d.status} /></div>
@@ -345,11 +365,12 @@ function ReadingsTab({ p, obs, devices }: { p: Patient; obs: CareRecord[]; devic
         </Panel>
       </div>
       <Panel title="Reading log" className="lg:col-span-2" bodyClass="p-0">
-        <div className="max-h-80 overflow-y-auto">
-          {[...sorted].reverse().map((r) => (
+        <div>
+          {log.slice.map((r) => (
             <div key={r.id} className="flex items-center gap-4 border-b border-border px-4 py-2 text-sm last:border-b-0" data-testid={`row-reading-${r.id}`}>
               <span className="w-32 text-xs text-muted-foreground">{fmtDateTime(r.date ?? r.createdAt)}</span>
-              <span className={cn("tnum w-24 font-mono", (r.value ?? 0) >= 160 && "font-semibold text-destructive")}>{r.value}/{mStr(r, "diastolic")}</span>
+              <span className="hidden w-40 truncate text-xs sm:inline">{r.title}</span>
+              <span className={cn("tnum w-28 font-mono", bp.includes(r) && (r.value ?? 0) >= 160 && "font-semibold text-destructive")}>{bp.includes(r) ? `${r.value}/${mStr(r, "diastolic")}` : r.value ?? ""} <span className="text-[11px] text-muted-foreground">{r.unit}</span></span>
               <span className="text-xs text-muted-foreground">{mStr(r, "source") || "device"}</span>
               {r.metadata?.valid === false && <Pill tone="amber">invalid</Pill>}
               <span className="ml-auto"><StatusPill value={r.status} /></span>
@@ -357,6 +378,7 @@ function ReadingsTab({ p, obs, devices }: { p: Patient; obs: CareRecord[]; devic
           ))}
           {!sorted.length && <p className="p-4 text-xs text-muted-foreground">No readings logged.</p>}
         </div>
+        <Pager {...log} noun="readings" testid="pager-readings" />
       </Panel>
     </div>
   );
@@ -460,6 +482,8 @@ function NotesTab({ p, notes, drafts }: { p: Patient; notes: CareRecord[]; draft
   const dlg = useRecordDialog();
   const { run, pending } = useAction();
   const pendingDrafts = drafts.filter((d) => !["accepted", "rejected"].includes(d.status));
+  const sortedNotes = useMemo(() => [...notes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [notes]);
+  const notePage = usePaged(sortedNotes, 8);
   return (
     <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
       <div className="space-y-3">
@@ -467,7 +491,7 @@ function NotesTab({ p, notes, drafts }: { p: Patient; notes: CareRecord[]; draft
           {allow("clinical.write") && <AssistChooser p={p} />}
           {allow("clinical.write") && <Btn variant="primary" onClick={dlg.create} data-testid="button-new-note"><Plus className="h-4 w-4" />New note</Btn>}
         </div>
-        {!notes.length ? <EmptyState icon={<FileText className="h-4 w-4" />} title="No notes" /> : [...notes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((n) => (
+        {!notes.length ? <EmptyState icon={<FileText className="h-4 w-4" />} title="No notes yet" desc="Progress notes, care plan reviews and addenda appear here once written." /> : notePage.slice.map((n) => (
           <Panel key={n.id} title={<span className="flex items-center gap-2">{n.title}<ProgramTag p={n.program} /><StatusPill value={n.status} /></span>} sub={`${n.assignee ?? "Care team"} · ${fmtDateTime(n.date ?? n.createdAt)}`}
             action={<>
               <DraftLifecycle r={n} />
@@ -476,9 +500,10 @@ function NotesTab({ p, notes, drafts }: { p: Patient; notes: CareRecord[]; draft
               {n.status !== "draft" && <DocButton r={n} />}
             </>}
           >
-            <p className="whitespace-pre-wrap text-sm text-foreground/85">{n.description || <span className="text-muted-foreground">Empty note body.</span>}</p>
+            <NoteBody text={n.description} />
           </Panel>
         ))}
+        <Pager {...notePage} noun="notes" className="rounded-lg border" testid="pager-notes" />
       </div>
       <Panel title={<span className="flex items-center gap-2"><Sparkles className="h-3.5 w-3.5 text-primary" />Drafts for review</span>} sub="Deterministic or live AI drafts. Nothing is filed, sent, signed or committed without a clinician.">
         {pendingDrafts.length ? pendingDrafts.map((d) => (
@@ -502,12 +527,12 @@ function TimeTab({ p, time }: { p: Patient; time: CareRecord[] }) {
   const canVoid = (t: CareRecord) => !!user && (mStr(t, "userId") === user.id || ["admin", "clinical_admin"].includes(user.role));
   const { run, pending } = useAction();
   const [open, setOpen] = useState(false);
-  const committed = time.filter((t) => !["voided", "running"].includes(t.status));
-  const byProgram = PROGRAMS.map((g) => ({ g, m: committed.filter((t) => t.program === g).reduce((s, t) => s + (t.value ?? 0), 0) })).filter((x) => x.m > 0);
+  const sortedTime = useMemo(() => [...time].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [time]);
+  const tp = usePaged(sortedTime, 15);
   return (
     <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
       <Panel title="Time entries" action={allow("time.write") ? <Btn size="sm" variant="primary" onClick={() => setOpen(true)} data-testid="button-log-time"><Plus className="h-3.5 w-3.5" />Log time</Btn> : undefined} bodyClass="p-0">
-        {time.length ? [...time].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((t) => (
+        {time.length ? tp.slice.map((t) => (
           <div key={t.id} className={cn("flex flex-col gap-2 border-b border-border px-4 py-2.5 last:border-b-0 sm:flex-row sm:items-center", t.status === "voided" && "opacity-55")} data-testid={`row-time-${t.id}`}>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2 text-sm"><span className={cn(t.status === "voided" && "line-through")}>{mStr(t, "activity") ? activityLabel(mStr(t, "activity")) : t.title}</span><ProgramTag p={t.program} />{mBool(t, "isInteractive") && <Pill tone="indigo">interactive</Pill>}<StatusPill value={t.status} /></div>
@@ -519,14 +544,10 @@ function TimeTab({ p, time }: { p: Patient; time: CareRecord[] }) {
             )}
           </div>
         )) : <div className="p-4"><EmptyState title="No time recorded" desc="Start a timer from the header or log time after the fact." /></div>}
+        <Pager {...tp} noun="entries" testid="pager-time" />
       </Panel>
-      <Panel title="This month by program">
-        {byProgram.length ? byProgram.map((x) => (
-          <div key={x.g} className="mb-3 last:mb-0">
-            <div className="flex justify-between text-xs"><span className="font-medium">{x.g}</span><span className="tnum">{x.m} / 20 min</span></div>
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, (x.m / 20) * 100)}%` }} /></div>
-          </div>
-        )) : <p className="text-xs text-muted-foreground">No committed minutes.</p>}
+      <Panel title="Program requirements" sub="Minutes by billing month; device days by monitoring window" bodyClass="p-0">
+        <ProgramProgressList patientId={p.id} />
       </Panel>
       <LogTimeDialog p={p} open={open} onOpenChange={setOpen} />
     </div>
@@ -600,20 +621,20 @@ function MessagesTab({ p, messages, interactions }: { p: Patient; messages: Care
       </Panel>
       <div className="space-y-5">
         <Panel title="EHR and visits" action={<SimLabel />}>
-          <p className="mb-3 text-xs text-muted-foreground">No live EHR or video vendor is connected. These actions exercise the simulated connectors and record what would be exchanged.</p>
+          <p className="mb-3 text-xs text-muted-foreground">Connectors are simulated; actions record what would be exchanged.</p>
           <div className="flex flex-wrap gap-2">
             {allow("clinical.write") && <ConfirmButton label="Sync EHR" icon={<RefreshCw className="h-3.5 w-3.5" />} title="Simulated EHR sync" desc="Writes an interaction entry describing the simulated exchange." confirmLabel="Sync" pending={pending} onConfirm={(_, close) => run({ action: "syncEhr", patientId: p.id }, close)} testid="button-sync-ehr-tab" />}
             {allow("clinical.write") && <ConfirmButton label="Create video visit" icon={<Video className="h-3.5 w-3.5" />} title="Create simulated video visit" desc="Generates a demo visit link. It does not connect to a real video service." confirmLabel="Create" pending={pending} onConfirm={(_, close) => run({ action: "createVideo", patientId: p.id }, (r) => { setVideoUrl(r.url ?? null); close(); })} testid="button-create-video" />}
           </div>
-          {videoUrl && <div className="mt-3 rounded-md border border-dashed border-border p-2 text-xs"><span className="text-muted-foreground">Demo link: </span><span className="break-all font-mono" data-testid="text-video-url">{videoUrl}</span></div>}
+          {videoUrl && <AdvancedDetails label="Demo visit link created" className="mt-3"><span className="break-all font-mono" data-testid="text-video-url">{videoUrl}</span></AdvancedDetails>}
         </Panel>
         <Panel title="Interactions" sub="Calls, visits, EHR exchanges">
-          {interactions.length ? [...interactions].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((i) => (
+          {interactions.length ? [...interactions].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 12).map((i) => (
             <div key={i.id} className="flex gap-3 border-b border-border py-2 last:border-b-0">
               <CalendarDays className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1 text-sm">
                 <div className="flex items-center gap-2">{i.title}{mBool(i, "simulated") && <SimLabel />}</div>
-                <div className="text-xs text-muted-foreground">{fmtDateTime(i.date ?? i.createdAt)}{i.description && ` · ${i.description}`}</div>
+                <div className="line-clamp-2 text-xs text-muted-foreground">{fmtDateTime(i.date ?? i.createdAt)}{i.description && ` · ${i.description}`}</div>
               </div>
             </div>
           )) : <p className="text-xs text-muted-foreground">No interactions recorded.</p>}
@@ -685,3 +706,79 @@ function AssistChooser({ p }: { p: Patient }) {
   );
 }
 
+
+/* ---------------- Shared small pieces ---------------- */
+function ClosedList({ label, items, render, testid }: { label: string; items: CareRecord[]; render: (r: CareRecord) => React.ReactNode; testid: string }) {
+  const pg = usePaged(items, 10);
+  return (
+    <details className="group mt-2 border-t border-border pt-2 text-xs" data-testid={testid}>
+      <summary className="cursor-pointer list-none py-1 text-muted-foreground hover:text-foreground">{label}</summary>
+      <div className="opacity-80">{pg.slice.map(render)}</div>
+      <Pager {...pg} noun="closed" className="px-0" testid={`${testid}-pager`} />
+    </details>
+  );
+}
+
+function NoteBody({ text }: { text?: string }) {
+  const [full, setFull] = useState(false);
+  if (!text) return <p className="text-sm text-muted-foreground">No note text recorded.</p>;
+  const long = text.length > 420;
+  return (
+    <div>
+      <p className={cn("whitespace-pre-wrap text-sm leading-relaxed text-foreground/85", long && !full && "line-clamp-5")}>{text}</p>
+      {long && <button type="button" onClick={() => setFull((f) => !f)} className="mt-1 text-xs font-medium text-primary hover:underline" data-testid="button-note-expand">{full ? "Show less" : "Read full note"}</button>}
+    </div>
+  );
+}
+
+/* ---------------- Overview ---------------- */
+function Overview({ p, records, go }: { p: Patient; records: CareRecord[]; go: (t: Tab) => void }) {
+  const by = (k: string) => records.filter((r) => r.kind === k);
+  const when = (r: CareRecord) => r.date ?? r.createdAt;
+  const recent = (a: CareRecord, b: CareRecord) => when(b).localeCompare(when(a));
+  const openEx = by("exceptions").filter(isOpen).sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || recent(a, b));
+  const openTasks = by("tasks").filter(isOpen).sort((a, b) => when(a).localeCompare(when(b)));
+  const readings = by("observations").sort(recent).slice(0, 4);
+  const notes = by("notes").sort(recent);
+  const lastSigned = notes.find((n) => n.status === "signed") ?? notes[0];
+  const prefs = p.communicationPreferences;
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1.55fr_1fr]">
+      <div className="space-y-5">
+        <Panel title="Needs attention" sub={openEx.length ? `${openEx.length} open exception${openEx.length === 1 ? "" : "s"}, most severe first` : undefined} action={openEx.length > 4 ? <button className="text-xs font-medium text-primary hover:underline" onClick={() => go("work")} data-testid="link-overview-all-exceptions">View all</button> : undefined} bodyClass="py-1">
+          {openEx.length ? openEx.slice(0, 4).map((r) => <ExceptionRow key={r.id} r={r} showPatient={false} />) : <div className="py-3"><EmptyState title="Nothing flagged" desc="No open exceptions for this patient." /></div>}
+        </Panel>
+        <Panel title="Program progress" sub="Care minutes count per billing month; device days count per monitoring window" action={<button className="text-xs font-medium text-primary hover:underline" onClick={() => go("time")} data-testid="link-overview-time">Time detail</button>} bodyClass="p-0">
+          <ProgramProgressList patientId={p.id} compact onEnroll={() => go("enrollment")} />
+        </Panel>
+        <Panel title="Latest note" action={notes.length ? <button className="text-xs font-medium text-primary hover:underline" onClick={() => go("notes")} data-testid="link-overview-notes">All notes ({notes.length})</button> : undefined}>
+          {lastSigned ? (
+            <div>
+              <div className="mb-1.5 flex flex-wrap items-center gap-2 text-sm font-medium">{lastSigned.title}<ProgramTag p={lastSigned.program} /><StatusPill value={lastSigned.status} /><span className="ml-auto text-[11px] font-normal text-muted-foreground">{lastSigned.assignee ?? "Care team"} · {fmtDate(when(lastSigned))}</span></div>
+              <NoteBody text={lastSigned.description} />
+            </div>
+          ) : <p className="text-xs text-muted-foreground">No notes written for this patient yet.</p>}
+        </Panel>
+      </div>
+      <div className="space-y-5">
+        <Panel title="Clinical profile">
+          <ClinicalProfileSummary patientId={p.id} onOpen={() => go("profile")} />
+          {prefs && <div className="mt-4 border-t border-border pt-3"><KV label="Contact preferences"><span className="text-[13px]">{[prefs.email && "Email", prefs.sms && "SMS", prefs.push && "App push"].filter(Boolean).join(", ") || "No channels enabled"}{prefs.quietHours?.enabled && <span className="text-muted-foreground"> · quiet {prefs.quietHours.start}–{prefs.quietHours.end}</span>}</span></KV></div>}
+        </Panel>
+        <Panel title="Recent readings" action={readings.length ? <button className="text-xs font-medium text-primary hover:underline" onClick={() => go("readings")} data-testid="link-overview-readings">Trend</button> : undefined} bodyClass="py-1">
+          {readings.length ? readings.map((r) => (
+            <div key={r.id} className="flex items-center justify-between border-b border-border py-2 text-sm last:border-b-0">
+              <span className="min-w-0 truncate text-xs text-muted-foreground">{r.title} · {fmtRel(when(r))}</span>
+              <span className="tnum font-mono">{mStr(r, "diastolic") ? `${r.value}/${mStr(r, "diastolic")}` : r.value} <span className="text-[11px] text-muted-foreground">{r.unit}</span></span>
+            </div>
+          )) : <p className="py-2 text-xs text-muted-foreground">No readings received.</p>}
+        </Panel>
+        <Panel title="Next tasks" action={openTasks.length > 4 ? <button className="text-xs font-medium text-primary hover:underline" onClick={() => go("work")} data-testid="link-overview-tasks">All ({openTasks.length})</button> : undefined} bodyClass="py-1">
+          {openTasks.length ? openTasks.slice(0, 4).map((r) => <TaskRow key={r.id} r={r} showPatient={false} />) : <p className="py-2 text-xs text-muted-foreground">No open tasks.</p>}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function sevRank(s?: string) { return ({ critical: 0, high: 1, medium: 2, low: 3 } as Record<string, number>)[(s ?? "").toLowerCase()] ?? 4; }

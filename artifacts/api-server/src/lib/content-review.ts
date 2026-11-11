@@ -20,28 +20,45 @@ export function educationAvailable(r:ContentInput&{status?:string}) {
   return m.nonClinical===true||!!body&&m.contentApprovedForUse===true&&m.contentReviewHash===educationReviewHash(r)&&
     typeof m.sourceRef==="string"&&!!m.sourceRef.trim()&&typeof m.licenseNote==="string"&&m.licenseNote.trim().length>=20;
 }
-export function instrumentContentHash(r:ContentInput) {
+function canonicalValue(v:unknown):unknown {
+  if(Array.isArray(v))return v.map(canonicalValue);
+  if(v&&typeof v==="object")return Object.fromEntries(Object.entries(v).sort(([a],[b])=>a<b?-1:a>b?1:0).map(([k,x])=>[k,canonicalValue(x)]));
+  return v;
+}
+function instrumentHash(r:ContentInput,canonical:boolean) {
   const m=r.metadata??{};
-  return createHash("sha256").update(JSON.stringify({title:r.title??"",description:r.description??"",program:r.program??null,key:m.key,questions:m.questions??[],version:m.contentVersion??"1",sourceRef:m.sourceRef??"",licenseNote:m.licenseNote??""})).digest("hex");
+  const payload={title:r.title??"",description:r.description??"",program:r.program??null,key:m.key,questions:m.questions??[],version:m.contentVersion??"1",sourceRef:m.sourceRef??"",licenseNote:m.licenseNote??"",range:m.range??null,scoring:m.scoring??null,nonValidatedDemo:m.nonValidatedDemo===true,instructions:m.instructions??"",answerLabels:m.answerLabels??[],language:m.language??""};
+  return createHash("sha256").update(JSON.stringify(canonical?Object.fromEntries(Object.entries(payload).map(([k,v])=>[k,canonicalValue(v)])):payload)).digest("hex");
+}
+export function instrumentContentHash(r:ContentInput) {return instrumentHash(r,true);}
+/** Accept an older proof only when it still hashes the exact current content. */
+export function instrumentApprovalMatches(r:ContentInput) {
+  const m=r.metadata??{};
+  return m.contentReviewHash===instrumentContentHash(r)||m.fingerprintVersion!==3&&m.contentReviewHash===instrumentHash(r,false);
 }
 export function instrumentAvailable(r:ContentInput&{status?:string}) {
   const m=r.metadata??{};
   if(r.status!=="active"||(m.questions!==undefined&&!Array.isArray(m.questions)))return false;
   if(!Array.isArray(m.questions)||!m.questions.length)return true; // Explicit synthetic placeholder mode.
-  return m.contentApprovedForUse===true&&m.contentReviewHash===instrumentContentHash(r)&&typeof m.sourceRef==="string"&&!!m.sourceRef.trim()&&
+  return m.contentApprovedForUse===true&&instrumentApprovalMatches(r)&&typeof m.sourceRef==="string"&&!!m.sourceRef.trim()&&
     typeof m.licenseNote==="string"&&m.licenseNote.trim().length>=20;
 }
 /** Approval belongs to this exact content and the authenticated reviewer, never a client-supplied identity. */
 export function reviewedContentMetadata(kind:string,input:ContentInput,actor:Actor,old?:RecordRow) {
   if(!["education","instruments"].includes(kind))return input.metadata;
   const m={...old?.metadata,...input.metadata},current={title:input.title??old?.title??"",description:input.description??old?.description??"",program:input.program===undefined?old?.program??null:input.program,metadata:m};
+  if(kind==="instruments") {
+    if(m.questions!==undefined&&(!Array.isArray(m.questions)||m.questions.length>100||m.questions.some(q=>typeof q!=="string"||!q.trim()||q.length>2000)))throw new AppError(400,"Questionnaire items must be nonblank text, with at most 100 items.");
+    if(m.instructions!==undefined&&(typeof m.instructions!=="string"||m.instructions.length>4000))throw new AppError(400,"Questionnaire instructions must be text of at most 4000 characters.");
+    if(m.answerLabels!==undefined&&(!Array.isArray(m.answerLabels)||m.answerLabels.length>201||m.answerLabels.some(a=>typeof a!=="string"||!a.trim()||a.length>200)))throw new AppError(400,"Answer labels must be nonblank text.");
+  }
   if(m.contentVersion!==undefined&&(typeof m.contentVersion!=="string"&&typeof m.contentVersion!=="number"||!String(m.contentVersion).trim()||String(m.contentVersion).length>80||typeof m.contentVersion==="number"&&(!Number.isInteger(m.contentVersion)||m.contentVersion<1)))throw new AppError(400,"Content version must be a short nonblank string or positive integer");
   const fingerprint=kind==="education"?educationReviewHash:instrumentContentHash;
   const hash=fingerprint(current),changed=!old||hash!==fingerprint(old)||input.metadata?.contentApprovedForUse===false||
-    old.metadata.contentApprovedForUse===true&&old.metadata.contentReviewHash!==fingerprint(old),confirmed=input.metadata?.contentApprovedForUse===true;
+    old.metadata.contentApprovedForUse===true&&(kind==="instruments"?!instrumentApprovalMatches(old):old.metadata.contentReviewHash!==fingerprint(old)),confirmed=input.metadata?.contentApprovedForUse===true;
   if(confirmed&&(!old||changed||old.metadata.contentApprovedForUse!==true)) {
     if(typeof m.sourceRef!=="string"||!m.sourceRef.trim()||typeof m.licenseNote!=="string"||m.licenseNote.trim().length<20)throw new AppError(400,"Local content review requires the source and a license/use note of at least 20 characters");
-    return {...m,contentApprovedForUse:true,contentReviewedById:actor.id,contentReviewedBy:actor.name,contentReviewedAt:new Date().toISOString(),contentReviewHash:hash};
+    return {...m,contentApprovedForUse:true,contentReviewedById:actor.id,contentReviewedBy:actor.name,contentReviewedAt:new Date().toISOString(),contentReviewHash:hash,...(kind==="instruments"?{fingerprintVersion:3}:{})};
   }
   return {...m,contentApprovedForUse:changed?false:old?.metadata.contentApprovedForUse===true,
     contentReviewedById:changed?null:old?.metadata.contentReviewedById??null,contentReviewedBy:changed?null:old?.metadata.contentReviewedBy??null,

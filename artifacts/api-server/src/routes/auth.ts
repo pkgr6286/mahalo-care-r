@@ -1,3 +1,4 @@
+import {syncClinicalStaffDirectory} from "../lib/staff-directory";
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { randomBytes } from "node:crypto";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
@@ -5,12 +6,14 @@ import rateLimit from "express-rate-limit";
 import { db, users, sessions, passwordTokens } from "@workspace/db";
 import { LoginBody, LoginResponse, RequestPasswordResetBody, ResetPasswordBody, ChangePasswordBody, RevokeSessionParams, ListSessionsResponse } from "@workspace/api-zod";
 import { hashPassword, verifyPassword } from "../lib/passwords";
-import { addRecord, writeAudit, type Actor } from "../lib/store";
+import { addRecord,allRecords,getPatientRow, writeAudit, type Actor } from "../lib/store";
 import { checkPassword, digest, revokeUserSessions, safeUser, sessionReference } from "../lib/account-security";
 import { AppError } from "../lib/errors";
+import {applyEmergencyContext} from "../lib/emergency-context";
 
 export const authRouter = Router();
-const authLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 40, standardHeaders: "draft-8", legacyHeaders: false, validate: { xForwardedForHeader: false } });
+// Practice/NAT-wide budget; the persistent five-failure per-account lock remains authoritative across instances.
+const authLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 240, standardHeaders: "draft-8", legacyHeaders: false, validate: { xForwardedForHeader: false } });
 const recoveryLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: "draft-8", legacyHeaders: false, validate: { xForwardedForHeader: false } });
 // Distinct invitations behind one practice/NAT must not consume a shared eight-reset budget.
 // Keep a bounded IP budget as well as a tight per-token budget; token values never appear in logs.
@@ -41,7 +44,7 @@ authRouter.post("/auth/login", authLimit, async (req, res): Promise<void> => {
   await db.transaction(async s => {
     const [current] = await s.select().from(users).where(eq(users.id,u.id)).for("update");
     if (!current || current.status !== "active" || current.passwordHash !== u.passwordHash || current.lockedUntil && current.lockedUntil.getTime()>Date.now()) throw new AppError(401,"Sign-in is unavailable");
-    await s.insert(sessions).values({ tokenHash: digest(token), userId: u.id, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) });
+    await s.insert(sessions).values({ tokenHash: digest(token), userId: u.id, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),activeLocation:safeUser(current).activeLocation });
     await s.update(users).set({lastLoginAt:new Date(),failedAttempts:0,lockedUntil:null}).where(eq(users.id,u.id));
     await writeAudit(s, safeUser(current), "login", u.id);
   });
@@ -68,11 +71,13 @@ authRouter.post("/auth/password/reset", resetIpLimit, resetTokenLimit, async (re
   const input=ResetPasswordBody.parse(req.body); checkPassword(input.password);
   const passwordHash = await hashPassword(input.password);
   await db.transaction(async s => {
+    await s.execute(sql`select pg_advisory_xact_lock(7348202)`);
     const [t] = await s.select().from(passwordTokens).where(and(eq(passwordTokens.tokenHash,digest(input.token)),isNull(passwordTokens.usedAt),gt(passwordTokens.expiresAt,new Date()))).for("update");
     if (!t) throw new AppError(400,"This link is invalid, expired or already used. Request a new link.");
     const [u] = await s.select().from(users).where(eq(users.id,t.userId)).for("update");
     if (!u || u.status === "inactive") throw new AppError(400,"This account is not available");
     await s.update(users).set({passwordHash,status:"active",failedAttempts:0,lockedUntil:null}).where(eq(users.id,u.id));
+    await syncClinicalStaffDirectory(s,{...u,status:"active"},u);
     await s.update(passwordTokens).set({usedAt:new Date()}).where(and(eq(passwordTokens.userId,u.id),isNull(passwordTokens.usedAt)));
     await revokeUserSessions(s,u.id);
     await writeAudit(s,safeUser(u),"reset_password",u.id);
@@ -92,13 +97,53 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     if (!req.cookies.mahalo_csrf || req.get("x-csrf-token") !== req.cookies.mahalo_csrf) throw new AppError(403,"Refresh the page before trying again");
   }
   if (!req.cookies.mahalo_csrf) res.cookie("mahalo_csrf",randomBytes(24).toString("hex"),{...cookieOptions(req),httpOnly:false,maxAge:24*60*60*1000});
-  if (Date.now()-row.session.lastSeenAt.getTime()>60_000) await db.update(sessions).set({lastSeenAt:new Date()}).where(eq(sessions.tokenHash,row.session.tokenHash));
-  res.locals.actor=safeUser(row.user);res.locals.sessionHash=row.session.tokenHash;
+  const sessionLocked=!["patient","caregiver"].includes(row.user.role)&&Date.now()-row.session.lastSeenAt.getTime()>15*60_000;
+  res.locals.actor={...applyEmergencyContext(safeUser(row.user,row.session.activeLocation),row.session.emergencyContext),sessionLocked};res.locals.sessionHash=row.session.tokenHash;
+  if(sessionLocked&&!["/auth/me","/auth/logout","/auth/unlock"].includes(req.path)) {
+    res.status(423).json({error:"Your workspace is locked after 15 minutes without activity. Re-enter your password to continue.",code:"SESSION_LOCKED"});return;
+  }
   next();
 }
 
 export const sessionRouter = Router();
 sessionRouter.get("/auth/me", (_req,res) => {res.json(res.locals.actor);});
+sessionRouter.post("/auth/location-context",async(req,res):Promise<void>=>{
+  const actor=res.locals.actor as Actor,location=typeof req.body?.location==="string"?req.body.location.trim():"";
+  if(actor.emergencyContext)throw new AppError(409,"End emergency access before switching staff locations.");
+  if(!location||location.length>100)throw new AppError(400,"Choose an assigned location.");
+  const result=await db.transaction(async s=>{
+    await s.execute(sql`select pg_advisory_xact_lock(7348202)`);
+    const [u]=await s.select().from(users).where(eq(users.id,actor.id)).for("share");
+    const [session]=await s.select().from(sessions).where(and(eq(sessions.tokenHash,res.locals.sessionHash),eq(sessions.userId,actor.id))).for("update");
+    if(!u||u.status!=="active"||!session||session.expiresAt<=new Date())throw new AppError(401,"Sign in again before changing locations.");
+    if(["admin","patient","caregiver"].includes(u.role)||!Object.hasOwn(u.siteRoles,location))throw new AppError(403,"This location is not assigned to your staff account.");
+    const pending=(await allRecords(s,"time")).filter(r=>r.metadata.userId===actor.id&&r.metadata.source==="timer"&&["running","draft"].includes(r.status));
+    const pendingSites=await Promise.all(pending.map(r=>getPatientRow(s,r.patientId!)));
+    if(pendingSites.length&&!pendingSites.some(p=>p.location===location))throw new AppError(409,"Finish or discard your tracked care time before switching locations.");
+    await s.update(sessions).set({activeLocation:location,lastSeenAt:new Date()}).where(eq(sessions.tokenHash,session.tokenHash));
+    const next=safeUser(u,location);
+    await writeAudit(s,actor,"switch_location_context",actor.id,null,{from:actor.activeLocation??null,to:location,role:next.role});
+    return next;
+  });
+  res.json(LoginResponse.parse(result));
+});
+sessionRouter.post("/auth/activity",async(_req,res):Promise<void>=>{
+  await db.update(sessions).set({lastSeenAt:new Date()}).where(eq(sessions.tokenHash,res.locals.sessionHash));
+  res.json({ok:true});
+});
+sessionRouter.post("/auth/unlock",authLimit,async(req,res):Promise<void>=>{
+  const actor=res.locals.actor as Actor,password=typeof req.body?.password==="string"?req.body.password:"";
+  const [user]=await db.select().from(users).where(eq(users.id,actor.id));
+  if(!user||user.status!=="active"||password.length>128||user.lockedUntil&&user.lockedUntil>new Date()||!await verifyPassword(password,user.passwordHash)) {
+    if(user) await db.update(users).set({failedAttempts:sql`${users.failedAttempts}+1`,lockedUntil:sql`CASE WHEN ${users.failedAttempts}+1 >= 5 THEN now()+interval '15 minutes' ELSE ${users.lockedUntil} END`}).where(eq(users.id,user.id));
+    await writeAudit(db,actor,"workspace_unlock_failed",actor.id);
+    res.status(401).json({error:"Password is incorrect or sign-in is temporarily locked."});return;
+  }
+  await db.update(users).set({failedAttempts:0,lockedUntil:null}).where(eq(users.id,user.id));
+  await db.update(sessions).set({lastSeenAt:new Date()}).where(eq(sessions.tokenHash,res.locals.sessionHash));
+  await writeAudit(db,actor,"workspace_unlocked",actor.id);
+  res.json({ok:true});
+});
 sessionRouter.post("/auth/logout", async (_req,res): Promise<void> => {
   await db.delete(sessions).where(eq(sessions.tokenHash,res.locals.sessionHash));
   await writeAudit(db,res.locals.actor as Actor,"logout",(res.locals.actor as Actor).id);

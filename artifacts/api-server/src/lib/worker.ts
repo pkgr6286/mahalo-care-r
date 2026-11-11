@@ -1,9 +1,12 @@
 import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
-import { db, jobs, ingestInbox, patients, type RecordRow } from "@workspace/db";
+import { db, jobs, ingestInbox, patients,settings,records, type RecordRow } from "@workspace/db";
+import {randomUUID} from "node:crypto";
 import { config } from "./config";
 import { logger } from "./logger";
 import { addRecord, allRecords, patchRecord, writeAudit, type Store } from "./store";
 import { enqueueJob } from "./job-store";
+import {seedClinicalPractice,retainClinicalDemoDocuments,calculateClinicalDemoBilling} from "./seed-clinical-practice";
+import {clinicalPatient} from "./datasets";
 import { processDeviceEvent, systemActor } from "./device-ingestion";
 import { materializeTasks, markMissedTasks } from "./task-schedules";
 import { runRules } from "./rules";
@@ -11,13 +14,22 @@ import {parseClinicalRule} from "./clinical-rule-schema";
 import {notifyRuleMatch} from "./rule-notifications";
 import {refreshTimeReminders} from "./time-reminders";
 import {captureNotificationOutbox} from "./notification-outbox";
+import {queueDueSecurityReports,runScheduledSecurityReport} from "./security-report-schedule";
 
 async function runJob(s:Store,kind:string,payload:Record<string,unknown>):Promise<Record<string,unknown>> {
+  // Report retention owns its transaction; do not hold the clinical mutation lock across it.
+  if(kind==="security_report_schedule")return queueDueSecurityReports(s);
+  if(kind==="security_report")return runScheduledSecurityReport(payload);
+  if(kind==="prepare_demonstration") {
+    await seedClinicalPractice();
+    await retainClinicalDemoDocuments();
+    return {...await calculateClinicalDemoBilling(),prepared:true,synthetic:true};
+  }
   // Clinical job effects serialize with normal mutations; SKIP LOCKED protects queue claims across API replicas.
   await s.execute(sql`select pg_advisory_xact_lock(7348202)`);
   if(kind==="device_ingest") return processDeviceEvent(s,String(payload.inboxId));
   if(kind==="patient_rules") return {signals:(await runRules(s,systemActor,{action:"evaluateRules",patientId:String(payload.patientId)})).length};
-  const ps=await s.select().from(patients).where(eq(patients.status,"active"));
+  const ps=await s.select().from(patients).where(and(eq(patients.status,"active"),clinicalPatient));
   if(kind==="rule_sweep") {
     let signals=0,escalations=0;
     for(const p of ps) signals+=(await runRules(s,systemActor,{action:"evaluateRules",patientId:p.id})).length;
@@ -56,6 +68,9 @@ export async function processNextJob() {
       // Domain work has a savepoint: failed attempts never leave partial clinical mutations behind.
       const result=await s.transaction(inner=>runJob(inner,job.kind,job.payload));
       await s.update(jobs).set({status:"completed",finishedAt:new Date(),error:null,result}).where(eq(jobs.id,job.id));
+      const failures=await s.select().from(records).where(and(eq(records.kind,"tasks"),eq(records.status,"pending"),eq(records.title,"Review failed background operation"),sql`${records.metadata}->>'jobId'=${job.id} AND ${records.metadata}->>'source'='system' AND ${records.metadata}->>'audience'='staff'`)).for("update");
+      for(const task of failures)
+        await patchRecord(s,task,{status:"completed",metadata:{...task.metadata,recoveredAt:new Date().toISOString(),recoveryReason:"The background operation completed successfully after retry."}},systemActor,"resolve_background_failure");
     } catch(error) {
       const terminal=attempts>=job.maxAttempts, message=error instanceof Error?error.message.slice(0,240):"Background operation failed";
       await s.update(jobs).set({status:terminal?"failed":"retry",attempts,error:message,runAt:new Date(Date.now()+2**attempts*1000),finishedAt:terminal?new Date():null}).where(eq(jobs.id,job.id));
@@ -69,8 +84,20 @@ export async function processNextJob() {
   });
 }
 
-export function startWorker() {
+export function startWorker(mode:"embedded"|"standalone"="embedded") {
   let stopped=false,busy=false;
+  const instanceId=randomUUID();
+  let beatBusy=false,heartbeat:Promise<void>=Promise.resolve();
+  const pulse=async()=>{
+    if(stopped||beatBusy)return;beatBusy=true;
+    try {
+      const value={seenAt:new Date().toISOString(),instanceId,mode};
+      await db.insert(settings).values({id:"system.worker.heartbeat",value}).onConflictDoUpdate({target:settings.id,set:{value}});
+    } catch(error) {logger.warn({errorType:error instanceof Error?error.name:"unknown"},"Worker heartbeat could not be recorded");}
+    finally{beatBusy=false;}
+  };
+  const heartbeatTimer=setInterval(()=>{heartbeat=pulse();},15000);heartbeatTimer.unref();
+  heartbeat=pulse();
   let current:Promise<void>=Promise.resolve();
   const tick=async()=>{
     if(stopped||busy) return;busy=true;
@@ -81,6 +108,7 @@ export function startWorker() {
       await enqueueJob(db,"task_expiry",`quarter:${Math.floor(Date.now()/900000)}`);
       await enqueueJob(db,"time_reminders",`time-reminders:${Math.floor(Date.now()/900000)}`);
       await enqueueJob(db,"notifications",`minute:${clock.slice(0,16)}`);
+      await enqueueJob(db,"security_report_schedule",`security-schedule:${clock.slice(0,10)}`);
       for(let i=0;i<8&&!stopped;i++) if(!await processNextJob()) break;
     } catch(error) {
       logger.error({errorType:error instanceof Error?error.name:"unknown"},"Background worker tick failed");
@@ -88,5 +116,5 @@ export function startWorker() {
   };
   const timer=setInterval(()=>{current=tick();},config.WORKER_INTERVAL_MS);timer.unref();
   current=tick();
-  return async()=>{stopped=true;clearInterval(timer);await current;};
+  return async()=>{stopped=true;clearInterval(timer);clearInterval(heartbeatTimer);await Promise.all([current,heartbeat]);};
 }

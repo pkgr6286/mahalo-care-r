@@ -3,10 +3,12 @@ import { and, eq, desc } from "drizzle-orm";
 import { db, records, patients, audit, type RecordRow, type PatientRow } from "@workspace/db";
 import { requireValue, AppError } from "./errors";
 import { latestPatientContact } from "./patient-contact";
+import { clinicalRecord } from "./datasets";
+import { trackValidationCreation } from "./validation-tracking";
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type Store = Pick<typeof db, "select" | "insert" | "update" | "delete" | "execute">;
-export type Actor = { id: string; name: string; role: string; credential: string; email: string; patientId?: string | null; locationScopes?: string[]; permissions?: string[] };
+export type Actor = { id: string; name: string; role: string; credential: string; email: string; patientId?: string | null; locationScopes?: string[]; permissions?: string[];siteRoles?:Record<string,string>;activeLocation?:string|null;baseRole?:string;npi?:string|null;canUseEmergencyAccess?:boolean;emergencyContext?:import("@workspace/db").EmergencyContext|null };
 export type RecordInput = {
   title: string; patientId?: string | null; program?: string | null; status?: string;
   severity?: string; description?: string; assignee?: string; date?: string;
@@ -17,9 +19,10 @@ export const id = () => randomUUID();
 
 export async function writeAudit(s: Store, actor: Actor, action: string, entityId: string, patientId?: string | null, detail: Record<string, unknown> = {}) {
   await s.insert(audit).values({ id: id(), actorId: actor.id, actorName: actor.name, action, entityId, patientId, detail });
+  await trackValidationCreation(s,action,entityId);
 }
 export async function allRecords(s: Store = db, kind?: string) {
-  return s.select().from(records).where(kind ? eq(records.kind, kind) : undefined).orderBy(desc(records.date));
+  return s.select().from(records).where(and(clinicalRecord, kind ? eq(records.kind, kind) : undefined)).orderBy(desc(records.date));
 }
 export async function getRecord(s: Store, recordId?: string, kind?: string) {
   if (!recordId) throw new AppError(400, "A record identifier is required");
@@ -34,7 +37,7 @@ export async function getPatientRow(s: Store, patientId?: string) {
 export async function addRecord(s: Store, kind: string, input: RecordInput, actor: Actor) {
   if (input.patientId) await getPatientRow(s, input.patientId);
   const [r] = await s.insert(records).values({
-    ...input, id: id(), kind, date: input.date || now(), metadata: input.metadata || {}, createdBy: actor.id,
+    ...input, id: id(), kind, date: input.date || now(),assignee:input.assignee??"Unassigned", metadata: input.metadata || {}, createdBy: actor.id,
   }).returning();
   await writeAudit(s, actor, `create_${kind}`, r!.id, input.patientId);
   if(kind==="messages"||(kind==="exceptions"&&input.severity==="critical")) {
@@ -65,7 +68,9 @@ export function patientView(p: PatientRow, rs: RecordRow[]) {
   const committed = mine.filter(r => r.kind === "time" && r.status === "committed" && r.date.startsWith(cutoff));
   const observations = mine.filter(r => r.kind === "observations" && r.metadata.valid !== false && r.date.startsWith(cutoff));
   const days = new Set(observations.map(r => new Intl.DateTimeFormat("en-CA", {timeZone:p.timezone}).format(new Date(r.date)))).size;
-  const tasks = mine.filter(r => r.kind === "tasks");
+  const tasks = mine.filter(r => r.kind === "tasks" && r.metadata.audience !== "staff" &&
+    r.metadata.kind !== "education_acknowledgment" &&
+    Date.parse(String(r.metadata.dueAt ?? r.date)) <= Date.now());
   return {
     ...p, createdAt: p.createdAt.toISOString(), programs: [...new Set(es.map(e => e.program || ""))],
     risk: open.some(e => e.severity === "critical") ? "critical" : open.some(e => e.severity === "high") ? "high" : open.length ? "medium" : "low",

@@ -6,3 +6,4 @@
 .pythonlibs
 __pycache__
 /generated-artifacts/
+/attached_assets/

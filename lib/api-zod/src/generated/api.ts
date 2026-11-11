@@ -8,6 +8,732 @@
 import * as zod from 'zod';
 
 
+export const startEmergencyAccessBodyMrnMin = 2;
+export const startEmergencyAccessBodyMrnMax = 100;
+
+export const startEmergencyAccessBodyReasonMin = 20;
+export const startEmergencyAccessBodyReasonMax = 1000;
+
+
+
+export const StartEmergencyAccessBody = zod.object({
+  "mrn": zod.string().min(startEmergencyAccessBodyMrnMin).max(startEmergencyAccessBodyMrnMax),
+  "reason": zod.string().min(startEmergencyAccessBodyReasonMin).max(startEmergencyAccessBodyReasonMax),
+  "attested": zod.literal(true)
+})
+
+export const StartEmergencyAccessResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "credential": zod.string(),
+  "patientId": zod.string().nullish(),
+  "sessionLocked": zod.boolean().optional(),
+  "canUseEmergencyAccess": zod.boolean().optional(),
+  "emergencyContext": zod.object({
+  "patientId": zod.string(),
+  "patientName": zod.string(),
+  "mrn": zod.string(),
+  "location": zod.string(),
+  "reason": zod.string(),
+  "startedAt": zod.string(),
+  "expiresAt": zod.string()
+}).nullish(),
+  "npi": zod.string().nullish(),
+  "baseRole": zod.string().optional(),
+  "activeLocation": zod.string().nullish(),
+  "siteRoles": zod.record(zod.string(), zod.enum(['clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only'])).optional(),
+  "locationScopes": zod.array(zod.string()).optional(),
+  "permissions": zod.array(zod.string()).optional()
+})
+
+
+export const EndEmergencyAccessResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "credential": zod.string(),
+  "patientId": zod.string().nullish(),
+  "sessionLocked": zod.boolean().optional(),
+  "canUseEmergencyAccess": zod.boolean().optional(),
+  "emergencyContext": zod.object({
+  "patientId": zod.string(),
+  "patientName": zod.string(),
+  "mrn": zod.string(),
+  "location": zod.string(),
+  "reason": zod.string(),
+  "startedAt": zod.string(),
+  "expiresAt": zod.string()
+}).nullish(),
+  "npi": zod.string().nullish(),
+  "baseRole": zod.string().optional(),
+  "activeLocation": zod.string().nullish(),
+  "siteRoles": zod.record(zod.string(), zod.enum(['clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only'])).optional(),
+  "locationScopes": zod.array(zod.string()).optional(),
+  "permissions": zod.array(zod.string()).optional()
+})
+
+
+export const switchStaffLocationBodyLocationMax = 100;
+
+
+
+export const SwitchStaffLocationBody = zod.object({
+  "location": zod.string().min(1).max(switchStaffLocationBodyLocationMax)
+})
+
+export const SwitchStaffLocationResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "credential": zod.string(),
+  "patientId": zod.string().nullish(),
+  "sessionLocked": zod.boolean().optional(),
+  "canUseEmergencyAccess": zod.boolean().optional(),
+  "emergencyContext": zod.object({
+  "patientId": zod.string(),
+  "patientName": zod.string(),
+  "mrn": zod.string(),
+  "location": zod.string(),
+  "reason": zod.string(),
+  "startedAt": zod.string(),
+  "expiresAt": zod.string()
+}).nullish(),
+  "npi": zod.string().nullish(),
+  "baseRole": zod.string().optional(),
+  "activeLocation": zod.string().nullish(),
+  "siteRoles": zod.record(zod.string(), zod.enum(['clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only'])).optional(),
+  "locationScopes": zod.array(zod.string()).optional(),
+  "permissions": zod.array(zod.string()).optional()
+})
+
+
+export const ListPatientCaregiversParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListPatientCaregiversResponse = zod.object({
+  "grants": zod.array(zod.record(zod.string(), zod.unknown())),
+  "contacts": zod.array(zod.record(zod.string(), zod.unknown()))
+})
+
+
+export const GrantCaregiverAccessParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const grantCaregiverAccessBodyScopesMax = 7;
+
+export const grantCaregiverAccessBodyConsentTextMin = 20;
+export const grantCaregiverAccessBodyConsentTextMax = 4000;
+
+
+
+export const GrantCaregiverAccessBody = zod.object({
+  "contactId": zod.string(),
+  "userId": zod.string(),
+  "scopes": zod.array(zod.enum(['careplans.read', 'readings.read', 'tasks.read', 'messages.read', 'messages.send', 'education.read', 'appointments.read'])).min(1).max(grantCaregiverAccessBodyScopesMax),
+  "method": zod.enum(['verbal', 'written']),
+  "consentText": zod.string().min(grantCaregiverAccessBodyConsentTextMin).max(grantCaregiverAccessBodyConsentTextMax),
+  "attested": zod.literal(true),
+  "expiresAt": zod.coerce.date().optional()
+})
+
+export const GrantCaregiverAccessResponse = zod.object({
+  "grant": zod.record(zod.string(), zod.unknown()),
+  "documentId": zod.string().nullable()
+})
+
+
+export const RevokeCaregiverAccessParams = zod.object({
+  "id": zod.coerce.string(),
+  "grantId": zod.coerce.string()
+})
+
+export const revokeCaregiverAccessBodyReasonMin = 10;
+export const revokeCaregiverAccessBodyReasonMax = 2000;
+
+
+
+export const RevokeCaregiverAccessBody = zod.object({
+  "reason": zod.string().min(revokeCaregiverAccessBodyReasonMin).max(revokeCaregiverAccessBodyReasonMax)
+})
+
+export const RevokeCaregiverAccessResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+export const ListCaregiverPatientsResponse = zod.object({
+  "patients": zod.array(zod.object({
+  "id": zod.string(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "dob": zod.coerce.date(),
+  "scopes": zod.array(zod.enum(['careplans.read', 'readings.read', 'tasks.read', 'messages.read', 'messages.send', 'education.read', 'appointments.read']))
+}))
+})
+
+
+export const GetCaregiverSharedPatientParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetCaregiverSharedPatientResponse = zod.object({
+  "patient": zod.object({
+  "id": zod.string(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "dob": zod.coerce.date()
+}),
+  "scopes": zod.array(zod.enum(['careplans.read', 'readings.read', 'tasks.read', 'messages.read', 'messages.send', 'education.read', 'appointments.read'])),
+  "programs": zod.array(zod.string()),
+  "careplans": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "status": zod.string().optional(),
+  "date": zod.string().optional(),
+  "description": zod.string().optional(),
+  "goals": zod.string().optional(),
+  "interventions": zod.string().optional(),
+  "careTeam": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "fromName": zod.string().optional(),
+  "body": zod.string().optional()
+})).optional(),
+  "readings": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "status": zod.string().optional(),
+  "date": zod.string().optional(),
+  "description": zod.string().optional(),
+  "goals": zod.string().optional(),
+  "interventions": zod.string().optional(),
+  "careTeam": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "fromName": zod.string().optional(),
+  "body": zod.string().optional()
+})).optional(),
+  "tasks": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "status": zod.string().optional(),
+  "date": zod.string().optional(),
+  "description": zod.string().optional(),
+  "goals": zod.string().optional(),
+  "interventions": zod.string().optional(),
+  "careTeam": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "fromName": zod.string().optional(),
+  "body": zod.string().optional()
+})).optional(),
+  "messages": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "status": zod.string().optional(),
+  "date": zod.string().optional(),
+  "description": zod.string().optional(),
+  "goals": zod.string().optional(),
+  "interventions": zod.string().optional(),
+  "careTeam": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "fromName": zod.string().optional(),
+  "body": zod.string().optional()
+})).optional(),
+  "education": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "status": zod.string().optional(),
+  "date": zod.string().optional(),
+  "description": zod.string().optional(),
+  "goals": zod.string().optional(),
+  "interventions": zod.string().optional(),
+  "careTeam": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "fromName": zod.string().optional(),
+  "body": zod.string().optional()
+})).optional(),
+  "appointments": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "status": zod.string().optional(),
+  "date": zod.string().optional(),
+  "description": zod.string().optional(),
+  "goals": zod.string().optional(),
+  "interventions": zod.string().optional(),
+  "careTeam": zod.string().optional(),
+  "value": zod.number().optional(),
+  "unit": zod.string().optional(),
+  "fromName": zod.string().optional(),
+  "body": zod.string().optional()
+})).optional()
+})
+
+
+export const SendCaregiverMessageParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const sendCaregiverMessageBodyMessageMax = 4000;
+
+
+
+export const SendCaregiverMessageBody = zod.object({
+  "message": zod.string().min(1).max(sendCaregiverMessageBodyMessageMax)
+})
+
+export const SendCaregiverMessageResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+export const DownloadCaregiverPlanParams = zod.object({
+  "id": zod.coerce.string(),
+  "recordId": zod.coerce.string()
+})
+
+export const DownloadCaregiverPlanResponse = zod.unknown()
+
+
+export const GetDependencyReadinessResponse = zod.record(zod.string(), zod.unknown())
+
+
+export const RecordWorkspaceActivityResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+export const unlockWorkspaceBodyPasswordMax = 128;
+
+
+
+export const UnlockWorkspaceBody = zod.object({
+  "password": zod.string().min(1).max(unlockWorkspaceBodyPasswordMax)
+})
+
+export const UnlockWorkspaceResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+export const GetDemonstrationStatusResponse = zod.object({
+  "prepared": zod.boolean(),
+  "patients": zod.number().int(),
+  "documentsPending": zod.boolean(),
+  "synthetic": zod.boolean(),
+  "preparing": zod.boolean().optional(),
+  "error": zod.string().nullish()
+})
+
+
+export const PrepareDemonstrationBody = zod.object({
+  "confirmation": zod.enum(['PREPARE SYNTHETIC PRACTICE'])
+})
+
+export const PrepareDemonstrationResponse = zod.object({
+  "status": zod.string(),
+  "jobId": zod.string(),
+  "message": zod.string()
+})
+
+
+export const GetClinicalProfileParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const getClinicalProfileResponseOneConditionsItemCodeMax = 30;
+
+export const getClinicalProfileResponseOneConditionsItemCodeSystemDefault = `ICD-10-CM`;
+export const getClinicalProfileResponseOneConditionsItemCodeSystemMax = 80;
+
+export const getClinicalProfileResponseOneConditionsItemDisplayMax = 250;
+
+export const getClinicalProfileResponseOneConditionsItemSourceMax = 250;
+
+export const getClinicalProfileResponseOneConditionsMax = 100;
+
+export const getClinicalProfileResponseOneMedicationsItemNameMax = 250;
+
+export const getClinicalProfileResponseOneMedicationsItemRxnormCodeMax = 30;
+
+export const getClinicalProfileResponseOneMedicationsItemDoseMax = 150;
+
+export const getClinicalProfileResponseOneMedicationsItemRouteMax = 100;
+
+export const getClinicalProfileResponseOneMedicationsItemFrequencyMax = 150;
+
+export const getClinicalProfileResponseOneMedicationsItemIndicationDefault = ``;
+export const getClinicalProfileResponseOneMedicationsItemIndicationMax = 250;
+
+export const getClinicalProfileResponseOneMedicationsItemReconciledByMax = 250;
+
+export const getClinicalProfileResponseOneMedicationsMax = 100;
+
+export const getClinicalProfileResponseOneCoverageItemPayerMax = 200;
+
+export const getClinicalProfileResponseOneCoverageItemPlanMax = 200;
+
+export const getClinicalProfileResponseOneCoverageItemMemberIdMax = 100;
+
+export const getClinicalProfileResponseOneCoverageMax = 20;
+
+export const getClinicalProfileResponseOneContactsItemNameMax = 200;
+
+export const getClinicalProfileResponseOneContactsItemRelationshipMax = 100;
+
+export const getClinicalProfileResponseOneContactsItemPhoneDefault = ``;
+export const getClinicalProfileResponseOneContactsItemPhoneMax = 80;
+
+export const getClinicalProfileResponseOneContactsItemEmailDefault = ``;
+export const getClinicalProfileResponseOneContactsItemEmailMax = 250;
+
+export const getClinicalProfileResponseOneContactsItemSharingScopeMax = 6;
+
+export const getClinicalProfileResponseOneContactsMax = 30;
+
+export const getClinicalProfileResponseOneIdentifiersItemSystemMax = 250;
+
+export const getClinicalProfileResponseOneIdentifiersItemValueMax = 250;
+
+export const getClinicalProfileResponseOneIdentifiersItemSourceMax = 100;
+
+export const getClinicalProfileResponseOneIdentifiersMax = 30;
+
+
+
+export const GetClinicalProfileResponse = zod.object({
+  "expectedUpdatedAt": zod.coerce.date(),
+  "conditions": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "code": zod.string().min(1).max(getClinicalProfileResponseOneConditionsItemCodeMax),
+  "codeSystem": zod.string().max(getClinicalProfileResponseOneConditionsItemCodeSystemMax).default(getClinicalProfileResponseOneConditionsItemCodeSystemDefault),
+  "display": zod.string().min(1).max(getClinicalProfileResponseOneConditionsItemDisplayMax),
+  "onsetDate": zod.coerce.date().nullish(),
+  "chronic": zod.boolean(),
+  "clinicalStatus": zod.enum(['active', 'resolved', 'inactive']),
+  "source": zod.string().min(1).max(getClinicalProfileResponseOneConditionsItemSourceMax)
+})).max(getClinicalProfileResponseOneConditionsMax),
+  "medications": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "name": zod.string().min(1).max(getClinicalProfileResponseOneMedicationsItemNameMax),
+  "rxnormCode": zod.string().max(getClinicalProfileResponseOneMedicationsItemRxnormCodeMax).nullish(),
+  "dose": zod.string().min(1).max(getClinicalProfileResponseOneMedicationsItemDoseMax),
+  "route": zod.string().min(1).max(getClinicalProfileResponseOneMedicationsItemRouteMax),
+  "frequency": zod.string().min(1).max(getClinicalProfileResponseOneMedicationsItemFrequencyMax),
+  "indication": zod.string().max(getClinicalProfileResponseOneMedicationsItemIndicationMax).default(getClinicalProfileResponseOneMedicationsItemIndicationDefault),
+  "status": zod.enum(['active', 'stopped', 'on_hold']),
+  "startedOn": zod.coerce.date().nullish(),
+  "reconciledAt": zod.coerce.date().nullish(),
+  "reconciledBy": zod.string().max(getClinicalProfileResponseOneMedicationsItemReconciledByMax).nullish()
+})).max(getClinicalProfileResponseOneMedicationsMax),
+  "coverage": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "payer": zod.string().min(1).max(getClinicalProfileResponseOneCoverageItemPayerMax),
+  "plan": zod.string().min(1).max(getClinicalProfileResponseOneCoverageItemPlanMax),
+  "memberId": zod.string().min(1).max(getClinicalProfileResponseOneCoverageItemMemberIdMax),
+  "effectiveFrom": zod.coerce.date(),
+  "effectiveTo": zod.coerce.date().nullish(),
+  "status": zod.enum(['active', 'inactive', 'pending']),
+  "verifiedAt": zod.coerce.date().nullish()
+})).max(getClinicalProfileResponseOneCoverageMax),
+  "contacts": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "name": zod.string().min(1).max(getClinicalProfileResponseOneContactsItemNameMax),
+  "relationship": zod.string().min(1).max(getClinicalProfileResponseOneContactsItemRelationshipMax),
+  "phone": zod.string().max(getClinicalProfileResponseOneContactsItemPhoneMax).default(getClinicalProfileResponseOneContactsItemPhoneDefault),
+  "email": zod.string().max(getClinicalProfileResponseOneContactsItemEmailMax).default(getClinicalProfileResponseOneContactsItemEmailDefault),
+  "emergency": zod.boolean(),
+  "sharingAllowed": zod.boolean(),
+  "sharingScope": zod.array(zod.enum(['readings', 'careplans', 'tasks', 'messages', 'appointments', 'education'])).max(getClinicalProfileResponseOneContactsItemSharingScopeMax).optional(),
+  "consentRecordedAt": zod.coerce.date().nullish()
+})).max(getClinicalProfileResponseOneContactsMax),
+  "identifiers": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "system": zod.string().min(1).max(getClinicalProfileResponseOneIdentifiersItemSystemMax),
+  "value": zod.string().min(1).max(getClinicalProfileResponseOneIdentifiersItemValueMax),
+  "source": zod.string().min(1).max(getClinicalProfileResponseOneIdentifiersItemSourceMax)
+})).max(getClinicalProfileResponseOneIdentifiersMax)
+}).and(zod.object({
+  "patientId": zod.string(),
+  "updatedAt": zod.coerce.date()
+}))
+
+
+export const UpdateClinicalProfileParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateClinicalProfileBodyConditionsItemCodeMax = 30;
+
+export const updateClinicalProfileBodyConditionsItemCodeSystemDefault = `ICD-10-CM`;
+export const updateClinicalProfileBodyConditionsItemCodeSystemMax = 80;
+
+export const updateClinicalProfileBodyConditionsItemDisplayMax = 250;
+
+export const updateClinicalProfileBodyConditionsItemSourceMax = 250;
+
+export const updateClinicalProfileBodyConditionsMax = 100;
+
+export const updateClinicalProfileBodyMedicationsItemNameMax = 250;
+
+export const updateClinicalProfileBodyMedicationsItemRxnormCodeMax = 30;
+
+export const updateClinicalProfileBodyMedicationsItemDoseMax = 150;
+
+export const updateClinicalProfileBodyMedicationsItemRouteMax = 100;
+
+export const updateClinicalProfileBodyMedicationsItemFrequencyMax = 150;
+
+export const updateClinicalProfileBodyMedicationsItemIndicationDefault = ``;
+export const updateClinicalProfileBodyMedicationsItemIndicationMax = 250;
+
+export const updateClinicalProfileBodyMedicationsItemReconciledByMax = 250;
+
+export const updateClinicalProfileBodyMedicationsMax = 100;
+
+export const updateClinicalProfileBodyCoverageItemPayerMax = 200;
+
+export const updateClinicalProfileBodyCoverageItemPlanMax = 200;
+
+export const updateClinicalProfileBodyCoverageItemMemberIdMax = 100;
+
+export const updateClinicalProfileBodyCoverageMax = 20;
+
+export const updateClinicalProfileBodyContactsItemNameMax = 200;
+
+export const updateClinicalProfileBodyContactsItemRelationshipMax = 100;
+
+export const updateClinicalProfileBodyContactsItemPhoneDefault = ``;
+export const updateClinicalProfileBodyContactsItemPhoneMax = 80;
+
+export const updateClinicalProfileBodyContactsItemEmailDefault = ``;
+export const updateClinicalProfileBodyContactsItemEmailMax = 250;
+
+export const updateClinicalProfileBodyContactsItemSharingScopeMax = 6;
+
+export const updateClinicalProfileBodyContactsMax = 30;
+
+export const updateClinicalProfileBodyIdentifiersItemSystemMax = 250;
+
+export const updateClinicalProfileBodyIdentifiersItemValueMax = 250;
+
+export const updateClinicalProfileBodyIdentifiersItemSourceMax = 100;
+
+export const updateClinicalProfileBodyIdentifiersMax = 30;
+
+
+
+export const UpdateClinicalProfileBody = zod.object({
+  "expectedUpdatedAt": zod.coerce.date(),
+  "conditions": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "code": zod.string().min(1).max(updateClinicalProfileBodyConditionsItemCodeMax),
+  "codeSystem": zod.string().max(updateClinicalProfileBodyConditionsItemCodeSystemMax).default(updateClinicalProfileBodyConditionsItemCodeSystemDefault),
+  "display": zod.string().min(1).max(updateClinicalProfileBodyConditionsItemDisplayMax),
+  "onsetDate": zod.coerce.date().nullish(),
+  "chronic": zod.boolean(),
+  "clinicalStatus": zod.enum(['active', 'resolved', 'inactive']),
+  "source": zod.string().min(1).max(updateClinicalProfileBodyConditionsItemSourceMax)
+})).max(updateClinicalProfileBodyConditionsMax).optional(),
+  "medications": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "name": zod.string().min(1).max(updateClinicalProfileBodyMedicationsItemNameMax),
+  "rxnormCode": zod.string().max(updateClinicalProfileBodyMedicationsItemRxnormCodeMax).nullish(),
+  "dose": zod.string().min(1).max(updateClinicalProfileBodyMedicationsItemDoseMax),
+  "route": zod.string().min(1).max(updateClinicalProfileBodyMedicationsItemRouteMax),
+  "frequency": zod.string().min(1).max(updateClinicalProfileBodyMedicationsItemFrequencyMax),
+  "indication": zod.string().max(updateClinicalProfileBodyMedicationsItemIndicationMax).default(updateClinicalProfileBodyMedicationsItemIndicationDefault),
+  "status": zod.enum(['active', 'stopped', 'on_hold']),
+  "startedOn": zod.coerce.date().nullish(),
+  "reconciledAt": zod.coerce.date().nullish(),
+  "reconciledBy": zod.string().max(updateClinicalProfileBodyMedicationsItemReconciledByMax).nullish()
+})).max(updateClinicalProfileBodyMedicationsMax).optional(),
+  "coverage": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "payer": zod.string().min(1).max(updateClinicalProfileBodyCoverageItemPayerMax),
+  "plan": zod.string().min(1).max(updateClinicalProfileBodyCoverageItemPlanMax),
+  "memberId": zod.string().min(1).max(updateClinicalProfileBodyCoverageItemMemberIdMax),
+  "effectiveFrom": zod.coerce.date(),
+  "effectiveTo": zod.coerce.date().nullish(),
+  "status": zod.enum(['active', 'inactive', 'pending']),
+  "verifiedAt": zod.coerce.date().nullish()
+})).max(updateClinicalProfileBodyCoverageMax).optional(),
+  "contacts": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "name": zod.string().min(1).max(updateClinicalProfileBodyContactsItemNameMax),
+  "relationship": zod.string().min(1).max(updateClinicalProfileBodyContactsItemRelationshipMax),
+  "phone": zod.string().max(updateClinicalProfileBodyContactsItemPhoneMax).default(updateClinicalProfileBodyContactsItemPhoneDefault),
+  "email": zod.string().max(updateClinicalProfileBodyContactsItemEmailMax).default(updateClinicalProfileBodyContactsItemEmailDefault),
+  "emergency": zod.boolean(),
+  "sharingAllowed": zod.boolean(),
+  "sharingScope": zod.array(zod.enum(['readings', 'careplans', 'tasks', 'messages', 'appointments', 'education'])).max(updateClinicalProfileBodyContactsItemSharingScopeMax).optional(),
+  "consentRecordedAt": zod.coerce.date().nullish()
+})).max(updateClinicalProfileBodyContactsMax).optional(),
+  "identifiers": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "system": zod.string().min(1).max(updateClinicalProfileBodyIdentifiersItemSystemMax),
+  "value": zod.string().min(1).max(updateClinicalProfileBodyIdentifiersItemValueMax),
+  "source": zod.string().min(1).max(updateClinicalProfileBodyIdentifiersItemSourceMax)
+})).max(updateClinicalProfileBodyIdentifiersMax).optional()
+})
+
+export const updateClinicalProfileResponseOneConditionsItemCodeMax = 30;
+
+export const updateClinicalProfileResponseOneConditionsItemCodeSystemDefault = `ICD-10-CM`;
+export const updateClinicalProfileResponseOneConditionsItemCodeSystemMax = 80;
+
+export const updateClinicalProfileResponseOneConditionsItemDisplayMax = 250;
+
+export const updateClinicalProfileResponseOneConditionsItemSourceMax = 250;
+
+export const updateClinicalProfileResponseOneConditionsMax = 100;
+
+export const updateClinicalProfileResponseOneMedicationsItemNameMax = 250;
+
+export const updateClinicalProfileResponseOneMedicationsItemRxnormCodeMax = 30;
+
+export const updateClinicalProfileResponseOneMedicationsItemDoseMax = 150;
+
+export const updateClinicalProfileResponseOneMedicationsItemRouteMax = 100;
+
+export const updateClinicalProfileResponseOneMedicationsItemFrequencyMax = 150;
+
+export const updateClinicalProfileResponseOneMedicationsItemIndicationDefault = ``;
+export const updateClinicalProfileResponseOneMedicationsItemIndicationMax = 250;
+
+export const updateClinicalProfileResponseOneMedicationsItemReconciledByMax = 250;
+
+export const updateClinicalProfileResponseOneMedicationsMax = 100;
+
+export const updateClinicalProfileResponseOneCoverageItemPayerMax = 200;
+
+export const updateClinicalProfileResponseOneCoverageItemPlanMax = 200;
+
+export const updateClinicalProfileResponseOneCoverageItemMemberIdMax = 100;
+
+export const updateClinicalProfileResponseOneCoverageMax = 20;
+
+export const updateClinicalProfileResponseOneContactsItemNameMax = 200;
+
+export const updateClinicalProfileResponseOneContactsItemRelationshipMax = 100;
+
+export const updateClinicalProfileResponseOneContactsItemPhoneDefault = ``;
+export const updateClinicalProfileResponseOneContactsItemPhoneMax = 80;
+
+export const updateClinicalProfileResponseOneContactsItemEmailDefault = ``;
+export const updateClinicalProfileResponseOneContactsItemEmailMax = 250;
+
+export const updateClinicalProfileResponseOneContactsItemSharingScopeMax = 6;
+
+export const updateClinicalProfileResponseOneContactsMax = 30;
+
+export const updateClinicalProfileResponseOneIdentifiersItemSystemMax = 250;
+
+export const updateClinicalProfileResponseOneIdentifiersItemValueMax = 250;
+
+export const updateClinicalProfileResponseOneIdentifiersItemSourceMax = 100;
+
+export const updateClinicalProfileResponseOneIdentifiersMax = 30;
+
+
+
+export const UpdateClinicalProfileResponse = zod.object({
+  "expectedUpdatedAt": zod.coerce.date(),
+  "conditions": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "code": zod.string().min(1).max(updateClinicalProfileResponseOneConditionsItemCodeMax),
+  "codeSystem": zod.string().max(updateClinicalProfileResponseOneConditionsItemCodeSystemMax).default(updateClinicalProfileResponseOneConditionsItemCodeSystemDefault),
+  "display": zod.string().min(1).max(updateClinicalProfileResponseOneConditionsItemDisplayMax),
+  "onsetDate": zod.coerce.date().nullish(),
+  "chronic": zod.boolean(),
+  "clinicalStatus": zod.enum(['active', 'resolved', 'inactive']),
+  "source": zod.string().min(1).max(updateClinicalProfileResponseOneConditionsItemSourceMax)
+})).max(updateClinicalProfileResponseOneConditionsMax),
+  "medications": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "name": zod.string().min(1).max(updateClinicalProfileResponseOneMedicationsItemNameMax),
+  "rxnormCode": zod.string().max(updateClinicalProfileResponseOneMedicationsItemRxnormCodeMax).nullish(),
+  "dose": zod.string().min(1).max(updateClinicalProfileResponseOneMedicationsItemDoseMax),
+  "route": zod.string().min(1).max(updateClinicalProfileResponseOneMedicationsItemRouteMax),
+  "frequency": zod.string().min(1).max(updateClinicalProfileResponseOneMedicationsItemFrequencyMax),
+  "indication": zod.string().max(updateClinicalProfileResponseOneMedicationsItemIndicationMax).default(updateClinicalProfileResponseOneMedicationsItemIndicationDefault),
+  "status": zod.enum(['active', 'stopped', 'on_hold']),
+  "startedOn": zod.coerce.date().nullish(),
+  "reconciledAt": zod.coerce.date().nullish(),
+  "reconciledBy": zod.string().max(updateClinicalProfileResponseOneMedicationsItemReconciledByMax).nullish()
+})).max(updateClinicalProfileResponseOneMedicationsMax),
+  "coverage": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "payer": zod.string().min(1).max(updateClinicalProfileResponseOneCoverageItemPayerMax),
+  "plan": zod.string().min(1).max(updateClinicalProfileResponseOneCoverageItemPlanMax),
+  "memberId": zod.string().min(1).max(updateClinicalProfileResponseOneCoverageItemMemberIdMax),
+  "effectiveFrom": zod.coerce.date(),
+  "effectiveTo": zod.coerce.date().nullish(),
+  "status": zod.enum(['active', 'inactive', 'pending']),
+  "verifiedAt": zod.coerce.date().nullish()
+})).max(updateClinicalProfileResponseOneCoverageMax),
+  "contacts": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "name": zod.string().min(1).max(updateClinicalProfileResponseOneContactsItemNameMax),
+  "relationship": zod.string().min(1).max(updateClinicalProfileResponseOneContactsItemRelationshipMax),
+  "phone": zod.string().max(updateClinicalProfileResponseOneContactsItemPhoneMax).default(updateClinicalProfileResponseOneContactsItemPhoneDefault),
+  "email": zod.string().max(updateClinicalProfileResponseOneContactsItemEmailMax).default(updateClinicalProfileResponseOneContactsItemEmailDefault),
+  "emergency": zod.boolean(),
+  "sharingAllowed": zod.boolean(),
+  "sharingScope": zod.array(zod.enum(['readings', 'careplans', 'tasks', 'messages', 'appointments', 'education'])).max(updateClinicalProfileResponseOneContactsItemSharingScopeMax).optional(),
+  "consentRecordedAt": zod.coerce.date().nullish()
+})).max(updateClinicalProfileResponseOneContactsMax),
+  "identifiers": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "system": zod.string().min(1).max(updateClinicalProfileResponseOneIdentifiersItemSystemMax),
+  "value": zod.string().min(1).max(updateClinicalProfileResponseOneIdentifiersItemValueMax),
+  "source": zod.string().min(1).max(updateClinicalProfileResponseOneIdentifiersItemSourceMax)
+})).max(updateClinicalProfileResponseOneIdentifiersMax)
+}).and(zod.object({
+  "patientId": zod.string(),
+  "updatedAt": zod.coerce.date()
+}))
+
+
+export const GetProgramProgressParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetProgramProgressResponseItem = zod.object({
+  "enrollmentId": zod.string(),
+  "program": zod.string(),
+  "periodLabel": zod.string(),
+  "windowStart": zod.coerce.date(),
+  "windowEnd": zod.coerce.date(),
+  "supplyWindowComplete": zod.boolean(),
+  "minutes": zod.number(),
+  "minuteTarget": zod.number(),
+  "deviceDays": zod.number().int(),
+  "deviceDayTarget": zod.number().int(),
+  "liveInteractions": zod.number().int(),
+  "signedPlan": zod.boolean(),
+  "consent": zod.boolean(),
+  "policyLabel": zod.string().optional(),
+  "nextSteps": zod.array(zod.string())
+})
+export const GetProgramProgressResponse = zod.array(GetProgramProgressResponseItem)
+
+
+export const ExportPatientAccessBundleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ExportPatientAccessBundleResponse = zod.unknown()
+
+
 export const GetAiReviewMetricsResponse = zod.object({
   "since": zod.coerce.date(),
   "scope": zod.string(),
@@ -660,6 +1386,21 @@ export const LoginResponse = zod.object({
   "role": zod.string(),
   "credential": zod.string(),
   "patientId": zod.string().nullish(),
+  "sessionLocked": zod.boolean().optional(),
+  "canUseEmergencyAccess": zod.boolean().optional(),
+  "emergencyContext": zod.object({
+  "patientId": zod.string(),
+  "patientName": zod.string(),
+  "mrn": zod.string(),
+  "location": zod.string(),
+  "reason": zod.string(),
+  "startedAt": zod.string(),
+  "expiresAt": zod.string()
+}).nullish(),
+  "npi": zod.string().nullish(),
+  "baseRole": zod.string().optional(),
+  "activeLocation": zod.string().nullish(),
+  "siteRoles": zod.record(zod.string(), zod.enum(['clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only'])).optional(),
   "locationScopes": zod.array(zod.string()).optional(),
   "permissions": zod.array(zod.string()).optional()
 })
@@ -672,6 +1413,21 @@ export const GetCurrentUserResponse = zod.object({
   "role": zod.string(),
   "credential": zod.string(),
   "patientId": zod.string().nullish(),
+  "sessionLocked": zod.boolean().optional(),
+  "canUseEmergencyAccess": zod.boolean().optional(),
+  "emergencyContext": zod.object({
+  "patientId": zod.string(),
+  "patientName": zod.string(),
+  "mrn": zod.string(),
+  "location": zod.string(),
+  "reason": zod.string(),
+  "startedAt": zod.string(),
+  "expiresAt": zod.string()
+}).nullish(),
+  "npi": zod.string().nullish(),
+  "baseRole": zod.string().optional(),
+  "activeLocation": zod.string().nullish(),
+  "siteRoles": zod.record(zod.string(), zod.enum(['clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only'])).optional(),
   "locationScopes": zod.array(zod.string()).optional(),
   "permissions": zod.array(zod.string()).optional()
 })
@@ -976,6 +1732,21 @@ export const ListAccountsResponseItem = zod.object({
   "role": zod.string(),
   "credential": zod.string(),
   "patientId": zod.string().nullish(),
+  "sessionLocked": zod.boolean().optional(),
+  "canUseEmergencyAccess": zod.boolean().optional(),
+  "emergencyContext": zod.object({
+  "patientId": zod.string(),
+  "patientName": zod.string(),
+  "mrn": zod.string(),
+  "location": zod.string(),
+  "reason": zod.string(),
+  "startedAt": zod.string(),
+  "expiresAt": zod.string()
+}).nullish(),
+  "npi": zod.string().nullish(),
+  "baseRole": zod.string().optional(),
+  "activeLocation": zod.string().nullish(),
+  "siteRoles": zod.record(zod.string(), zod.enum(['clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only'])).optional(),
   "locationScopes": zod.array(zod.string()).optional(),
   "permissions": zod.array(zod.string()).optional()
 }).and(zod.object({
@@ -991,6 +1762,7 @@ export const createAccountBodyNameMax = 100;
 
 export const createAccountBodyEmailMax = 254;
 
+export const createAccountBodyNpiRegExp = new RegExp('^[12][0-9]{9}$');
 
 export const createAccountBodyLocationScopesMax = 100;
 
@@ -999,9 +1771,11 @@ export const createAccountBodyLocationScopesMax = 100;
 export const CreateAccountBody = zod.object({
   "name": zod.string().min(1).max(createAccountBodyNameMax),
   "email": zod.string().email().max(createAccountBodyEmailMax),
-  "role": zod.enum(['admin', 'clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only', 'patient']),
-  "credential": zod.enum(['MD', 'DO', 'NP', 'PA', 'RN', 'LPN', 'MA', 'PT', 'OT', 'SLP', 'LCSW', 'psych_consultant', 'admin', 'billing', 'patient']),
+  "role": zod.enum(['admin', 'clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only', 'patient', 'caregiver']),
+  "credential": zod.enum(['MD', 'DO', 'NP', 'PA', 'RN', 'LPN', 'MA', 'PT', 'OT', 'SLP', 'LCSW', 'psych_consultant', 'admin', 'billing', 'patient', 'caregiver']),
   "patientId": zod.string().nullish(),
+  "npi": zod.string().regex(createAccountBodyNpiRegExp).nullish(),
+  "siteRoles": zod.record(zod.string(), zod.enum(['clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only'])).optional(),
   "locationScopes": zod.array(zod.string().min(1)).max(createAccountBodyLocationScopesMax)
 })
 
@@ -1013,6 +1787,21 @@ export const CreateAccountResponse = zod.object({
   "role": zod.string(),
   "credential": zod.string(),
   "patientId": zod.string().nullish(),
+  "sessionLocked": zod.boolean().optional(),
+  "canUseEmergencyAccess": zod.boolean().optional(),
+  "emergencyContext": zod.object({
+  "patientId": zod.string(),
+  "patientName": zod.string(),
+  "mrn": zod.string(),
+  "location": zod.string(),
+  "reason": zod.string(),
+  "startedAt": zod.string(),
+  "expiresAt": zod.string()
+}).nullish(),
+  "npi": zod.string().nullish(),
+  "baseRole": zod.string().optional(),
+  "activeLocation": zod.string().nullish(),
+  "siteRoles": zod.record(zod.string(), zod.enum(['clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only'])).optional(),
   "locationScopes": zod.array(zod.string()).optional(),
   "permissions": zod.array(zod.string()).optional()
 }).and(zod.object({
@@ -1033,6 +1822,7 @@ export const UpdateAccountParams = zod.object({
 
 export const updateAccountBodyNameMax = 100;
 
+export const updateAccountBodyNpiRegExp = new RegExp('^[12][0-9]{9}$');
 
 export const updateAccountBodyLocationScopesMax = 100;
 
@@ -1040,9 +1830,11 @@ export const updateAccountBodyLocationScopesMax = 100;
 
 export const UpdateAccountBody = zod.object({
   "name": zod.string().min(1).max(updateAccountBodyNameMax).optional(),
-  "role": zod.enum(['admin', 'clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only', 'patient']).optional(),
-  "credential": zod.enum(['MD', 'DO', 'NP', 'PA', 'RN', 'LPN', 'MA', 'PT', 'OT', 'SLP', 'LCSW', 'psych_consultant', 'admin', 'billing', 'patient']).optional(),
+  "role": zod.enum(['admin', 'clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only', 'patient', 'caregiver']).optional(),
+  "credential": zod.enum(['MD', 'DO', 'NP', 'PA', 'RN', 'LPN', 'MA', 'PT', 'OT', 'SLP', 'LCSW', 'psych_consultant', 'admin', 'billing', 'patient', 'caregiver']).optional(),
   "status": zod.enum(['active', 'inactive']).optional(),
+  "npi": zod.string().regex(updateAccountBodyNpiRegExp).nullish(),
+  "siteRoles": zod.record(zod.string(), zod.enum(['clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only'])).optional(),
   "locationScopes": zod.array(zod.string().min(1)).max(updateAccountBodyLocationScopesMax).optional()
 })
 
@@ -1053,6 +1845,21 @@ export const UpdateAccountResponse = zod.object({
   "role": zod.string(),
   "credential": zod.string(),
   "patientId": zod.string().nullish(),
+  "sessionLocked": zod.boolean().optional(),
+  "canUseEmergencyAccess": zod.boolean().optional(),
+  "emergencyContext": zod.object({
+  "patientId": zod.string(),
+  "patientName": zod.string(),
+  "mrn": zod.string(),
+  "location": zod.string(),
+  "reason": zod.string(),
+  "startedAt": zod.string(),
+  "expiresAt": zod.string()
+}).nullish(),
+  "npi": zod.string().nullish(),
+  "baseRole": zod.string().optional(),
+  "activeLocation": zod.string().nullish(),
+  "siteRoles": zod.record(zod.string(), zod.enum(['clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only'])).optional(),
   "locationScopes": zod.array(zod.string()).optional(),
   "permissions": zod.array(zod.string()).optional()
 }).and(zod.object({
@@ -1075,6 +1882,21 @@ export const IssueAccountInvitationResponse = zod.object({
   "role": zod.string(),
   "credential": zod.string(),
   "patientId": zod.string().nullish(),
+  "sessionLocked": zod.boolean().optional(),
+  "canUseEmergencyAccess": zod.boolean().optional(),
+  "emergencyContext": zod.object({
+  "patientId": zod.string(),
+  "patientName": zod.string(),
+  "mrn": zod.string(),
+  "location": zod.string(),
+  "reason": zod.string(),
+  "startedAt": zod.string(),
+  "expiresAt": zod.string()
+}).nullish(),
+  "npi": zod.string().nullish(),
+  "baseRole": zod.string().optional(),
+  "activeLocation": zod.string().nullish(),
+  "siteRoles": zod.record(zod.string(), zod.enum(['clinical_admin', 'billing_provider', 'care_manager', 'behavioral_care_manager', 'psychiatric_consultant', 'therapist', 'front_desk', 'billing', 'read_only'])).optional(),
   "locationScopes": zod.array(zod.string()).optional(),
   "permissions": zod.array(zod.string()).optional()
 }).and(zod.object({
@@ -2081,5 +2903,220 @@ export const GetDocumentSourceResponse = zod.object({
   "sourceHash": zod.string(),
   "source": zod.record(zod.string(), zod.unknown())
 })
+
+
+export const GetSecurityOverviewResponse = zod.object({
+  "defaults": zod.object({
+  "month": zod.string(),
+  "previousMonth": zod.string(),
+  "weekStart": zod.string(),
+  "timeZone": zod.string()
+}),
+  "reportKinds": zod.array(zod.enum(['access_review', 'audit_integrity', 'weekly_emergency_access'])),
+  "locationScopes": zod.array(zod.string()),
+  "isPracticeAdmin": zod.boolean()
+})
+
+
+export const listSecurityReportsQueryPageDefault = 1;
+
+export const listSecurityReportsQueryPageSizeDefault = 20;
+export const listSecurityReportsQueryPageSizeMax = 50;
+
+
+
+export const ListSecurityReportsQueryParams = zod.object({
+  "kind": zod.enum(['access_review', 'audit_integrity', 'weekly_emergency_access']).optional(),
+  "period": zod.coerce.string().optional(),
+  "page": zod.coerce.number().int().min(1).default(listSecurityReportsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listSecurityReportsQueryPageSizeMax).default(listSecurityReportsQueryPageSizeDefault)
+})
+
+export const ListSecurityReportsResponse = zod.object({
+  "reports": zod.array(zod.object({
+  "id": zod.string(),
+  "documentId": zod.string(),
+  "kind": zod.enum(['access_review', 'audit_integrity', 'weekly_emergency_access']),
+  "period": zod.string(),
+  "timeZone": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "digest": zod.string(),
+  "pdfSha256": zod.string(),
+  "sourceHash": zod.string(),
+  "sourceRows": zod.number().int(),
+  "summary": zod.object({
+  "sourceRows": zod.number().int(),
+  "activeAccounts": zod.number().int().optional(),
+  "invitedAccounts": zod.number().int().optional(),
+  "inactiveAccounts": zod.number().int().optional(),
+  "portalAccounts": zod.number().int().optional(),
+  "missingProviderNpis": zod.number().int().optional(),
+  "uniqueStaff": zod.number().int().optional(),
+  "uniquePatients": zod.number().int().optional(),
+  "activeAtCapture": zod.number().int().optional(),
+  "chainHead": zod.string().optional(),
+  "includesRetainedHistory": zod.boolean().optional()
+}),
+  "scopeLocations": zod.array(zod.string()),
+  "includeVerification": zod.boolean(),
+  "pdfUrl": zod.string(),
+  "jsonUrl": zod.string()
+})),
+  "total": zod.number().int(),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int()
+})
+
+
+export const createSecurityReportBodyTimeZoneDefault = `America/New_York`;
+export const createSecurityReportBodyIncludeVerificationDefault = false;
+
+export const CreateSecurityReportBody = zod.object({
+  "kind": zod.enum(['access_review', 'audit_integrity', 'weekly_emergency_access']),
+  "period": zod.string().optional().describe('YYYY-MM for monthly reports; Monday YYYY-MM-DD for weekly reports'),
+  "timeZone": zod.string().default(createSecurityReportBodyTimeZoneDefault),
+  "includeVerification": zod.boolean().default(createSecurityReportBodyIncludeVerificationDefault).describe('Include retained legacy/verification account or emergency-access entries. Root only. Audit integrity always covers all retained audit events; this flag does not run verification.')
+})
+
+export const CreateSecurityReportResponse = zod.object({
+  "id": zod.string(),
+  "documentId": zod.string(),
+  "kind": zod.enum(['access_review', 'audit_integrity', 'weekly_emergency_access']),
+  "period": zod.string(),
+  "timeZone": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "digest": zod.string(),
+  "pdfSha256": zod.string(),
+  "sourceHash": zod.string(),
+  "sourceRows": zod.number().int(),
+  "summary": zod.object({
+  "sourceRows": zod.number().int(),
+  "activeAccounts": zod.number().int().optional(),
+  "invitedAccounts": zod.number().int().optional(),
+  "inactiveAccounts": zod.number().int().optional(),
+  "portalAccounts": zod.number().int().optional(),
+  "missingProviderNpis": zod.number().int().optional(),
+  "uniqueStaff": zod.number().int().optional(),
+  "uniquePatients": zod.number().int().optional(),
+  "activeAtCapture": zod.number().int().optional(),
+  "chainHead": zod.string().optional(),
+  "includesRetainedHistory": zod.boolean().optional()
+}),
+  "scopeLocations": zod.array(zod.string()),
+  "includeVerification": zod.boolean(),
+  "pdfUrl": zod.string(),
+  "jsonUrl": zod.string()
+})
+
+
+export const GetSecurityReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetSecurityReportResponse = zod.object({
+  "report": zod.object({
+  "id": zod.string(),
+  "documentId": zod.string(),
+  "kind": zod.enum(['access_review', 'audit_integrity', 'weekly_emergency_access']),
+  "period": zod.string(),
+  "timeZone": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "digest": zod.string(),
+  "pdfSha256": zod.string(),
+  "sourceHash": zod.string(),
+  "sourceRows": zod.number().int(),
+  "summary": zod.object({
+  "sourceRows": zod.number().int(),
+  "activeAccounts": zod.number().int().optional(),
+  "invitedAccounts": zod.number().int().optional(),
+  "inactiveAccounts": zod.number().int().optional(),
+  "portalAccounts": zod.number().int().optional(),
+  "missingProviderNpis": zod.number().int().optional(),
+  "uniqueStaff": zod.number().int().optional(),
+  "uniquePatients": zod.number().int().optional(),
+  "activeAtCapture": zod.number().int().optional(),
+  "chainHead": zod.string().optional(),
+  "includesRetainedHistory": zod.boolean().optional()
+}),
+  "scopeLocations": zod.array(zod.string()),
+  "includeVerification": zod.boolean(),
+  "pdfUrl": zod.string(),
+  "jsonUrl": zod.string()
+}),
+  "notice": zod.string().nullable(),
+  "accounts": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "credential": zod.string(),
+  "npi": zod.string().nullable(),
+  "status": zod.string(),
+  "locationScopes": zod.array(zod.string()),
+  "siteRoles": zod.record(zod.string(), zod.string()),
+  "lastLoginAt": zod.coerce.date().nullable(),
+  "lockedUntil": zod.coerce.date().nullable(),
+  "activeSessions": zod.number().int(),
+  "emergencySessionsAtCapture": zod.number().int()
+})).nullable(),
+  "emergencyAccess": zod.array(zod.object({
+  "eventId": zod.string(),
+  "actorName": zod.string(),
+  "roleAtAccess": zod.string().nullable(),
+  "credentialAtAccess": zod.string().nullable(),
+  "patientName": zod.string(),
+  "mrn": zod.string(),
+  "location": zod.string(),
+  "reason": zod.string(),
+  "openedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable(),
+  "status": zod.enum(['active', 'ended', 'expired']),
+  "scope": zod.string()
+})).nullable(),
+  "auditIntegrity": zod.object({
+  "algorithm": zod.string(),
+  "chainHead": zod.string(),
+  "scope": zod.string(),
+  "notice": zod.string()
+}).nullable()
+})
+
+
+export const VerifySecurityReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const VerifySecurityReportResponse = zod.object({
+  "valid": zod.boolean(),
+  "frozenSourceValid": zod.boolean(),
+  "privatePdfValid": zod.boolean(),
+  "snapshotDigestValid": zod.boolean(),
+  "verificationScope": zod.enum(['retained_snapshot', 'audit_events']),
+  "capturedRows": zod.number().int(),
+  "missingRows": zod.number().int().nullable(),
+  "changedRows": zod.number().int().nullable(),
+  "chainMatches": zod.boolean().nullable(),
+  "currentRowCount": zod.number().int().nullable(),
+  "unlistedEvents": zod.number().int().nullable(),
+  "checkedAt": zod.coerce.date()
+})
+
+
+export const DownloadSecurityReportPdfParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DownloadSecurityReportPdfResponse = zod.unknown()
+
+
+export const DownloadSecurityReportJsonParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DownloadSecurityReportJsonResponse = zod.record(zod.string(), zod.unknown())
 
 

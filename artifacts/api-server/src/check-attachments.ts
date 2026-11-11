@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import "./validation-fetch";
 import {randomUUID,createHash} from "node:crypto";
 import {gzipSync} from "node:zlib";
+import {spawnSync} from "node:child_process";
 import PDFDocument from "pdfkit";
 import {db,pool,attachments} from "@workspace/db";
 import {eq} from "drizzle-orm";
@@ -11,11 +13,24 @@ function client():TestClient{let cookie="";const c={async request(path:string,bo
   const r=await fetch("http://localhost:80/api"+path,{method,headers:{"Content-Type":"application/json",...(cookie?{Cookie:cookie}:{})},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(60000)});
   if(r.headers.getSetCookie().some(s=>s.startsWith("mahalo_session=")))cookie=r.headers.getSetCookie().map(s=>s.split(";")[0]).join("; ");
   assert.equal(r.status,expected,`${method} ${path}: unexpected status`);passed++;
-  if(r.headers.get("content-type")?.startsWith("application/pdf"))return Buffer.from(await r.arrayBuffer());
+   if(["application/pdf","application/zip"].some(t=>r.headers.get("content-type")?.startsWith(t)))return Buffer.from(await r.arrayBuffer());
   return r.json();
 }};clients.push(c);return c;}
 async function pdf(text:string){return new Promise<Buffer>(resolve=>{const d=new PDFDocument();const chunks:Buffer[]=[];d.on("data",b=>chunks.push(b));d.on("end",()=>resolve(Buffer.concat(chunks)));d.text(text);d.end();});}
 async function put(url:string,bytes:Buffer){const r=await fetch(url,{method:"PUT",headers:{"Content-Type":"application/pdf"},body:new Uint8Array(bytes),signal:AbortSignal.timeout(60000)});assert.equal(r.status,200,"Direct private upload failed");passed++;}
+function verifyBundle(bytes:Buffer,attachmentId:string,hash:string){
+  const result=spawnSync("python3",["-c",`import sys,io,zipfile,json,hashlib
+z=zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read()))
+m=json.loads(z.read("manifest.json"));r=json.loads(z.read("patient-record.json"))
+for f in m["files"]:
+ assert hashlib.sha256(z.read(f["name"])).hexdigest()==f["sha256"]
+f=next(f for f in m["files"] if f.get("attachmentId")==sys.argv[1])
+assert f["sha256"]==sys.argv[2] and f["name"].startswith("supporting-files/")
+a=next(a for a in r["supportingFiles"] if a["id"]==sys.argv[1])
+assert a["includedInArchive"] and "objectPath" not in a and "generation" not in a
+`,attachmentId,hash],{input:bytes,encoding:"utf8"});
+  assert.equal(result.status,0,result.stderr);
+}
 async function main(){
   const admin=client(),patient=client(),cm=client(),readonly=client(),front=client(),anon=client();
   try{
@@ -53,6 +68,7 @@ async function main(){
     row=await admin.request(`${url}/review`,review);assert.equal(row.status,"released_demo");assert.equal(row.reviewedBy,"Sarah Mitchell");
     const downloaded=await admin.request(`${url}/download`);assert.equal(createHash("sha256").update(downloaded).digest("hex"),hash,"Incoming PUT must never replace sealed download bytes");
     assert.equal((await readonly.request(`${url}/download`)).subarray(0,5).toString(),"%PDF-");
+    verifyBundle(await admin.request(`/patients/${pid}/access-export`),row.id,hash);
     await patient.request(`${url}/download`,undefined,403);
     await assert.rejects(db.transaction(async s=>{await s.update(attachments).set({sha256:"0".repeat(64)}).where(eq(attachments.id,row.id));}));
     await assert.rejects(db.transaction(async s=>{await s.delete(attachments).where(eq(attachments.id,row.id));}));

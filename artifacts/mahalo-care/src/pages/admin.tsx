@@ -5,9 +5,10 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Download, FlaskConical, Pencil, Plug, Plus, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { ActionResult } from "@workspace/api-client-react";
+import type { ActionResult, CareRecord } from "@workspace/api-client-react";
 import { useGetSettings, useListPatients, useListRecords, getListPatientsQueryKey, useUpdateSettings, getGetSettingsQueryKey, type PracticeSettings } from "@workspace/api-client-react";
 import { Btn, ConfirmButton, EmptyState, ErrorState, Field, PageHeader, Panel, ProgramTag, RecordDialog, SimLabel, SkeletonRows, StatusPill, Tabs, inputCls, useRecordDialog, type BaseField, type MetaField } from "@/components/kit";
+import { PagedList } from "@/components/list-tools";
 import { errMsg, fmtDateTime, fmtRel, mStr, useAction, type Kind } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { AccountsTab } from "@/components/accounts-admin";
@@ -15,8 +16,9 @@ import { OperationsTab } from "@/components/operations-admin";
 import { InstrumentReviewPanel } from "@/components/admin/instrument-review";
 import { EducationAuthoring } from "@/components/admin/education-authoring";
 import { ConfigTransferPanel } from "@/components/admin/config-transfer";
+import { GovernanceReports } from "@/components/security-reports";
 
-type T = "settings" | "accounts" | "operations" | "locations" | "staff" | "rules" | "templates" | "instruments" | "education" | "integrations" | "audit";
+type T = "settings" | "accounts" | "operations" | "locations" | "staff" | "rules" | "templates" | "instruments" | "education" | "integrations" | "audit" | "governance";
 
 const CFG: Record<"locations" | "staff" | "rules" | "templates", { title: string; fields: BaseField[]; meta: MetaField[]; status?: string[]; titleLabel?: string; descLabel?: string }> = {
   locations: { title: "Site", titleLabel: "Site name", fields: ["status", "description"], status: ["active", "inactive"], meta: [{ key: "address", label: "Address" }, { key: "phone", label: "Phone" }], descLabel: "Notes" },
@@ -30,7 +32,7 @@ export default function AdminPage() {
   return (
     <div>
       <PageHeader eyebrow="Administration" title="Practice setup" desc="Single-practice configuration. Rule and CMS-derived defaults are provisional and should be reviewed before real use." actions={<Link href="/policies" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-card px-4 text-sm font-medium hover:bg-secondary" data-testid="link-admin-policies"><FileStack className="h-4 w-4" />Policies and templates</Link>} />
-      <Tabs value={tab} onChange={setTab} tabs={[{ id: "settings", label: "Settings" }, { id: "accounts", label: "Accounts" }, { id: "locations", label: "Locations" }, { id: "staff", label: "Staff directory" }, { id: "rules", label: "Rules" }, { id: "templates", label: "Templates" }, { id: "instruments", label: "Instruments" }, { id: "education", label: "Learning" }, { id: "operations", label: "Operations" }, { id: "integrations", label: "Integrations" }, { id: "audit", label: "Audit" }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ id: "settings", label: "Settings" }, { id: "accounts", label: "Accounts" }, { id: "locations", label: "Locations" }, { id: "staff", label: "Staff directory" }, { id: "rules", label: "Rules" }, { id: "templates", label: "Templates" }, { id: "instruments", label: "Instruments" }, { id: "education", label: "Learning" }, { id: "operations", label: "Operations" }, { id: "integrations", label: "Integrations" }, { id: "audit", label: "Audit" }, { id: "governance", label: "Access governance" }]} />
       <div className="mt-5" key={tab}>
         {tab === "settings" && <SettingsTab />}
         {tab === "settings" && <PatientImport />}
@@ -42,6 +44,7 @@ export default function AdminPage() {
         {tab === "education" && <EducationAuthoring />}
         {tab === "integrations" && <Integrations />}
         {tab === "audit" && <Audit />}
+        {tab === "governance" && <GovernanceReports mode="admin" />}
       </div>
     </div>
   );
@@ -93,21 +96,31 @@ function RecordList({ kind }: { kind: "locations" | "staff" | "rules" | "templat
       <div className="mb-3 flex justify-end"><Btn variant="primary" onClick={dlg.create} data-testid={`button-new-${kind}`}><Plus className="h-4 w-4" />Add {c.title.toLowerCase()}</Btn></div>
       {q.isLoading ? <SkeletonRows rows={5} /> : q.isError ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : !q.data?.length ? <EmptyState title={`No ${kind}`} /> : (
         <div className="rise overflow-hidden rounded-xl border border-card-border bg-card">
-          {q.data.map((r) => (
+          <PagedList items={q.data} noun={kind} testid={`pager-${kind}`} render={(r) => (
             <div key={r.id} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-b-0" data-testid={`row-${kind}-${r.id}`}>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 text-sm font-medium">{r.title}<ProgramTag p={r.program} />{r.severity && <StatusPill value={r.severity} />}<StatusPill value={r.status} /></div>
-                <div className="truncate text-xs text-muted-foreground">{c.meta.map((m) => mStr(r, m.key)).filter(Boolean).join(" · ")}{r.description ? ` · ${r.description}` : ""}</div>
+                <div className="truncate text-xs text-muted-foreground">{staffSummary(r) ?? c.meta.map((m) => mStr(r, m.key)).filter(Boolean).join(" · ")}{r.description ? ` · ${r.description}` : ""}</div>
               </div>
               {kind === "rules" && <RulePreview ruleId={r.id} title={r.title} />}
               <Btn size="sm" variant="ghost" onClick={() => dlg.edit(r)} data-testid={`button-edit-${r.id}`}><Pencil className="h-3.5 w-3.5" /></Btn>
             </div>
-          ))}
+          )} />
         </div>
       )}
       <RecordDialog open={dlg.open} onOpenChange={dlg.onOpenChange} kind={kind} record={dlg.record} title={dlg.record ? `Edit ${c.title.toLowerCase()}` : `New ${c.title.toLowerCase()}`} fields={c.fields} meta={c.meta} statusOptions={c.status} titleLabel={c.titleLabel} descLabel={c.descLabel} />
     </>
   );
+}
+
+/** Linked staff-account records: show role per site rather than implying the base role applies everywhere. */
+function staffSummary(r: CareRecord): string | null {
+  const md = (r.metadata ?? {}) as Record<string, unknown>;
+  if (r.kind !== "staff" || md.identitySource !== "staff_account") return null;
+  const nice = (x: string) => x.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+  const sr = md.siteRoles && typeof md.siteRoles === "object" ? Object.entries(md.siteRoles as Record<string, unknown>).filter(([, v]) => typeof v === "string" && v) as [string, string][] : [];
+  const access = sr.length ? sr.map(([site, role]) => `${nice(role)} at ${site}`).join(", ") : typeof md.role === "string" ? nice(md.role) : "";
+  return ["Linked account", access, mStr(r, "credential"), mStr(r, "email")].filter(Boolean).join(" · ");
 }
 
 function Integrations() {
@@ -145,14 +158,14 @@ function Audit() {
     <div>
       <div className="mb-3 flex gap-2"><input className={inputCls} placeholder="Filter audit trail" value={s} onChange={(e) => setS(e.target.value)} data-testid="input-audit-filter" /><a href="/api/exports/audit" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-input bg-card px-3.5 text-sm font-medium hover:bg-muted" data-testid="link-export-audit"><Download className="h-4 w-4" />CSV</a><a href="/api/exports/audit?format=xlsx" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-input bg-card px-3.5 text-sm font-medium hover:bg-muted" data-testid="link-export-audit-xlsx"><Download className="h-4 w-4" />XLSX</a></div>
       <div className="overflow-hidden rounded-xl border border-card-border bg-card font-mono text-xs">
-        {list.slice(0, 300).map((a) => (
+        <PagedList items={list} pageSize={40} noun="events" testid="pager-audit" pagerClassName="font-sans" render={(a) => (
           <div key={a.id} className="grid grid-cols-[130px_1fr] gap-3 border-b border-border px-4 py-2 last:border-b-0 sm:grid-cols-[140px_140px_1fr_160px]" data-testid={`row-audit-${a.id}`}>
             <span className="text-muted-foreground">{fmtDateTime(a.createdAt)}</span>
             <span className="truncate">{a.assignee ?? "system"}</span>
             <span className="truncate font-sans text-[13px]">{a.title}{a.description ? <span className="text-muted-foreground"> · {a.description}</span> : null}</span>
             <span className="hidden truncate text-muted-foreground sm:block">{a.patientName}</span>
           </div>
-        ))}
+        )} />
         {!list.length && <div className="p-4 font-sans"><EmptyState title="No audit events match" /></div>}
       </div>
     </div>
@@ -251,15 +264,15 @@ function NotificationOutbox() {
   return (
     <Panel title="Notification outbox" sub="Captured locally. No email, SMS or push is sent." action={<SimLabel text="Console only" />} className="mt-5" bodyClass="p-0">
       {q.isLoading ? <div className="p-4"><SkeletonRows rows={3} /></div> : q.isError ? <div className="p-4"><ErrorState error={q.error} onRetry={() => q.refetch()} /></div> : !q.data?.length ? <div className="p-4"><EmptyState title="Outbox empty" desc="Patient messages and critical exceptions add captured rows here." /></div> : (
-        <div className="max-h-80 overflow-y-auto">
-          {[...q.data].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((r) => (
+        <div>
+          <PagedList items={[...q.data].sort((a, b) => b.createdAt.localeCompare(a.createdAt))} pageSize={10} noun="notifications" testid="pager-outbox" render={(r) => (
             <div key={r.id} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2 text-sm last:border-b-0" data-testid={`row-notification-${r.id}`}>
               <span className="w-32 text-xs text-muted-foreground">{fmtDateTime(r.createdAt)}</span>
               <span className="rounded border border-border px-1.5 font-mono text-[10px] uppercase">{mStr(r, "channel") || "console"}</span>
               <span className="min-w-0 flex-1 truncate">{r.title}{r.patientName ? <span className="text-muted-foreground"> · {r.patientName}</span> : null}</span>
               <StatusPill value={r.status} />
             </div>
-          ))}
+          )} />
         </div>
       )}
     </Panel>

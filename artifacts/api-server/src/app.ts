@@ -7,12 +7,22 @@ import { logger } from "./lib/logger";
 import { AppError } from "./lib/errors";
 import { ZodError } from "zod";
 import {serveBuiltWeb} from "./lib/web-serving";
+import {trackValidationRun} from "./lib/validation-tracking";
 
 const app: Express = express();
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.disable("etag");
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(trackValidationRun);
+app.use(helmet({ contentSecurityPolicy: process.env.NODE_ENV==="production"?{
+  directives:{
+    defaultSrc:["'self'"],scriptSrc:["'self'"],styleSrc:["'self'","'unsafe-inline'"],
+    imgSrc:["'self'","data:","blob:"],fontSrc:["'self'","data:"],
+    connectSrc:["'self'","https://storage.googleapis.com","https://*.googleapis.com"],
+    frameSrc:["'self'","blob:"],objectSrc:["'none'"],baseUri:["'self'"],formAction:["'self'"],
+    frameAncestors:["'self'","https://replit.com","https://*.replit.com","https://*.replit.dev"],
+  },
+}:false }));
 
 app.use(
   pinoHttp({

@@ -106,13 +106,15 @@ function ConfirmButtonCheck({ done, pending, title, onConfirm, id, readOnly }: {
   );
 }
 
+const KIND_LABEL: Record<string, string> = { observations: "Reading", exceptions: "Exception", tasks: "Task", time: "Care time", notes: "Note", messages: "Message", careplans: "Care plan", enrollments: "Enrollment", consents: "Consent", interactions: "Interaction", billing: "Billing", drafts: "Draft", responses: "Check-in", devices: "Device", audit: "Audit" };
+
 export function ActivityRow({ r }: { r: CareRecord }) {
   return (
     <div className="flex gap-3 py-2" data-testid={`row-activity-${r.id}`}>
       <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" />
       <div className="min-w-0 text-xs">
         <div className="text-foreground"><span className="font-medium">{r.title}</span>{r.patientName ? <span className="text-muted-foreground"> · {r.patientName}</span> : null}</div>
-        <div className="text-muted-foreground">{r.kind} · {fmtRel(r.createdAt)}</div>
+        <div className="text-muted-foreground">{KIND_LABEL[r.kind] ?? r.kind.replace(/_/g, " ")} · {fmtRel(r.createdAt)}</div>
       </div>
     </div>
   );

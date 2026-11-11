@@ -15,6 +15,7 @@ import { assertPlanForSigning } from "./careplan-validation";
 import { validatePeriod } from "./billing";
 import { localDay } from "./periods";
 import {syncFixtureEhr} from "./ehr-sync";
+import {scoreInstrument} from "./instrument-scoring";
 import {communicationPreferencesSchema} from "./communication-preferences";
 import { z } from "zod";
 import {policyCatalog,selectRulepack,choosePublished} from "./program-policies";
@@ -26,7 +27,7 @@ import {reviewAiDraft} from "./ai-review";
 import {resolveTimeReminder} from "./time-reminders";
 import {acknowledgeEducation} from "./education";
 import {importConfiguration} from "./configuration";
-import {instrumentContentHash} from "./content-review";
+import {instrumentContentHash,instrumentAvailable} from "./content-review";
 
 export type Action = {
   action: string; id?: string; patientId?: string; program?: string;
@@ -376,16 +377,19 @@ async function submitCheckin(s:Store,actor:Actor,a:Action,payload:Record<string,
   await getPatientRow(s,a.patientId);
   const program=await activeMonitoringProgram(s,a.patientId!,a.program);
   const instrument=String(payload.instrument||"pain_nrs");
-  const lengths:Record<string,number>={phq9:9,gad7:7,pain_nrs:1,odi:10,pgic:1};
   const candidates=(await allRecords(s,"instruments")).filter(r=>r.status==="active"&&r.metadata.key===instrument&&(!r.patientId||r.patientId===a.patientId));
   const configured=payload.instrumentId?candidates.find(r=>r.id===payload.instrumentId):candidates.length===1?candidates[0]:undefined;
   if(!configured)fail("Choose an active configured instrument; specify its identifier when more than one version exists");
-  if(Array.isArray(configured.metadata.questions)&&configured.metadata.questions.length&&(configured.metadata.contentApprovedForUse!==true||typeof configured.metadata.sourceRef!=="string"||!configured.metadata.sourceRef.trim()||typeof configured.metadata.licenseNote!=="string"||configured.metadata.licenseNote.trim().length<20||configured.metadata.contentReviewHash!==instrumentContentHash(configured)))throw new AppError(409,"Custom question wording needs a documented local source and license/use review before responses can be collected");
-  const answers=payload.answers;
-  if(!lengths[instrument] || !Array.isArray(answers) || answers.length!==lengths[instrument] || answers.some(v=>typeof v!=="number" || !Number.isInteger(v) || v<(instrument==="pgic"?1:0) || v>(instrument==="pain_nrs"?10:instrument==="odi"?5:instrument==="pgic"?7:3))) fail("Answers do not match the instrument's required range and question count");
-  const numeric=answers as number[], score=instrument==="odi"?numeric.reduce((n,v)=>n+v,0)*2:numeric.reduce((n,v)=>n+v,0);
-  const response=await addRecord(s,"responses",{title:`${instrument.toUpperCase()} check-in`,patientId:a.patientId,program,status:"completed",value:score,unit:"score",metadata:{instrument,instrumentId:configured.id,instrumentVersion:configured.metadata.contentVersion??"1",instrumentContentHash:instrumentContentHash(configured),instrumentSnapshot:{title:configured.title,key:instrument,questions:configured.metadata.questions??[],sourceRef:configured.metadata.sourceRef??"",licenseNote:configured.metadata.licenseNote??"",reviewedById:configured.metadata.contentReviewedById??null,reviewedAt:configured.metadata.contentReviewedAt??null},wording:Array.isArray(configured.metadata.questions)&&configured.metadata.questions.length?"locally_reviewed":"synthetic_placeholders",answers:numeric,source:"patient_reported",band:["phq9","gad7"].includes(instrument)?score>=15?"high":score>=10?"moderate":"low":"unclassified"}},actor);
-  if((instrument==="phq9"&&numeric[8]!>0) || (instrument==="pain_nrs"&&score>=8)) {
+  if(configured.program&&configured.program!==program)fail("This questionnaire is configured for a different active care program.");
+  if(!instrumentAvailable(configured))throw new AppError(409,"Custom question wording needs a documented local source and license/use review before responses can be collected");
+  const result=scoreInstrument(instrument,configured.metadata,payload.answers),{answers:numeric,score}=result;
+  const response=await addRecord(s,"responses",{
+    title:`${configured.title} response`,patientId:a.patientId,program,status:"completed",value:score,unit:"score",
+    metadata:{instrument,instrumentId:configured.id,instrumentVersion:configured.metadata.contentVersion??"1",instrumentContentHash:instrumentContentHash(configured),
+      instrumentSnapshot:{title:configured.title,key:instrument,questions:configured.metadata.questions??[],instructions:configured.metadata.instructions??"",answerLabels:configured.metadata.answerLabels??[],language:configured.metadata.language??"",sourceRef:configured.metadata.sourceRef??"",licenseNote:configured.metadata.licenseNote??"",reviewedById:configured.metadata.contentReviewedById??null,reviewedAt:configured.metadata.contentReviewedAt??null,fingerprintVersion:2},
+      wording:result.nonValidatedDemo?"synthetic_practice_prompts":Array.isArray(configured.metadata.questions)&&configured.metadata.questions.length?"locally_reviewed":"synthetic_placeholders",...result,source:"patient_reported"},
+  },actor);
+  if((instrument==="phq9"&&!result.nonValidatedDemo&&numeric[8]!>0) || (instrument==="pain_nrs"&&score>=8)) {
     await addRecord(s,"exceptions",{title:instrument==="phq9"?"Behavioral-health check-in requires immediate review":"High pain score reported",patientId:a.patientId,program,status:"open",severity:instrument==="phq9"?"critical":"high",description:"Follow the practice's clinician-approved escalation procedure.",metadata:{responseId:response.id,ruleKey:`score_${instrument}`}},actor);
   }
   return response;

@@ -74,8 +74,8 @@ These checks are **not browser end-to-end tests**, independent clinical validati
 
 - Full workspace TypeScript checks passed.
 - Production bundles for the API and web application built successfully. The frontend emitted a bundle-size warning, not a build failure.
-- 96 unit tests passed, including rule/policy parity, content review, DST-aware quiet periods, stale-safe EHR matching, supporting-file encoding/size checks and truthful patient-contact dates.
-- 612 HTTP checks passed: 78 clinical, 102 access, 49 policy/template, 35 rules, 100 worklists, 54 retained documents, 46 AI, 63 workflow/configuration/learning, 26 contact/EHR and 59 supporting-file cases, with additional database assertions.
+- 119 unit tests passed, including billing/rule parity, canonical clinical review fingerprints, emergency contexts, governance evidence and readable clinical documents.
+- 823 HTTP checks passed across 15 suites: 77 core platform, 102 access, 49 policy/template, 35 rules, 100 worklists, 54 documents, 46 AI, 63 workflows, 26 contact/EHR, 60 attachments, 39 structured clinical, 44 caregivers, 38 staff-site roles, 42 emergency access and 48 governance, with additional database assertions.
 - The new invitation, location/role restrictions, password change and deactivation journey passed in a real browser. See `LOCAL-ACCEPTANCE.md` for the full current record.
 - One live AI drafting request succeeded and saved a source-linked draft in pending-review status.
 - Signed-in account, core clinical, policy-to-note and EHR-to-reviewed-AI-note/PDF journeys were browser-tested. The newer guided rule/worklist screens have API/unit coverage; broader browser interaction coverage remains pending.
@@ -85,7 +85,7 @@ These checks are **not browser end-to-end tests**, independent clinical validati
 
 - No multi-tenant isolation or tenant administration.
 - No native iOS/Android application, push-delivery registration, app-store builds or offline health-data storage.
-- The Staff directory remains reference data; the separate Accounts tab now creates actual staff/patient sign-in accounts. Invitations, one-use recovery links, password changes, session revocation, five-failure lockout and API role/location controls are implemented. MFA and break-glass remain deferred; recovery is a local administrator handoff, not outbound email delivery.
+- Accounts create actual sign-in identities; their managed clinical-directory entries synchronize after activation and account changes. Invitations, recovery, session revocation, lockout, per-session site roles, NPI format checks, one-patient four-hour read-only emergency access and retained access/audit reviews are implemented. MFA remains deferred; recovery and scheduled notices are local/console handoffs, not external email delivery.
 - EHR synchronization uses fixtures. Video creation does not create a real conference. Email/SMS/push are captured by a console adapter, not delivered. The signed simulator and its durable retry queue work locally; live vendor connections/delivery callbacks and approved contracts are not configured.
 - AI is an optional **synthetic-data-only development connection**, not a production PHI route. No BAA, Vertex deployment or production clinical-agent authorization is implied.
 - Instrument counts/ranges and scores are implemented; licensed/validated questionnaire wording is not supplied. Neutral item labels are not a substitute for approved clinical content.

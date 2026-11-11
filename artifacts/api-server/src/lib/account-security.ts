@@ -4,15 +4,17 @@ import { db, passwordTokens, sessions, users } from "@workspace/db";
 import { permissionsFor } from "./access";
 import { writeAudit, type Actor, type Store } from "./store";
 import { AppError } from "./errors";
+import {staffContext,canUseEmergencyAccess} from "./staff-identity";
 
 export const digest = (token: string) => createHash("sha256").update(token).digest("hex");
 export const sessionReference = (tokenHash: string) => digest(`session-reference:${tokenHash}`);
-export const safeUser = (u: typeof users.$inferSelect): Actor => ({
-  id: u.id, email: u.email, name: u.name, role: u.role, credential: u.credential,
-  patientId: u.patientId, locationScopes: u.locationScopes, permissions: permissionsFor(u.role),
-});
+export const safeUser = (u: typeof users.$inferSelect,location?:string|null): Actor => {
+  const context=staffContext(u,location);
+  return {id:u.id,email:u.email,name:u.name,role:context.role,credential:u.credential,patientId:u.patientId,
+    locationScopes:context.locationScopes,permissions:permissionsFor(context.role),siteRoles:u.siteRoles,activeLocation:context.activeLocation,baseRole:u.role,npi:u.npi,canUseEmergencyAccess:canUseEmergencyAccess(u)};
+};
 export const accountView = (u: typeof users.$inferSelect) => ({
-  ...safeUser(u), status: u.status, createdAt: u.createdAt.toISOString(),
+  ...safeUser(u),role:u.role,locationScopes:u.locationScopes,permissions:permissionsFor(u.role),activeLocation:null,status: u.status, createdAt: u.createdAt.toISOString(),
   lastLoginAt: u.lastLoginAt?.toISOString() ?? null, lockedUntil: u.lockedUntil?.toISOString() ?? null,
 });
 export function checkPassword(password: string) {

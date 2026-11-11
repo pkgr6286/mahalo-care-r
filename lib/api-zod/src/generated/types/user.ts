@@ -5,6 +5,8 @@
  * Mahalo Care single-practice synthetic-data demo API
  * OpenAPI spec version: 1.0.0
  */
+import type { EmergencyAccessContext } from './emergencyAccessContext';
+import type { LocationRoleAssignments } from './locationRoleAssignments';
 
 export interface User {
   id: string;
@@ -14,6 +16,15 @@ export interface User {
   credential: string;
   /** @nullable */
   patientId?: string | null;
+  sessionLocked?: boolean;
+  canUseEmergencyAccess?: boolean;
+  emergencyContext?: EmergencyAccessContext | null;
+  /** @nullable */
+  npi?: string | null;
+  baseRole?: string;
+  /** @nullable */
+  activeLocation?: string | null;
+  siteRoles?: LocationRoleAssignments;
   locationScopes?: string[];
   permissions?: string[];
 }

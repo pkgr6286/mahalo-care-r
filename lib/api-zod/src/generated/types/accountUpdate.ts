@@ -8,6 +8,7 @@
 import type { AccountRole } from './accountRole';
 import type { AccountUpdateCredential } from './accountUpdateCredential';
 import type { AccountUpdateStatus } from './accountUpdateStatus';
+import type { LocationRoleAssignments } from './locationRoleAssignments';
 
 export interface AccountUpdate {
   /**
@@ -18,6 +19,12 @@ export interface AccountUpdate {
   role?: AccountRole;
   credential?: AccountUpdateCredential;
   status?: AccountUpdateStatus;
+  /**
+     * @nullable
+     * @pattern ^[12][0-9]{9}$
+     */
+  npi?: string | null;
+  siteRoles?: LocationRoleAssignments;
   /**
      * @maxItems 100
      * @items.minLength 1

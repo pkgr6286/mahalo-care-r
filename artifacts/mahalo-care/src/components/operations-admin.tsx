@@ -1,5 +1,6 @@
+import {jsonFetch as sharedJsonFetch} from "@/lib/http";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, CheckCircle2, Clock3, Cpu, Inbox, Play, RotateCw, Send, ShieldAlert, ShieldCheck } from "lucide-react";
 import {
   useListJobs, getListJobsQueryKey, useEnqueueMaintenance, useRetryJob, useListIngestInbox, getListIngestInboxQueryKey,
@@ -42,6 +43,7 @@ export function OperationsTab() {
         <Activity className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--brand-cyan))]" strokeWidth={1.6} />
         <span>Background work runs asynchronously. Queued means accepted, not finished. Lists refresh every few seconds while this tab is visible.</span>
       </div>
+      <DemonstrationPrep />
       <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
         <Jobs />
         <DeviceSimulator />
@@ -219,4 +221,72 @@ function IngestInbox() {
 
 function LiveDot({ fetching }: { fetching: boolean }) {
   return <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className={cn("h-1.5 w-1.5 rounded-full bg-[hsl(162_60%_36%)]", fetching && "pulse-dot")} />Live</span>;
+}
+
+/* ---------- Practice demonstration preparation (admin only, synthetic) ---------- */
+type DemoStatus = { prepared: boolean; patients: number; documentsPending: boolean; synthetic: true; preparing?: boolean; error?: string | null };
+const DEMO_PHRASE = "PREPARE SYNTHETIC PRACTICE";
+const DEMO_KEY = ["/api/operations/demonstration-status"];
+async function opsFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  return sharedJsonFetch<T>(path,init);
+}
+
+function DemonstrationPrep() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const st = useQuery({ queryKey: DEMO_KEY, queryFn: () => opsFetch<DemoStatus>("/operations/demonstration-status"), retry: false, refetchIntervalInBackground: false, refetchInterval: (q) => (q.state.data?.preparing || q.state.data?.documentsPending ? 4000 : false) });
+  const wasBusy = useRef(false);
+  const busyNow = !!(st.data?.preparing || st.data?.documentsPending);
+  useEffect(() => {
+    if (wasBusy.current && !busyNow && st.data) {
+      qc.invalidateQueries();
+      if (!st.data.error) toast({ title: "Practice demonstration ready", description: `${st.data.patients} synthetic patients and their documents are available.` });
+    }
+    wasBusy.current = busyNow;
+  }, [busyNow, st.data, qc, toast]);
+  const [open, setOpen] = useState(false);
+  const [phrase, setPhrase] = useState("");
+  const prep = useMutation({
+    mutationFn: () => opsFetch<unknown>("/operations/prepare-demonstration", { method: "POST", body: JSON.stringify({ confirmation: DEMO_PHRASE }) }),
+    onSuccess: () => {
+      wasBusy.current = true;
+      qc.invalidateQueries({ queryKey: DEMO_KEY });
+      setOpen(false); setPhrase("");
+      toast({ title: "Preparation queued", description: "Runs in the background. Status updates here as it progresses." });
+    },
+    onError: (e) => toast({ title: "Could not prepare demonstration", description: errMsg(e), variant: "destructive" }),
+  });
+  const d = st.data;
+  return (
+    <Panel title={<span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-muted-foreground" strokeWidth={1.6} />Practice demonstration</span>} sub="Prepare a coherent synthetic practice for walkthroughs" action={<SimLabel text="Synthetic only" />}>
+      {st.isLoading ? <SkeletonRows rows={2} /> : st.isError ? <ErrorState error={st.error} onRetry={() => st.refetch()} /> : (
+        <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-start">
+          <div className="grid flex-1 grid-cols-3 gap-3 text-sm" data-testid="status-demonstration">
+            <div><div className="text-[11px] text-muted-foreground">Status</div>{d?.preparing ? <Pill tone="amber">Preparing</Pill> : d?.error ? <Pill tone="red">Failed</Pill> : d?.prepared ? <Pill tone="green">Prepared</Pill> : <Pill tone="neutral">Not prepared</Pill>}</div>
+            <div><div className="text-[11px] text-muted-foreground">Synthetic patients</div><div className="tnum font-semibold">{d?.patients ?? 0}</div></div>
+            <div><div className="text-[11px] text-muted-foreground">Documents</div><div className="text-[13px]">{d?.preparing ? <span className="text-muted-foreground">Waiting for preparation</span> : !d?.prepared ? <span className="text-muted-foreground">None yet</span> : d?.documentsPending ? <span className="inline-flex items-center gap-1 text-[hsl(30_70%_32%)]"><Clock3 className="h-3.5 w-3.5" strokeWidth={1.6} />Still generating</span> : <span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-[hsl(162_55%_35%)]" strokeWidth={1.6} />Ready</span>}</div></div>
+          </div>
+          {d?.error && !d.preparing && <p role="alert" className="text-xs text-destructive lg:order-last lg:basis-full" data-testid="text-demo-error">Last run failed: {d.error}</p>}
+          {!open ? (
+            <Btn disabled={!!d?.preparing || prep.isPending} onClick={() => setOpen(true)} data-testid="button-open-prepare-demo"><Play className="h-3.5 w-3.5" />{d?.preparing ? "Preparing…" : d?.error ? "Try again" : d?.prepared ? "Prepare again" : "Prepare demonstration"}</Btn>
+          ) : (
+            <div className="w-full space-y-3 rounded-xl border border-[hsl(38_80%_80%)] bg-[hsl(38_95%_97%)] p-4 text-xs lg:max-w-md" data-testid="panel-prepare-demo">
+              <div className="flex gap-2 font-medium text-[hsl(30_70%_26%)]"><ShieldAlert className="h-4 w-4 shrink-0" strokeWidth={1.6} />Before you continue</div>
+              <ul className="list-disc space-y-1 pl-5 text-foreground/80">
+                <li>Existing histories are retained: nothing is deleted, and audit trails stay intact.</li>
+                <li>Earlier demo fixtures are separated from the prepared practice so they do not mix into its worklists and reports.</li>
+                <li>Running it again is safe; it does not create duplicates.</li>
+                <li>Only synthetic patients are created. Do not enter real patient information.</li>
+              </ul>
+              <Field label={`Type ${DEMO_PHRASE} to confirm`}><input className={inputCls} value={phrase} onChange={(e) => setPhrase(e.target.value)} autoComplete="off" spellCheck={false} data-testid="input-prepare-demo-confirm" /></Field>
+              <div className="flex justify-end gap-2">
+                <Btn variant="ghost" onClick={() => { setOpen(false); setPhrase(""); }} disabled={prep.isPending}>Cancel</Btn>
+                <Btn variant="primary" disabled={phrase.trim() !== DEMO_PHRASE || prep.isPending} onClick={() => prep.mutate()} data-testid="button-prepare-demo">{prep.isPending ? <><RotateCw className="h-3.5 w-3.5 animate-spin" />Preparing</> : "Prepare synthetic practice"}</Btn>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Panel>
+  );
 }

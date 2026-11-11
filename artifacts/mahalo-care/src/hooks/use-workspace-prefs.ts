@@ -12,7 +12,7 @@ export type Density = "comfortable" | "compact";
 export function usePrefs() {
   const me = useGetCurrentUser({ query: { retry: false, queryKey: getGetCurrentUserQueryKey() } });
   const uid = me.data?.id;
-  const enabled = !!uid && me.data?.role !== "patient";
+  const enabled = !!uid && !["patient","caregiver","emergency_read_only"].includes(me.data?.role??"");
   const key = [...getGetWorkspacePreferencesQueryKey(), uid ?? "anon"];
   const q = useGetWorkspacePreferences({ query: { enabled, queryKey: key, staleTime: 5 * 60_000, retry: false } });
   return { q, key, uid, enabled };

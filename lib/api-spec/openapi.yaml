@@ -8,6 +8,228 @@ servers:
 security:
   - session: []
 paths:
+  /auth/emergency-access:
+    post:
+      operationId: startEmergencyAccess
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmergencyAccessInput" }
+      responses:
+        "200": { description: Four-hour maximum patient-only read context, content: { application/json: { schema: { $ref: "#/components/schemas/User" } } } }
+  /auth/emergency-access/end:
+    post:
+      operationId: endEmergencyAccess
+      tags: [auth]
+      responses:
+        "200": { description: Restored normal staff context, content: { application/json: { schema: { $ref: "#/components/schemas/User" } } } }
+  /auth/location-context:
+    post:
+      operationId: switchStaffLocation
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LocationContextInput" }
+      responses:
+        "200": { description: Current staff role and site context, content: { application/json: { schema: { $ref: "#/components/schemas/User" } } } }
+        "409": { description: Finish or discard tracked activity before switching }
+  /patients/{id}/caregivers:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      operationId: listPatientCaregivers
+      tags: [clinical]
+      responses:
+        "200":
+          description: Retained grants and eligible patient contacts
+          content:
+            application/json:
+              schema: { type: object, required: [grants, contacts], properties: { grants: { type: array, items: { type: object, additionalProperties: true } }, contacts: { type: array, items: { type: object, additionalProperties: true } } } }
+    post:
+      operationId: grantCaregiverAccess
+      tags: [clinical]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CaregiverGrantInput" }
+      responses:
+        "201":
+          description: Consent retained and scoped access granted
+          content:
+            application/json:
+              schema: { type: object, required: [grant, documentId], properties: { grant: { type: object, additionalProperties: true }, documentId: { type: ["string", "null"] } } }
+  /patients/{id}/caregivers/{grantId}/revoke:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+      - { in: path, name: grantId, required: true, schema: { type: string } }
+    post:
+      operationId: revokeCaregiverAccess
+      tags: [clinical]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CaregiverRevocationInput" }
+      responses:
+        "200": { description: Access revoked immediately, content: { application/json: { schema: { $ref: "#/components/schemas/CaregiverMutationResult" } } } }
+  /caregiver/patients:
+    get:
+      operationId: listCaregiverPatients
+      tags: [caregiver]
+      responses:
+        "200":
+          description: Only patients with current effective consent
+          content:
+            application/json:
+              schema: { type: object, required: [patients], properties: { patients: { type: array, items: { $ref: "#/components/schemas/CaregiverPatientSummary" } } } }
+  /caregiver/patients/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      operationId: getCaregiverSharedPatient
+      tags: [caregiver]
+      responses:
+        "200":
+          description: Only the explicitly consented sections
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CaregiverPatientDetail" }
+        "403": { description: "Access absent, expired or withdrawn" }
+  /caregiver/patients/{id}/messages:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    post:
+      operationId: sendCaregiverMessage
+      tags: [caregiver]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CaregiverMessageInput" }
+      responses:
+        "201": { description: Message recorded under caregiver identity, content: { application/json: { schema: { $ref: "#/components/schemas/CaregiverMutationResult" } } } }
+  /caregiver/patients/{id}/careplans/{recordId}/pdf:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+      - { in: path, name: recordId, required: true, schema: { type: string } }
+    get:
+      operationId: downloadCaregiverPlan
+      tags: [caregiver]
+      responses:
+        "200":
+          description: Private retained released care-plan PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+  /readyz:
+    get:
+      operationId: getDependencyReadiness
+      tags: [operations]
+      security: []
+      responses:
+        "200": { description: Dependencies ready, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "503": { description: Dependencies unavailable or delayed, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+  /auth/activity:
+    post:
+      operationId: recordWorkspaceActivity
+      tags: [auth]
+      responses:
+        "200": { description: Human activity recorded, content: { application/json: { schema: { $ref: "#/components/schemas/WorkspaceUnlockResult" } } } }
+        "423": { description: Workspace locked }
+  /auth/unlock:
+    post:
+      operationId: unlockWorkspace
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkspaceUnlockInput" }
+      responses:
+        "200": { description: Workspace unlocked, content: { application/json: { schema: { $ref: "#/components/schemas/WorkspaceUnlockResult" } } } }
+        "401": { description: Incorrect password or locked account }
+  /operations/demonstration-status:
+    get:
+      operationId: getDemonstrationStatus
+      tags: [operations]
+      responses:
+        "200":
+          description: Database-backed preparation status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DemonstrationStatus" }
+  /operations/prepare-demonstration:
+    post:
+      operationId: prepareDemonstration
+      tags: [operations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DemonstrationPreparationInput" }
+      responses:
+        "202":
+          description: Tracked background preparation queued
+          content:
+            application/json:
+              schema: { type: object, required: [status, jobId, message], properties: { status: { type: string }, jobId: { type: string }, message: { type: string } } }
+  /patients/{id}/clinical-profile:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      operationId: getClinicalProfile
+      tags: [clinical]
+      responses:
+        "200":
+          description: Structured clinical profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClinicalProfile" }
+    patch:
+      operationId: updateClinicalProfile
+      tags: [clinical]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClinicalProfileInput" }
+      responses:
+        "200":
+          description: Atomically updated clinical profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClinicalProfile" }
+  /patients/{id}/program-progress:
+    get:
+      operationId: getProgramProgress
+      tags: [clinical]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Program-specific progress from billing-equivalent evidence
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProgramProgress" }
+  /patients/{id}/access-export:
+    get:
+      operationId: exportPatientAccessBundle
+      tags: [clinical]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Patient JSON, integrity manifest and retained PDFs
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
   /ai/review-metrics:
     get:
       operationId: getAiReviewMetrics
@@ -808,6 +1030,92 @@ paths:
                   documentId: { type: string }
                   sourceHash: { type: string }
                   source: { type: object, additionalProperties: true }
+  /operations/security-overview:
+    get:
+      operationId: getSecurityOverview
+      responses:
+        '200':
+          description: Governance scope and practice-calendar defaults
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityOverview'
+  /operations/security-reports:
+    get:
+      operationId: listSecurityReports
+      parameters:
+        - {in: query, name: kind, schema: {$ref: '#/components/schemas/SecurityReportKind'}}
+        - {in: query, name: period, schema: {type: string}}
+        - {in: query, name: page, schema: {type: integer, minimum: 1, default: 1}}
+        - {in: query, name: pageSize, schema: {type: integer, minimum: 1, maximum: 50, default: 20}}
+      responses:
+        '200':
+          description: Paginated retained reports within the actor's governance scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityReportPage'
+    post:
+      operationId: createSecurityReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecurityReportCreateInput'
+      responses:
+        '201':
+          description: Snapshot and readable private PDF retained successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityReportInfo'
+  /operations/security-reports/{id}:
+    get:
+      operationId: getSecurityReport
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Human-readable captured report data without the large event manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityReportView'
+  /operations/security-reports/{id}/verify:
+    post:
+      operationId: verifySecurityReport
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Check pinned private PDF, frozen source and captured audit events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityReportVerification'
+  /operations/security-reports/{id}/pdf:
+    get:
+      operationId: downloadSecurityReportPdf
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Verified retained private PDF
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+  /operations/security-reports/{id}/json:
+    get:
+      operationId: downloadSecurityReportJson
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Immutable machine-readable snapshot with the full ordered event manifest
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: true}
 components:
   securitySchemes:
     session:
@@ -823,6 +1131,235 @@ components:
         type: string
         enum: [programs, enrollments, consents, careplans, observations, exceptions, tasks, time, notes, devices, messages, interactions, billing, rules, templates, locations, staff, instruments, responses, education, integrations, drafts, notifications, audit]
   schemas:
+    EmergencyAccessInput:
+      type: object
+      required: [mrn, reason, attested]
+      properties:
+        mrn: { type: string, minLength: 2, maxLength: 100 }
+        reason: { type: string, minLength: 20, maxLength: 1000 }
+        attested: { type: boolean, const: true }
+    EmergencyAccessContext:
+      type: ["object", "null"]
+      required: [patientId, patientName, mrn, location, reason, startedAt, expiresAt]
+      properties:
+        patientId: { type: string }
+        patientName: { type: string }
+        mrn: { type: string }
+        location: { type: string }
+        reason: { type: string }
+        startedAt: { type: string }
+        expiresAt: { type: string }
+    LocationContextInput:
+      type: object
+      required: [location]
+      properties:
+        location: { type: string, minLength: 1, maxLength: 100 }
+    LocationRoleAssignments:
+      type: object
+      maxProperties: 100
+      additionalProperties:
+        type: string
+        enum: [clinical_admin, billing_provider, care_manager, behavioral_care_manager, psychiatric_consultant, therapist, front_desk, billing, read_only]
+    CaregiverMutationResult:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean }
+    CaregiverScope:
+      type: string
+      enum: [careplans.read, readings.read, tasks.read, messages.read, messages.send, education.read, appointments.read]
+    CaregiverGrantInput:
+      type: object
+      required: [contactId, userId, scopes, method, consentText, attested]
+      properties:
+        contactId: { type: string }
+        userId: { type: string }
+        scopes: { type: array, minItems: 1, maxItems: 7, items: { $ref: "#/components/schemas/CaregiverScope" } }
+        method: { type: string, enum: [verbal, written] }
+        consentText: { type: string, minLength: 20, maxLength: 4000 }
+        attested: { type: boolean, const: true }
+        expiresAt: { type: string, format: date-time }
+    CaregiverRevocationInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 10, maxLength: 2000 }
+    CaregiverMessageInput:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string, minLength: 1, maxLength: 4000 }
+    CaregiverPatientSummary:
+      type: object
+      required: [id, firstName, lastName, dob, scopes]
+      properties:
+        id: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        dob: { type: string, format: date }
+        scopes: { type: array, items: { $ref: "#/components/schemas/CaregiverScope" } }
+    CaregiverSharedRecord:
+      type: object
+      required: [id, title]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        status: { type: string }
+        date: { type: string }
+        description: { type: string }
+        goals: { type: string }
+        interventions: { type: string }
+        careTeam: { type: string }
+        value: { type: number }
+        unit: { type: string }
+        fromName: { type: string }
+        body: { type: string }
+    CaregiverPatientDetail:
+      type: object
+      required: [patient, scopes, programs]
+      properties:
+        patient: { $ref: "#/components/schemas/CaregiverPatientIdentity" }
+        scopes: { type: array, items: { $ref: "#/components/schemas/CaregiverScope" } }
+        programs: { type: array, items: { type: string } }
+        careplans: { type: array, items: { $ref: "#/components/schemas/CaregiverSharedRecord" } }
+        readings: { type: array, items: { $ref: "#/components/schemas/CaregiverSharedRecord" } }
+        tasks: { type: array, items: { $ref: "#/components/schemas/CaregiverSharedRecord" } }
+        messages: { type: array, items: { $ref: "#/components/schemas/CaregiverSharedRecord" } }
+        education: { type: array, items: { $ref: "#/components/schemas/CaregiverSharedRecord" } }
+        appointments: { type: array, items: { $ref: "#/components/schemas/CaregiverSharedRecord" } }
+    CaregiverPatientIdentity:
+      type: object
+      required: [id, firstName, lastName, dob]
+      properties:
+        id: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        dob: { type: string, format: date }
+    WorkspaceUnlockInput:
+      type: object
+      required: [password]
+      properties:
+        password: { type: string, minLength: 1, maxLength: 128 }
+    WorkspaceUnlockResult:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+    DemonstrationPreparationInput:
+      type: object
+      required: [confirmation]
+      properties:
+        confirmation: { type: string, enum: ["PREPARE SYNTHETIC PRACTICE"] }
+    DemonstrationStatus:
+      type: object
+      required: [prepared, patients, documentsPending, synthetic]
+      properties:
+        prepared: { type: boolean }
+        patients: { type: integer }
+        documentsPending: { type: boolean }
+        synthetic: { type: boolean }
+        preparing: { type: boolean }
+        error: { type: ["string", "null"] }
+    ClinicalCondition:
+      type: object
+      required: [code, display, chronic, clinicalStatus, source]
+      properties:
+        id: { type: string }
+        code: { type: string, minLength: 1, maxLength: 30 }
+        codeSystem: { type: string, default: ICD-10-CM, maxLength: 80 }
+        display: { type: string, minLength: 1, maxLength: 250 }
+        onsetDate: { type: [string, "null"], format: date }
+        chronic: { type: boolean }
+        clinicalStatus: { type: string, enum: [active, resolved, inactive] }
+        source: { type: string, minLength: 1, maxLength: 250 }
+    ClinicalMedication:
+      type: object
+      required: [name, dose, route, frequency, status]
+      properties:
+        id: { type: string }
+        name: { type: string, minLength: 1, maxLength: 250 }
+        rxnormCode: { type: [string, "null"], maxLength: 30 }
+        dose: { type: string, minLength: 1, maxLength: 150 }
+        route: { type: string, minLength: 1, maxLength: 100 }
+        frequency: { type: string, minLength: 1, maxLength: 150 }
+        indication: { type: string, maxLength: 250, default: "" }
+        status: { type: string, enum: [active, stopped, on_hold] }
+        startedOn: { type: [string, "null"], format: date }
+        reconciledAt: { type: [string, "null"], format: date-time }
+        reconciledBy: { type: [string, "null"], maxLength: 250 }
+    ClinicalCoverage:
+      type: object
+      required: [payer, plan, memberId, effectiveFrom, status]
+      properties:
+        id: { type: string }
+        payer: { type: string, minLength: 1, maxLength: 200 }
+        plan: { type: string, minLength: 1, maxLength: 200 }
+        memberId: { type: string, minLength: 1, maxLength: 100 }
+        effectiveFrom: { type: string, format: date }
+        effectiveTo: { type: [string, "null"], format: date }
+        status: { type: string, enum: [active, inactive, pending] }
+        verifiedAt: { type: [string, "null"], format: date-time }
+    ClinicalContact:
+      type: object
+      required: [name, relationship, emergency, sharingAllowed]
+      properties:
+        id: { type: string }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        relationship: { type: string, minLength: 1, maxLength: 100 }
+        phone: { type: string, maxLength: 80, default: "" }
+        email: { type: string, maxLength: 250, default: "" }
+        emergency: { type: boolean }
+        sharingAllowed: { type: boolean }
+        sharingScope:
+          type: array
+          maxItems: 6
+          items: { type: string, enum: [readings, careplans, tasks, messages, appointments, education] }
+        consentRecordedAt: { type: [string, "null"], format: date-time }
+    ClinicalIdentifier:
+      type: object
+      required: [system, value, source]
+      properties:
+        id: { type: string }
+        system: { type: string, minLength: 1, maxLength: 250 }
+        value: { type: string, minLength: 1, maxLength: 250 }
+        source: { type: string, minLength: 1, maxLength: 100 }
+    ClinicalProfileInput:
+      type: object
+      required: [expectedUpdatedAt]
+      properties:
+        expectedUpdatedAt: { type: string, format: date-time }
+        conditions: { type: array, maxItems: 100, items: { $ref: "#/components/schemas/ClinicalCondition" } }
+        medications: { type: array, maxItems: 100, items: { $ref: "#/components/schemas/ClinicalMedication" } }
+        coverage: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/ClinicalCoverage" } }
+        contacts: { type: array, maxItems: 30, items: { $ref: "#/components/schemas/ClinicalContact" } }
+        identifiers: { type: array, maxItems: 30, items: { $ref: "#/components/schemas/ClinicalIdentifier" } }
+    ClinicalProfile:
+      allOf:
+        - $ref: "#/components/schemas/ClinicalProfileInput"
+        - type: object
+          required: [patientId, updatedAt, conditions, medications, coverage, contacts, identifiers]
+          properties:
+            patientId: { type: string }
+            updatedAt: { type: string, format: date-time }
+    ProgramProgress:
+      type: object
+      required: [enrollmentId, program, periodLabel, windowStart, windowEnd, supplyWindowComplete, minutes, minuteTarget, deviceDays, deviceDayTarget, liveInteractions, signedPlan, consent, nextSteps]
+      properties:
+        enrollmentId: { type: string }
+        program: { type: string }
+        periodLabel: { type: string }
+        windowStart: { type: string, format: date }
+        windowEnd: { type: string, format: date }
+        supplyWindowComplete: { type: boolean }
+        minutes: { type: number }
+        minuteTarget: { type: number }
+        deviceDays: { type: integer }
+        deviceDayTarget: { type: integer }
+        liveInteractions: { type: integer }
+        signedPlan: { type: boolean }
+        consent: { type: boolean }
+        policyLabel: { type: string }
+        nextSteps: { type: array, items: { type: string } }
     AttachmentUploadInput:
       type: object
       required: [uploadId, filename, sizeBytes, mimeType]
@@ -1109,6 +1646,154 @@ components:
       properties:
         email: { type: string, format: email }
         password: { type: string, minLength: 1 }
+    SecurityReportKind:
+      type: string
+      enum: [access_review, audit_integrity, weekly_emergency_access]
+    SecurityReportCreateInput:
+      type: object
+      required: [kind]
+      additionalProperties: false
+      properties:
+        kind: {$ref: '#/components/schemas/SecurityReportKind'}
+        period: {type: string, description: 'YYYY-MM for monthly reports; Monday YYYY-MM-DD for weekly reports'}
+        timeZone: {type: string, default: America/New_York}
+        includeVerification:
+          type: boolean
+          default: false
+          description: 'Include retained legacy/verification account or emergency-access entries. Root only. Audit integrity always covers all retained audit events; this flag does not run verification.'
+    SecurityOverview:
+      type: object
+      required: [defaults, reportKinds, locationScopes, isPracticeAdmin]
+      properties:
+        defaults:
+          type: object
+          required: [month, previousMonth, weekStart, timeZone]
+          properties:
+            month: {type: string}
+            previousMonth: {type: string}
+            weekStart: {type: string}
+            timeZone: {type: string}
+        reportKinds:
+          type: array
+          items: {$ref: '#/components/schemas/SecurityReportKind'}
+        locationScopes: {type: array, items: {type: string}}
+        isPracticeAdmin: {type: boolean}
+    SecurityReportSummary:
+      type: object
+      required: [sourceRows]
+      properties:
+        sourceRows: {type: integer}
+        activeAccounts: {type: integer}
+        invitedAccounts: {type: integer}
+        inactiveAccounts: {type: integer}
+        portalAccounts: {type: integer}
+        missingProviderNpis: {type: integer}
+        uniqueStaff: {type: integer}
+        uniquePatients: {type: integer}
+        activeAtCapture: {type: integer}
+        chainHead: {type: string}
+        includesRetainedHistory: {type: boolean}
+    SecurityReportInfo:
+      type: object
+      required: [id, documentId, kind, period, timeZone, createdAt, createdBy, digest, pdfSha256, sourceHash, sourceRows, summary, scopeLocations, includeVerification, pdfUrl, jsonUrl]
+      properties:
+        id: {type: string}
+        documentId: {type: string}
+        kind: {$ref: '#/components/schemas/SecurityReportKind'}
+        period: {type: string}
+        timeZone: {type: string}
+        createdAt: {type: string, format: date-time}
+        createdBy: {type: string}
+        digest: {type: string}
+        pdfSha256: {type: string}
+        sourceHash: {type: string}
+        sourceRows: {type: integer}
+        summary: {$ref: '#/components/schemas/SecurityReportSummary'}
+        scopeLocations: {type: array, items: {type: string}}
+        includeVerification: {type: boolean}
+        pdfUrl: {type: string}
+        jsonUrl: {type: string}
+    SecurityReportPage:
+      type: object
+      required: [reports, total, page, pageSize]
+      properties:
+        reports: {type: array, items: {$ref: '#/components/schemas/SecurityReportInfo'}}
+        total: {type: integer}
+        page: {type: integer}
+        pageSize: {type: integer}
+    SecurityReportAccount:
+      type: object
+      required: [id, name, email, role, credential, npi, status, locationScopes, siteRoles, lastLoginAt, lockedUntil, activeSessions, emergencySessionsAtCapture]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        email: {type: string}
+        role: {type: string}
+        credential: {type: string}
+        npi: {type: string, nullable: true}
+        status: {type: string}
+        locationScopes: {type: array, items: {type: string}}
+        siteRoles: {type: object, additionalProperties: {type: string}}
+        lastLoginAt: {type: string, format: date-time, nullable: true}
+        lockedUntil: {type: string, format: date-time, nullable: true}
+        activeSessions: {type: integer}
+        emergencySessionsAtCapture: {type: integer}
+    SecurityEmergencyReview:
+      type: object
+      required: [eventId, actorName, roleAtAccess, credentialAtAccess, patientName, mrn, location, reason, openedAt, expiresAt, endedAt, status, scope]
+      properties:
+        eventId: {type: string}
+        actorName: {type: string}
+        roleAtAccess: {type: string, nullable: true}
+        credentialAtAccess: {type: string, nullable: true}
+        patientName: {type: string}
+        mrn: {type: string}
+        location: {type: string}
+        reason: {type: string}
+        openedAt: {type: string, format: date-time}
+        expiresAt: {type: string, format: date-time}
+        endedAt: {type: string, format: date-time, nullable: true}
+        status: {type: string, enum: [active, ended, expired]}
+        scope: {type: string}
+    SecurityReportView:
+      type: object
+      required: [report, notice, accounts, emergencyAccess, auditIntegrity]
+      properties:
+        report: {$ref: '#/components/schemas/SecurityReportInfo'}
+        notice: {type: string, nullable: true}
+        accounts:
+          type: array
+          nullable: true
+          items: {$ref: '#/components/schemas/SecurityReportAccount'}
+        emergencyAccess:
+          type: array
+          nullable: true
+          items: {$ref: '#/components/schemas/SecurityEmergencyReview'}
+        auditIntegrity:
+          type: object
+          nullable: true
+          required: [algorithm, chainHead, scope, notice]
+          properties:
+            algorithm: {type: string}
+            chainHead: {type: string}
+            scope: {type: string}
+            notice: {type: string}
+    SecurityReportVerification:
+      type: object
+      required: [valid, frozenSourceValid, privatePdfValid, snapshotDigestValid, verificationScope, capturedRows, missingRows, changedRows, chainMatches, currentRowCount, unlistedEvents, checkedAt]
+      properties:
+        valid: {type: boolean}
+        frozenSourceValid: {type: boolean}
+        privatePdfValid: {type: boolean}
+        snapshotDigestValid: {type: boolean}
+        verificationScope: {type: string, enum: [retained_snapshot, audit_events]}
+        capturedRows: {type: integer}
+        missingRows: {type: integer, nullable: true}
+        changedRows: {type: integer, nullable: true}
+        chainMatches: {type: boolean, nullable: true}
+        currentRowCount: {type: integer, nullable: true}
+        unlistedEvents: {type: integer, nullable: true}
+        checkedAt: {type: string, format: date-time}
     User:
       type: object
       required: [id, name, email, role, credential]
@@ -1119,6 +1804,13 @@ components:
         role: { type: string }
         credential: { type: string }
         patientId: { type: ["string", "null"] }
+        sessionLocked: { type: boolean }
+        canUseEmergencyAccess: { type: boolean }
+        emergencyContext: { $ref: "#/components/schemas/EmergencyAccessContext" }
+        npi: { type: ["string", "null"] }
+        baseRole: { type: string }
+        activeLocation: { type: ["string", "null"] }
+        siteRoles: { $ref: "#/components/schemas/LocationRoleAssignments" }
         locationScopes:
           type: array
           items: { type: string }
@@ -1202,7 +1894,7 @@ components:
         password: { type: string, minLength: 12, maxLength: 128 }
     AccountRole:
       type: string
-      enum: [admin, clinical_admin, billing_provider, care_manager, behavioral_care_manager, psychiatric_consultant, therapist, front_desk, billing, read_only, patient]
+      enum: [admin, clinical_admin, billing_provider, care_manager, behavioral_care_manager, psychiatric_consultant, therapist, front_desk, billing, read_only, patient, caregiver]
     AccountInput:
       type: object
       required: [name, email, role, credential, locationScopes]
@@ -1210,8 +1902,10 @@ components:
         name: { type: string, minLength: 1, maxLength: 100 }
         email: { type: string, format: email, maxLength: 254 }
         role: { $ref: "#/components/schemas/AccountRole" }
-        credential: { type: string, enum: [MD, DO, NP, PA, RN, LPN, MA, PT, OT, SLP, LCSW, psych_consultant, admin, billing, patient] }
+        credential: { type: string, enum: [MD, DO, NP, PA, RN, LPN, MA, PT, OT, SLP, LCSW, psych_consultant, admin, billing, patient, caregiver] }
         patientId: { type: ["string", "null"] }
+        npi: { type: ["string", "null"], pattern: "^[12][0-9]{9}$" }
+        siteRoles: { $ref: "#/components/schemas/LocationRoleAssignments" }
         locationScopes:
           type: array
           maxItems: 100
@@ -1221,8 +1915,10 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 100 }
         role: { $ref: "#/components/schemas/AccountRole" }
-        credential: { type: string, enum: [MD, DO, NP, PA, RN, LPN, MA, PT, OT, SLP, LCSW, psych_consultant, admin, billing, patient] }
+        credential: { type: string, enum: [MD, DO, NP, PA, RN, LPN, MA, PT, OT, SLP, LCSW, psych_consultant, admin, billing, patient, caregiver] }
         status: { type: string, enum: [active, inactive] }
+        npi: { type: ["string", "null"], pattern: "^[12][0-9]{9}$" }
+        siteRoles: { $ref: "#/components/schemas/LocationRoleAssignments" }
         locationScopes:
           type: array
           maxItems: 100

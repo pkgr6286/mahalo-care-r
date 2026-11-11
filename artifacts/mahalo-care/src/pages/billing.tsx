@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { AlertTriangle, Calculator, Check, CheckCheck, Download, Lock, Unlock, X } from "lucide-react";
 import { useListRecords } from "@workspace/api-client-react";
 import { Btn, ConfirmButton, EmptyState, ErrorState, Field, PageHeader, Pill, ProgramTag, SkeletonRows, Stat, StatusPill, Tabs, inputCls } from "@/components/kit";
+import { PagedList } from "@/components/list-tools";
 import { DocButton } from "@/components/doc-viewer";
 import { mArr, mBool, mNum, mStr, useAction, PROGRAMS } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -75,7 +76,7 @@ export default function BillingPage() {
             </span>
           </div>
           <div className="mt-3 overflow-hidden rounded-xl border border-card-border bg-card">
-            {!list.length ? <div className="p-4"><EmptyState title={data.length ? "No lines match" : "No lines for " + monthLabel(period)} desc={data.length ? "Adjust the program, patient or status filter." : closed ? "This period has no evidence lines." : "Run a recalculation to evaluate this period."} /></div> : list.map((l) => {
+            {!list.length ? <div className="p-4"><EmptyState title={data.length ? "No lines match" : "No lines for " + monthLabel(period)} desc={data.length ? "Adjust the program, patient or status filter." : closed ? "This period has no evidence lines." : "Run a recalculation to evaluate this period."} /></div> : <PagedList items={list} pageSize={25} noun="lines" testid="pager-billing" render={(l) => {
               const blockers = mArr(l, "blockers");
               const can = canWrite&&approvable(l);
               return (
@@ -92,7 +93,7 @@ export default function BillingPage() {
                     <div className="mt-1 flex flex-wrap gap-x-4 text-xs text-muted-foreground tnum">
                       <span>{mNum(l, "minutes") ?? 0} min</span><span>{mNum(l, "deviceDays") ?? 0} device days</span><span>{mNum(l, "units") ?? 1} unit(s)</span>
                     </div>
-                    {blockers.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{blockers.map((b, i) => <span key={i} className="rounded border border-destructive/25 bg-[hsl(356_80%_98%)] px-1.5 text-[11px] text-destructive">{b}</span>)}</div>}
+                    {blockers.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{blockers.slice(0, 3).map((b, i) => <span key={i} className="rounded border border-destructive/25 bg-[hsl(356_80%_98%)] px-1.5 text-[11px] text-destructive">{b}</span>)}{blockers.length > 3 && <span className="text-[11px] text-muted-foreground" title={blockers.slice(3).join("\n")}>+{blockers.length - 3} more</span>}</div>}
                   </div>
                   <div className="flex items-center gap-1.5">
                     <DocButton r={l} />
@@ -103,7 +104,7 @@ export default function BillingPage() {
                   </div>
                 </div>
               );
-            })}
+            }} />}
           </div>
           <p className="mt-3 flex items-start gap-1.5 text-[11px] text-muted-foreground" data-testid="note-billing-provisional"><AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />Close the period to freeze evidence before reviewing lines. Lines with blockers cannot be approved. CPT thresholds are provisional demo defaults, not billing advice, and nothing here is submitted to a payer.</p>
         </>

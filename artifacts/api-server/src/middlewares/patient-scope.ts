@@ -14,6 +14,7 @@ export async function patientScope(req:Request,res:Response,next:NextFunction):P
   if(["/auth/me","/auth/logout"].includes(req.path)) {next();return;}
   if(req.method==="GET"&&req.path==="/patients") {next();return;}
   if(req.method==="GET"&&req.path===`/patients/${patientId}`) {next();return;}
+  if(req.method==="GET"&&["clinical-profile","program-progress"].some(p=>req.path===`/patients/${patientId}/${p}`)) {next();return;}
   const filePrefix=`/patients/${patientId}/attachments`;
   if(["GET","POST"].includes(req.method)&&(req.path===filePrefix||req.path.startsWith(`${filePrefix}/`))){next();return;}
   if(req.method==="GET"&&/^\/records\/[^/]+$/.test(req.path)) {

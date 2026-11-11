@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "./validation-fetch";
 import { createHash } from "node:crypto";
 import { pool } from "@workspace/db";
 import { GetDashboardResponse, GetPatientResponse, ListRecordsResponse, PerformActionResponse, CreatePatientResponse, UpdateRecordResponse } from "@workspace/api-zod";

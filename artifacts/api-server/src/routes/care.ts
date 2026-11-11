@@ -1,3 +1,4 @@
+import {assertManagedDirectoryIdentity,assertManualDirectoryCreation} from "../lib/staff-directory";
 import { Router } from "express";
 import {isReleasedPatientDocument} from "../lib/document-access";
 import { eq, desc, and } from "drizzle-orm";
@@ -97,6 +98,7 @@ careRouter.post("/records/:kind",async (req,res):Promise<void>=>{
   if(["notes","careplans","exceptions","responses","interactions"].includes(kind)&&!input.patientId) throw new AppError(400,"Select a patient for this clinical record");
   if(kind==="interactions"&&input.metadata?.isLiveTwoWay===true&&input.status!=="completed") throw new AppError(400,"Only completed interactions can count as live contact");
   const r=await db.transaction(async s=>{
+    if(kind==="staff")await assertManualDirectoryCreation(s,input.metadata);
     const prepared=kind==="notes"?await prepareTemplatedNote(s,input):kind==="tasks"?await taskAssignment(s,input.patientId,input):input;
     const r=kind==="observations"?await ingestReading(s,input,actor(res)):await addRecord(s,kind,{...prepared,status:["notes","careplans"].includes(kind)?"draft":input.status},actor(res));
     if(input.patientId) await enqueueJob(s,"patient_rules",`record:${r.id}`,{patientId:input.patientId});
@@ -111,6 +113,7 @@ careRouter.patch("/records/:kind/:id",async (req,res):Promise<void>=>{
   const r=await db.transaction(async s=>{
     await s.select({id:records.id}).from(records).where(eq(records.id,id)).for("update");
     const old=await getRecord(s,id,kind);
+    if(kind==="staff")assertManagedDirectoryIdentity(old,input);
     if(["notes","careplans"].includes(kind)&&old.status==="cancelled") throw new AppError(409,"Restore this discarded draft with a reason before editing it");
     if(expectedUpdatedAt&&expectedUpdatedAt.getTime()!==old.updatedAt.getTime()) throw new AppError(409,"This record changed while you were editing. Refresh it and review the latest version before saving.");
     if(isEhrCache(old))throw new AppError(400,"Cached EHR history is read-only; refresh or confirm identity instead");

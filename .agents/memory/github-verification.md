@@ -10,3 +10,5 @@ If a Git push is acknowledged but `ls-remote` returns no refs or fetch reports a
 **How to apply:** Compare local HEAD with the branch's commit SHA through the existing GitHub connection. Do not force-push, rewrite history or request credentials merely because the Git read transport disagrees.
 
 Recheck `origin` immediately after attaching a GitHub connection and before any push. Attaching the connection in this workspace restored an existing, different repository as `origin`; use the user's explicitly approved URL until the remote has been corrected. Never assume that connecting an account preserves the chosen repository.
+
+Normal authorized add/commit commands can be stopped by the workspace Git-write guard with an index.lock message. Follow its explicit `DANGEROUSLY_ALLOW_GIT=1` process-prefix instruction for those authorized operations; do not treat that guard message as a stale lock or manually alter `.git`.

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "./validation-fetch";
 import {randomUUID} from "node:crypto";
 import {pool} from "@workspace/db";
 

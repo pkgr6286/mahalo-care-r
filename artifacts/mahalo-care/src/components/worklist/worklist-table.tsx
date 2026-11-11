@@ -80,7 +80,7 @@ function RecordDetail({ i }: { i: WorklistItem }) {
   return (
     <div className="space-y-2 text-xs" data-testid={"detail-wl-" + i.id}>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
-        <span>Source <span className="font-medium text-foreground">{r.kind}</span> · <span className="font-mono">{r.id}</span></span>
+        <span>Source <span className="font-medium text-foreground">{r.kind.replace(/_/g, " ")}</span></span>
         <span>Created {fmtInTz(r.createdAt, i.timezone)}</span>
         <span>Patient time zone {i.timezone || "not set"}</span>
       </div>

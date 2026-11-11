@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { isSessionLockedError, setSessionLocked } from '@/components/session-lock';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -34,8 +35,12 @@ const RulesRoute = () => <RequirePermission any={['clinical.read']} area="Clinic
 const WorklistsRoute = () => <RequirePermission any={['admin', 'clinical.read', 'devices.write']} area="Worklists"><WorklistsPage /></RequirePermission>;
 const ReportsRoute = () => <RequirePermission any={['clinical.read', 'billing.read']} area="Reports"><ReportsPage /></RequirePermission>;
 
+const onLock = (e: unknown) => { if (isSessionLockedError(e)) setSessionLocked(true); };
+const CaregiverRoute = () => <NotFound />; // caregiver accounts are rendered by AppShell
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 15_000, refetchOnWindowFocus: false, retry: (n, e) => n < 1 && !(e && typeof e === 'object' && 'status' in e && (e as { status: number }).status === 401) } },
+  queryCache: new QueryCache({ onError: onLock }),
+  mutationCache: new MutationCache({ onError: onLock }),
+  defaultOptions: { queries: { staleTime: 15_000, refetchOnWindowFocus: false, retry: (n, e) => n < 1 && !(e && typeof e === 'object' && 'status' in e && [401, 423].includes((e as { status: number }).status)) } },
 });
 
 function Router() {
@@ -60,6 +65,7 @@ function Router() {
           <Route path="/messages" component={MessagesPage} />
           <Route path="/admin" component={AdminRoute} />
           <Route path="/patient" component={PatientAppPage} />
+          <Route path="/caregiver" component={CaregiverRoute} />
           <Route path="/account" component={AccountPage} />
           <Route component={NotFound} />
         </Switch>

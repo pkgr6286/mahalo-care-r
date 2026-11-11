@@ -1,6 +1,6 @@
 import {createHash,randomUUID} from "node:crypto";
 import {and,eq,desc,sql} from "drizzle-orm";
-import {db,documents,records,type DocumentRow,type RecordRow} from "@workspace/db";
+import {db,documents,records,type DocumentRow,type RecordRow,type PatientRow} from "@workspace/db";
 import {allRecords,getPatientRow,getRecord,writeAudit,type Actor,type Store} from "./store";
 import {documentSourceHash,referencedEvidence,renderClinicalPdf} from "./document-renderer";
 import {AppError} from "./errors";
@@ -30,28 +30,33 @@ export async function installDocumentProtection() {
   await db.execute(sql`DROP TRIGGER IF EXISTS care_document_protection ON care_documents`);
   await db.execute(sql`CREATE TRIGGER care_document_protection BEFORE INSERT OR UPDATE OR DELETE ON care_documents FOR EACH ROW EXECUTE FUNCTION care_protect_document()`);
 }
-type CaptureEntry={record:RecordRow;origin:string;eventKey:string};
+type CaptureEntry={record:RecordRow;origin:string;eventKey:string;sourceDocument?:DocumentRow};
 type PreparedCapture={prior:DocumentRow}|{record:RecordRow;bytes:Buffer;values:Omit<typeof documents.$inferInsert,"objectPath"|"generation">};
-async function prepareCapture(s:Store,actor:Actor,r:RecordRow,origin:string,eventKey:string,evidence?:RecordRow[]):Promise<PreparedCapture> {
+async function prepareCapture(s:Store,actor:Actor,r:RecordRow,origin:string,eventKey:string,evidence?:RecordRow[],original?:DocumentRow):Promise<PreparedCapture> {
   // Keep the parent-row/FK lock order consistent with signature and review actions.
   await s.select({id:records.id}).from(records).where(eq(records.id,r.id)).for("key share");
   await s.execute(sql`select pg_advisory_xact_lock(hashtextextended(${r.id},931))`);
   const [prior]=await s.select().from(documents).where(and(eq(documents.recordId,r.id),eq(documents.eventKey,eventKey)));
   if(prior) return {prior};
-  const patient=r.patientId?await getPatientRow(s,r.patientId):null;
-  const supporting=r.kind==="billing"?referencedEvidence(r,evidence??await allRecords(s)): [];
-  const source={record:r,patient:patient?{id:patient.id,firstName:patient.firstName,lastName:patient.lastName,mrn:patient.mrn,dob:patient.dob,location:patient.location,timezone:patient.timezone}:null,supporting};
+  let patient=r.patientId?await getPatientRow(s,r.patientId):null;
+  let supporting=r.kind==="billing"?referencedEvidence(r,evidence??await allRecords(s)): [];
+  let renderRecord=r,source={record:r,patient:patient?{id:patient.id,firstName:patient.firstName,lastName:patient.lastName,mrn:patient.mrn,dob:patient.dob,location:patient.location,timezone:patient.timezone}:null,supporting};
+  if(original){
+    const frozen=original.sourceSnapshot as unknown as typeof source;
+    if(origin!=="readable_presentation"||!["careplans","notes","consents","billing"].includes(r.kind)||original.recordId!==r.id||original.patientId!==r.patientId||!frozen.record||frozen.record.id!==r.id||frozen.record.kind!==r.kind||frozen.record.patientId!==r.patientId||documentSourceHash(frozen)!==original.sourceHash)throw new AppError(409,"A readable copy must retain the exact original clinical source and ownership.");
+    source=frozen;renderRecord=frozen.record;patient=frozen.patient as PatientRow|null;supporting=frozen.supporting;
+  }
   const sourceHash=documentSourceHash(source),capturedAt=new Date();
-  const pdfBytes=await renderClinicalPdf({record:r,patient,supporting,sourceHash,origin,capturedAt});
+  const pdfBytes=await renderClinicalPdf({record:renderRecord,patient,supporting,sourceHash,origin,capturedAt});
   if(pdfBytes.length>MAX_LOCAL_PDF_BYTES) throw new AppError(413,"This PDF exceeds the local demo's one-megabyte document limit; no signature or billing close was committed");
   const [latest]=await s.select({version:documents.version}).from(documents).where(eq(documents.recordId,r.id)).orderBy(desc(documents.version)).limit(1);
   const id=randomUUID(),version=(latest?.version??0)+1;
-  return {record:r,bytes:pdfBytes,values:{id,recordId:r.id,patientId:r.patientId,version,sourceVersion:String(r.metadata.version??1),eventKey,origin,sha256:createHash("sha256").update(pdfBytes).digest("hex"),sourceHash,size:pdfBytes.length,sourceSnapshot:JSON.parse(JSON.stringify(source)),createdBy:actor.id,createdAt:capturedAt}};
+  return {record:r,bytes:pdfBytes,values:{id,recordId:r.id,patientId:r.patientId,version,sourceVersion:original?.sourceVersion??String(r.metadata.version??1),eventKey,origin,sha256:createHash("sha256").update(pdfBytes).digest("hex"),sourceHash,size:pdfBytes.length,sourceSnapshot:JSON.parse(JSON.stringify(source)),createdBy:actor.id,createdAt:capturedAt}};
 }
 export async function captureDocuments(s:Store,actor:Actor,entries:CaptureEntry[]) {
   // Read shared billing evidence once. Keep database work sequential on the transaction's one connection.
   const evidence=entries.some(e=>e.record.kind==="billing")?await allRecords(s):undefined,prepared:PreparedCapture[]=[];
-  for(const entry of entries)prepared.push(await prepareCapture(s,actor,entry.record,entry.origin,entry.eventKey,evidence));
+  for(const entry of entries)prepared.push(await prepareCapture(s,actor,entry.record,entry.origin,entry.eventKey,evidence,entry.sourceDocument));
   const pending=prepared.filter((p):p is Exclude<PreparedCapture,{prior:DocumentRow}>=>!("prior" in p)),limit=pLimit(6);
   // Only independent cloud I/O runs concurrently; all signatures/period changes still commit together.
   const uploaded=await Promise.all(pending.map(p=>limit(()=>uploadPrivateDocument(p.values.id!,actor.id,p.bytes,p.values.sha256))));

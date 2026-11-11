@@ -7,6 +7,7 @@
  */
 import type { AccountInputCredential } from './accountInputCredential';
 import type { AccountRole } from './accountRole';
+import type { LocationRoleAssignments } from './locationRoleAssignments';
 
 export interface AccountInput {
   /**
@@ -20,6 +21,12 @@ export interface AccountInput {
   credential: AccountInputCredential;
   /** @nullable */
   patientId?: string | null;
+  /**
+     * @nullable
+     * @pattern ^[12][0-9]{9}$
+     */
+  npi?: string | null;
+  siteRoles?: LocationRoleAssignments;
   /**
      * @maxItems 100
      * @items.minLength 1

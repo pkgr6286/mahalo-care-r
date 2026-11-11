@@ -3,3 +3,9 @@
 - [OpenAPI request-body naming](openapi-body-naming.md) — use named request schemas to avoid duplicate body exports from the generated SDK and validators.
 - [Private clinical files](clinical-file-storage.md) — private development cloud storage was approved; GCP provisioning/publishing remains a separate approval.
 - [GitHub push verification](github-verification.md) — verify with the authenticated branches API when a successful push conflicts with Git read transport.
+- [Schema integrity](schema-integrity.md) — schema pushes can remove indexes created only through bootstrap SQL; declare critical indexes in Drizzle and verify them.
+- [Clinical review fingerprints](clinical-content-fingerprints.md) — canonicalize nested JSON before hashing; JSONB key ordering must not invalidate unchanged approved content.
+- [Staff site access](staff-site-access.md) — resolve one session site role, never a permission union; background ownership must use the role at the patient's site.
+- [Browser mutation proofs](browser-auth-proof.md) — native HTTP success does not prove browser CSRF evidence; background activity and unlock must use the authenticated request path.
+- [Audit checkpoint evidence](audit-evidence.md) — preserve PostgreSQL timestamp precision and describe snapshot chains honestly, not as continuous or externally anchored ledgers.
+- [Synthetic clinical coherence](synthetic-clinical-coherence.md) — diagnosis overrides require whole-narrative review; clinical chronology is not bulk insertion time.

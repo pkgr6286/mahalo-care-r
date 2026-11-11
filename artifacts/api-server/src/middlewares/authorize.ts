@@ -16,8 +16,10 @@ export async function staffAuthorization(req: Request, res: Response, next: Next
   const path = req.path;
   if (path.startsWith("/auth/")) { next(); return; }
   const write = !["GET", "HEAD"].includes(req.method);
+  if(path.startsWith("/records/security_reports"))throw new AppError(403,"Use the scoped governance workflow to access sealed reports.");
   let permission: string;
-  if (path.startsWith("/accounts") || path.startsWith("/operations")) permission = "admin";
+  if(path.startsWith("/operations/security-reports")||path==="/operations/security-overview")permission="audit.read";
+  else if (path.startsWith("/accounts") || path.startsWith("/operations")) permission = "admin";
   else if(path==="/workspace/preferences") permission="patients.read";
   else if(path==="/worklists") permission=req.query.kind==="device_issues"&&hasPermission(actor,"devices.write")?"devices.write":"clinical.read";
   else if(path==="/worklists/assign") permission="patients.read"; // per-record write permission and scope checked atomically
@@ -27,6 +29,7 @@ export async function staffAuthorization(req: Request, res: Response, next: Next
   else if (path === "/readyz") permission = "patients.read";
   else if (path === "/patients") permission = write ? "patients.write" : "patients.read";
   else if(/^\/patients\/[^/]+\/attachments(?:\/|$)/.test(path)) permission=write?"clinical.write":"clinical.read";
+  else if(/^\/patients\/[^/]+\/clinical-profile$/.test(path)) permission=write?"clinical.write":"clinical.read";
   else if (path.startsWith("/patients/")) permission = write ? "patients.write" : "clinical.read";
   else if (path === "/reports") permission = "clinical.read";
   else if (path === "/dashboard") permission = "clinical.read";

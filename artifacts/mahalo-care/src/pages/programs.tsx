@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { Pencil, Plus } from "lucide-react";
 import { useGetDashboard, useListPatients, useListRecords, type Patient } from "@workspace/api-client-react";
 import { Btn, EmptyState, ErrorState, PageHeader, Panel, ProgramTag, RecordDialog, SkeletonRows, StatusPill, inputCls, useRecordDialog } from "@/components/kit";
+import { PagedList } from "@/components/list-tools";
 import { EnrollDialog } from "@/pages/patient-detail";
 import { usePermission } from "@/components/access";
 import { fmtDate, mStr, PROGRAM_NAMES } from "@/lib/api";
@@ -47,8 +48,8 @@ export default function ProgramsPage() {
           </div>
         }>
           {enrollments.isLoading ? <div className="p-4"><SkeletonRows rows={4} /></div> : enrollments.isError ? <div className="p-4"><ErrorState error={enrollments.error} onRetry={() => enrollments.refetch()} /></div> : (
-            <div className="max-h-[520px] overflow-y-auto">
-              {(enrollments.data ?? []).filter((e) => !filter || e.program === filter).map((e) => (
+            <div>
+              <PagedList items={(enrollments.data ?? []).filter((e) => !filter || e.program === filter)} pageSize={15} noun="enrollments" testid="pager-enrollments" render={(e) => (
                 <Link key={e.id} href={`/patients/${e.patientId}`} className="flex items-center gap-3 border-b border-border px-4 py-2.5 text-sm last:border-b-0 hover:bg-accent/40" data-testid={`row-enrollment-${e.id}`}>
                   <ProgramTag p={e.program} />
                   <span className="flex-1 font-medium">{e.patientName}</span>
@@ -56,7 +57,7 @@ export default function ProgramsPage() {
                   <span className="text-xs text-muted-foreground">{fmtDate(e.date ?? e.createdAt)}</span>
                   <StatusPill value={e.status} />
                 </Link>
-              ))}
+              )} />
               {!(enrollments.data ?? []).length && <div className="p-4"><EmptyState title="No enrollments" /></div>}
             </div>
           )}

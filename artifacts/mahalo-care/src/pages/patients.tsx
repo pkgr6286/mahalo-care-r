@@ -5,11 +5,14 @@ import { Plus, Search, UserRound } from "lucide-react";
 import { useCreatePatient, useListPatients, useListRecords, getListRecordsQueryKey, type PatientInput } from "@workspace/api-client-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Btn, EmptyState, ErrorState, Field, PageHeader, Pill, ProgramTag, SkeletonRows, inputCls, toneFor } from "@/components/kit";
+import { PagedList } from "@/components/list-tools";
 import { errMsg, fmtRel, initials, PROGRAMS } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import {usePermission} from "@/components/access";
 
 export default function PatientsPage() {
+  const {allow}=usePermission();
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
   const [program, setProgram] = useState("");
@@ -27,8 +30,8 @@ export default function PatientsPage() {
       <PageHeader
         eyebrow="Patients"
         title="Panel"
-        desc="Every patient across every site. Risk, contact and time evidence in one row."
-        actions={<Btn variant="primary" onClick={() => setOpen(true)} data-testid="button-new-patient"><Plus className="h-4 w-4" />Add patient</Btn>}
+        desc="Your accessible patients. Risk, contact and time evidence in one row."
+        actions={allow("patients.write")?<Btn variant="primary" onClick={() => setOpen(true)} data-testid="button-new-patient"><Plus className="h-4 w-4" />Add patient</Btn>:undefined}
       />
       <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
@@ -52,13 +55,13 @@ export default function PatientsPage() {
           <div className="hidden grid-cols-[2fr_1.1fr_1fr_0.7fr_0.8fr_0.9fr_0.9fr] gap-3 border-b border-border bg-muted/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:grid">
             <span>Patient</span><span>Programs</span><span>Location</span><span>Risk</span><span className="text-right">Minutes</span><span className="text-right">Adherence</span><span className="text-right">Last contact</span>
           </div>
-          {list.data.map((p) => (
+          <PagedList items={list.data} pageSize={25} noun="patients" testid="pager-patients" render={(p) => (
             <Link key={p.id} href={`/patients/${p.id}`} className="grid grid-cols-1 gap-2 border-b border-border px-4 py-3 transition-colors last:border-b-0 hover:bg-accent/40 lg:grid-cols-[2fr_1.1fr_1fr_0.7fr_0.8fr_0.9fr_0.9fr] lg:items-center lg:gap-3" data-testid={`row-patient-${p.id}`}>
               <div className="flex items-center gap-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-foreground">{initials(`${p.firstName} ${p.lastName}`)}</div>
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{p.lastName}, {p.firstName}</div>
-                  <div className="truncate text-xs text-muted-foreground"><span className="font-mono">{p.mrn}</span> · {p.conditions?.slice(0, 2).join(", ")}</div>
+                  <div className="truncate text-xs text-muted-foreground">{p.conditions?.length ? p.conditions.slice(0, 2).join(", ") : "No conditions recorded"}{(p.conditions?.length ?? 0) > 2 ? ` +${(p.conditions?.length ?? 0) - 2}` : ""}</div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-1">{p.programs.length ? p.programs.map((g) => <ProgramTag key={g} p={g} />) : <span className="text-xs text-muted-foreground">Not enrolled</span>}</div>
@@ -71,10 +74,10 @@ export default function PatientsPage() {
               </div>
               <div className="hidden text-right text-xs text-muted-foreground lg:block">{p.lastContact ? fmtRel(p.lastContact) : "No contact recorded"}</div>
             </Link>
-          ))}
+          )} />
         </div>
       )}
-      <NewPatientDialog open={open} onOpenChange={setOpen} />
+      {allow("patients.write")&&<NewPatientDialog open={open} onOpenChange={setOpen} />}
     </div>
   );
 }

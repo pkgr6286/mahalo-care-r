@@ -8,7 +8,7 @@ No GCP project, paid instance, public service, domain or production database has
 - Keep `DATA_CLASS=synthetic`. Real patient data requires independent clinical, licensing, CMS/payer, security and privacy review, relevant agreements/BAAs, verified vendors and a production retention policy.
 - Use Cloud Run, Cloud SQL for PostgreSQL and a private Cloud Storage bucket in the approved geography. Choose a Node.js 24 runtime. Native mobile and multitenancy remain separate.
 - Use a dedicated runtime service account. Grant Cloud SQL Client, access only to the required Secret Manager secrets, and access only to the private application bucket. Do not grant project Owner or publish bucket objects.
-- The current demonstration startup installs integrity guards and ensures synthetic reference data; it therefore needs database DDL privileges. Split reviewed schema/guard installation from a least-privilege runtime **before real clinical production use**. Do not assume this demo implements that separation.
+- Application startup performs no schema installation or demonstration seeding. Apply the reviewed Drizzle schema with a migration identity, then explicitly install integrity guards with the command below. Use a separate least-privilege runtime identity; readiness rejects missing tables, guards or required indexes.
 - Review public demo accounts before internet access. Prefer an IAM-restricted/internal staging service initially. Email/password remains the application's authentication; do not silently replace it with an external identity system.
 
 ## Build and runtime
@@ -29,7 +29,7 @@ Google's Node buildpack recognizes `pnpm-lock.yaml`, the `engines.pnpm` version,
 ## Database and private files
 
 1. Create the approved Cloud SQL instance/database and a migration/bootstrap user, with backups and point-in-time recovery configured for the intended environment.
-2. Apply the reviewed Drizzle schema to the **confirmed target** using the migration/bootstrap identity. Never point the local development push command at an unidentified database. A clean GCP database needs schema installation before the server starts.
+2. Apply the reviewed Drizzle schema to the **confirmed target** using the migration/bootstrap identity. Never point the local development push command at an unidentified database. A clean GCP database needs schema installation before the server starts. Then run `node artifacts/api-server/dist/install-integrity.mjs --approve-integrity-install` with that migration identity. This explicit command installs guards, not synthetic accounts or data; do not put it in the web startup command.
 3. For a demo-data transfer, stop writes, take a consistent PostgreSQL dump with the appropriate PostgreSQL client, restore into staging and verify row counts, constraints, immutable history, billing source hashes and account states. Treat dumps as private data; never commit them.
 4. Copy retained objects to the target private bucket while preserving their relative `clinical-documents/<document-id>.pdf` names. **GCS object generations change when copied between buckets.** Verify exact SHA-256 and size, then use a separately reviewed metadata migration to pin each new generation. The development one-way PostgreSQL migration is **not** a cross-bucket production migration.
 5. The server supports `STORAGE_DRIVER=gcp` using Cloud Run's application-default service account. Set `PRIVATE_OBJECT_DIR=/YOUR_PRIVATE_BUCKET/private`; stored logical paths remain `/objects/clinical-documents/...`. No Replit sidecar is used for this driver.

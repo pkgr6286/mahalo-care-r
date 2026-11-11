@@ -4,6 +4,7 @@ import { getPatientRow, type Actor, type Store } from "./store";
 import {educationAvailable,instrumentAvailable} from "./content-review";
 
 export const rolePermissions: Record<string, readonly string[]> = {
+  emergency_read_only:["patients.read","clinical.read"],
   admin: ["admin", "audit.read", "patients.read", "patients.write", "clinical.read", "clinical.write", "plans.sign", "notes.sign", "time.write", "messages.write", "devices.write", "billing.read", "billing.write"],
   clinical_admin: ["audit.read", "patients.read", "patients.write", "clinical.read", "clinical.write", "plans.sign", "notes.sign", "time.write", "messages.write", "devices.write", "billing.read"],
   billing_provider: ["patients.read", "patients.write", "clinical.read", "clinical.write", "plans.sign", "notes.sign", "time.write", "messages.write", "devices.write", "billing.read", "billing.write"],
@@ -15,6 +16,7 @@ export const rolePermissions: Record<string, readonly string[]> = {
   billing: ["patients.read", "clinical.read", "billing.read", "billing.write"],
   read_only: ["patients.read", "clinical.read", "billing.read"],
   patient: [],
+  caregiver: [],
 };
 
 export const permissionsFor = (role: string) => [...(rolePermissions[role] ?? [])];
@@ -26,18 +28,19 @@ export function inLocation(actor: Actor, location: string) {
   return actor.role === "admin" || !actor.locationScopes?.length || actor.locationScopes.includes(location);
 }
 export function scopedPatients(actor: Actor, ps: PatientRow[]) {
-  return ps.filter(p => actor.role === "patient" ? p.id === actor.patientId : inLocation(actor, p.location));
+  return ps.filter(p => (p.dataset == null || p.dataset === "clinical") && (actor.emergencyContext?p.id===actor.emergencyContext.patientId:actor.role === "patient" ? p.id === actor.patientId : inLocation(actor, p.location)));
 }
 export function scopedRecords(actor: Actor, rs: RecordRow[], ps: PatientRow[]) {
   const visible = new Set(scopedPatients(actor, ps).map(p => p.id));
   return rs.filter(r => {
+    if(r.kind==="security_reports")return false; // Dedicated governance APIs apply a separate scope.
     if(actor.role==="patient"&&(r.kind==="education"&&!educationAvailable(r)||r.kind==="instruments"&&!instrumentAvailable(r)))return false;
     return r.patientId ? visible.has(r.patientId) : r.kind !== "locations" || inLocation(actor, r.title);
   });
 }
 export async function assertPatientAccess(actor: Actor, patientId: string, s: Store = db) {
   const p = await getPatientRow(s, patientId);
-  if (actor.role === "patient" ? p.id !== actor.patientId : !inLocation(actor, p.location)) {
+  if (actor.emergencyContext?p.id!==actor.emergencyContext.patientId:actor.role === "patient" ? p.id !== actor.patientId : !inLocation(actor, p.location)) {
     throw new AppError(403, "This patient is outside your location scope");
   }
   return p;

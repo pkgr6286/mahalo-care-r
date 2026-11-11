@@ -10,12 +10,14 @@ import {ruleEvidence} from "./rule-evidence";
 import {notifyRuleMatch} from "./rule-notifications";
 import {hasPermission,inLocation} from "./access";
 import {AppError} from "./errors";
+import {staffRoleAt} from "./staff-identity";
+import {clinicalAccount} from "./datasets";
 const rank:Record<string,number>={none:0,low:1,medium:2,high:3,critical:4};
 export async function runRules(s:Store,actor:Actor,a:Action) {
   const p=await getPatientRow(s,a.patientId),rs=await allRecords(s),clock=new Date();
   if(p.status!=="active"&&a.action!=="testRule") return [];
   const mine=rs.filter(r=>r.patientId===p.id),changed=[],catalog=await policyCatalog(s);
-  const staff=(await s.select().from(users)).filter(u=>u.status==="active"&&u.role!=="patient"&&inLocation({role:u.role,locationScopes:u.locationScopes} as Actor,p.location));
+  const staff=(await s.select().from(users).where(clinicalAccount)).map(u=>({...u,role:staffRoleAt(u,p.location)??"unassigned"})).filter(u=>u.status==="active"&&hasPermission(u,"clinical.write"));
   const rules=a.id?[await getRecord(s,a.id,"rules")]:rs.filter(r=>r.kind==="rules"&&r.status==="active");
   for(const rule of rules) {
     assertKind(rule,"rules");

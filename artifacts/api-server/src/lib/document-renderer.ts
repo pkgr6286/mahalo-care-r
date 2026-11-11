@@ -2,6 +2,8 @@ import PDFDocument from "pdfkit";
 import {createHash} from "node:crypto";
 import type {RecordRow,PatientRow} from "@workspace/db";
 import {applyDocumentBrand} from "./document-assets";
+import {renderSecurityReportPdf} from "./security-report-pdf";
+import {renderClinicalDocumentContent} from "./clinical-document-content";
 
 export const documentSourceHash=(value:unknown)=>{
   const canonical=(v:unknown):unknown=>v instanceof Date?v.toISOString():Array.isArray(v)?v.map(canonical):v&&typeof v==="object"?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a<b?-1:a>b?1:0).map(([k,x])=>[k,canonical(x)])):v;
@@ -20,10 +22,14 @@ export async function renderClinicalPdf({record,patient,supporting=[],sourceHash
   pdf.y=95;pdf.font("MahaloSans").fontSize(8).fillColor("#6F6560").text("SYNTHETIC DATA ONLY  /  NOT FOR CLINICAL USE");
   pdf.moveDown(1.2).font("MahaloSerif").fontSize(22).fillColor("#181A1C").text(record.title);
   if(origin==="unretained_preview") pdf.moveDown(0.5).font("MahaloSans").fontSize(10).fillColor("#9B491B").text("UNRETAINED DRAFT / PROVISIONAL PREVIEW");
+  if(origin==="readable_presentation")pdf.moveDown(.5).font("MahaloSans").fontSize(8).fillColor("#6F6560").text("Readable presentation of a previously retained source. This file was generated on the capture date below; the earlier captured bytes remain in version history.");
   if(patient) pdf.moveDown(0.7).font("MahaloSans").fontSize(10).text(`${patient.firstName} ${patient.lastName}  |  ${patient.mrn}  |  DOB ${patient.dob}`).text(`${patient.location}  |  ${record.program??"General"}`);
   pdf.moveDown(1.2).font("MahaloSans").fontSize(10.5).fillColor("#323237").text(record.description||"No narrative recorded.",{lineGap:4});
   const hidden=new Set(["sourceTimeIds","sourceObservationIds","sourceSupplyIds","sourceInteractionIds","sourceResponseIds","sourceEnrollmentIds","sourcePlanIds","sourceConsentIds","sourceDeviceIds","policySnapshot","sourceIds","sectionValues","templateSections","fingerprint"]);
-  for(const [key,value] of Object.entries(record.metadata)) {
+  if(record.kind==="security_reports")renderSecurityReportPdf(pdf,record.metadata.securityReport);
+  const clinical=["careplans","notes","consents","billing"].includes(record.kind);
+  if(clinical)renderClinicalDocumentContent(pdf,record.metadata,patient?.timezone??"America/New_York");
+  for(const [key,value] of record.kind==="security_reports"||clinical?[]:Object.entries(record.metadata)) {
     if(hidden.has(key)||value===undefined||value===null) continue;
     const label=key.replace(/([a-z])([A-Z])/g,"$1 $2").replaceAll("_"," ");
      pdf.moveDown(0.7).font("MahaloSans").fontSize(8.5).fillColor("#6F6560").text(label.toUpperCase());

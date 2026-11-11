@@ -9,7 +9,13 @@ import { errMsg } from "@/lib/api";
 
 const DEMO_EMAIL = "demo@mahalo.care";
 const DEMO_PASS = "MahaloDemo2026!";
-const PATIENT_EMAIL = "patient@mahalo.care";
+const PATIENT_SCENARIOS = [
+  { id: "monitoring", label: "Monitoring", sub: "Device readings and check-ins", email: "patient@mahalo.care" },
+  { id: "rehab", label: "Rehabilitation", sub: "Therapy exercises and pain or function check-ins", email: "rtm.patient@example.test" },
+  { id: "mood", label: "Mood care", sub: "Mood and anxiety check-ins", email: "bhi.patient@example.test" },
+] as const;
+const SCOPED_NURSE_EMAIL = "scopednurse@mahalo.care";
+const CAREGIVER_EMAIL = "family.wilson@example.test";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -19,6 +25,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [scenario, setScenario] = useState<(typeof PATIENT_SCENARIOS)[number]["id"]>("monitoring");
+  const sc = PATIENT_SCENARIOS.find((x) => x.id === scenario) ?? PATIENT_SCENARIOS[0];
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +38,7 @@ export default function LoginPage() {
           qc.clear();
           qc.setQueryData(getGetCurrentUserQueryKey(), user);
           qc.invalidateQueries();
-          setLocation(user.role === "patient" ? "/patient" : user.permissions?.includes("clinical.read") ? "/" : "/patients");
+          setLocation(user.role === "patient" ? "/patient" : (user.role as string) === "caregiver" ? "/caregiver" : user.permissions?.includes("clinical.read") ? "/" : "/patients");
         },
         onError: (err) => setError(errMsg(err)),
       },
@@ -92,18 +100,21 @@ export default function LoginPage() {
             <div className="mt-6 rounded-2xl border border-border bg-secondary/60 p-4" data-testid="card-demo-credentials">
               <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Synthetic demo credentials</span>
               {[
-                { who: "Staff", sub: "Care team workspace", email: DEMO_EMAIL },
-                { who: "Patient", sub: "Patient app, own record only", email: PATIENT_EMAIL },
+                { id: "staff", who: "Staff", sub: "Care team workspace", email: DEMO_EMAIL },
+                { id: "scoped-nurse", who: "Scoped nurse", sub: "Juliet Warren RN. Care manager at Garden City, read only at Huntington, to show the location switch and audited emergency mode", email: SCOPED_NURSE_EMAIL },
+                { id: "patient", who: "Patient", sub: sc.sub, email: sc.email },
+                { id: "caregiver", who: "Caregiver", sub: "Family caregiver, shared sections only", email: CAREGIVER_EMAIL },
               ].map((c) => (
                 <div key={c.who} className="mt-3 flex items-center gap-3 border-t border-border pt-3 first:border-t-0">
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-semibold">{c.who} <span className="font-normal text-muted-foreground">· {c.sub}</span></div>
+                    {c.who === "Patient" && <div className="my-1.5 inline-flex rounded-full border border-border bg-card p-0.5" role="radiogroup" aria-label="Patient scenario">{PATIENT_SCENARIOS.map((x) => <button key={x.id} type="button" role="radio" aria-checked={x.id === scenario} onClick={() => { setScenario(x.id); if (PATIENT_SCENARIOS.some((y) => y.email === email)) { setEmail(x.email); } }} className={`rounded-full px-2.5 py-0.5 text-[11px] transition-colors ${x.id === scenario ? "bg-[hsl(var(--brand-charcoal))] text-[hsl(var(--background))]" : "text-muted-foreground hover:text-foreground"}`} data-testid={`button-scenario-${x.id}`}>{x.label}</button>)}</div>}
                     <div className="truncate font-mono text-[11px]">{c.email}</div>
                   </div>
-                  <button type="button" className="rounded-full border border-input bg-card px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-[hsl(var(--brand-orange))] hover:text-primary" onClick={() => { setEmail(c.email); setPassword(DEMO_PASS); }} data-testid={`button-fill-${c.who.toLowerCase()}`}>Use {c.who.toLowerCase()}</button>
+                  <button type="button" className="rounded-full border border-input bg-card px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-[hsl(var(--brand-orange))] hover:text-primary" onClick={() => { setEmail(c.email); setPassword(DEMO_PASS); }} data-testid={`button-fill-${c.id}`}>Use {c.who.toLowerCase()}</button>
                 </div>
               ))}
-              <div className="mt-3 font-mono text-[11px] text-muted-foreground">Password for both: <span className="text-foreground">{DEMO_PASS}</span></div>
+              <div className="mt-3 text-[11px] text-muted-foreground">The Use buttons fill the shared synthetic demo password. All patients are synthetic.</div>
             </div>
 
             <div className="mt-6 flex items-center gap-2 text-[11px] text-muted-foreground" data-testid="status-api">

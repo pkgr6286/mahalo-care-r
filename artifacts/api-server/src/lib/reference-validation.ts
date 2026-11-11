@@ -3,6 +3,7 @@ import { planItems } from "./task-schedules";
 import type { RecordRow } from "@workspace/db";
 import {parseClinicalRule} from "./clinical-rule-schema";
 import {educationBody} from "./content-review";
+import {instrumentDefinition} from "./instrument-scoring";
 
 export function validateReference(kind:string,input:{status?:string;program?:string|null;metadata?:Record<string,unknown>}) {
   const m=input.metadata??{};
@@ -21,10 +22,15 @@ export function validateReference(kind:string,input:{status?:string;program?:str
     }
   }
   if(kind==="tasks"&&(m.kind==="education_acknowledgment"||m.source==="uncommitted_time"))throw new AppError(400,"Use the dedicated acknowledgment or time workflow for system-owned evidence");
-  if(kind==="instruments"&&m.questions!==undefined) {
-    const sizes:Record<string,number>={phq9:9,gad7:7,pain_nrs:1,odi:10,pgic:1};
-    if(!Array.isArray(m.questions)||m.questions.length>0&&(!sizes[String(m.key)]||m.questions.length!==sizes[String(m.key)]||m.questions.some(q=>typeof q!=="string"||!q.trim()||q.length>2000)))throw new AppError(400,"Configured question wording must match a supported instrument and item count");
-    if(m.questions.length&&m.contentApprovedForUse===true&&(typeof m.sourceRef!=="string"||!m.sourceRef.trim()||typeof m.licenseNote!=="string"||m.licenseNote.trim().length<20))throw new AppError(400,"Approved question wording requires its source and a local license/use review note of at least 20 characters");
+  if(kind==="instruments") {
+    if(typeof m.key!=="string"||!m.key.trim()||m.key.length>80)throw new AppError(400,"A questionnaire needs a short nonblank identifier.");
+    const def=instrumentDefinition(m.key,m);
+    if(Array.isArray(m.questions)&&m.questions.length&&m.contentApprovedForUse===true&&(typeof m.sourceRef!=="string"||!m.sourceRef.trim()||typeof m.licenseNote!=="string"||m.licenseNote.trim().length<20))throw new AppError(400,"Approved question wording requires its source and a local license/use review note of at least 20 characters");
+    if((input.status??"active")==="active"&&def.config.method==="lookup") {
+      const table=def.config.lookup??[],raw=new Set(table.map(r=>r.raw));
+      if(!table.length||raw.size!==table.length)throw new AppError(400,"Activation requires a unique approved conversion table.");
+      for(let n=def.count*def.range.min;n<=def.count*def.range.max;n++)if(!raw.has(n))throw new AppError(400,`The conversion table does not cover raw score ${n}. Complete the approved table before activation.`);
+    }
   }
   if(kind==="interactions"&&m.kind==="consultant_review") throw new AppError(400,"Record consultant reviews through the qualified consultant workflow");
   if(kind==="tasks"&&m.dueAt!==undefined&&m.dueAt!==null) {

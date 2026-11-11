@@ -21,4 +21,5 @@ export const AccountRole = {
   billing: 'billing',
   read_only: 'read_only',
   patient: 'patient',
+  caregiver: 'caregiver',
 } as const;

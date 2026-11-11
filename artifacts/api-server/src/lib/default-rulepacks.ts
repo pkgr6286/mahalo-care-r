@@ -31,7 +31,7 @@ export function bundledRulepack(program:string):Rulepack {
     eligibility:{min_chronic_conditions:program==="CCM"?2:["PCM","RPM"].includes(program)?1:0,condition_min_duration_months:null,initiating_visit_required_within_months:null,required_consents:["program",...(["RPM","RTM"].includes(program)?["device_sharing"]:[])],device_requirement:program==="RPM"?"fda_cleared":program==="RTM"?"supported":"none"},
     data_counted:program==="RPM"?["device"]:["device","patient_reported"],
     therapeutic_streams:program==="RTM"?["pain","function","adherence","therapeutic_device"]:[],
-    time_rules:{counts_for_management:{clinical_staff_general_supervision:["RN","LPN","MA","NP","PA","MD","DO",...(program==="RTM"?["PT","OT","SLP"]:[])],practitioner_only:["MD","DO","NP","PA"]},activities,rounding:"none",exclusive_with_programs:program==="RPM"?["RTM"]:program==="RTM"?["RPM"]:[]},
+    time_rules:{counts_for_management:{clinical_staff_general_supervision:["RN","LPN","MA","NP","PA","MD","DO",...(program==="RTM"?["PT","OT","SLP"]:[]),...(program==="BHI"?["LCSW","LMSW","LPC","LMHC","LMFT","PsyD","PhD"]:[])],practitioner_only:["MD","DO","NP","PA"]},activities,rounding:"none",exclusive_with_programs:program==="RPM"?["RTM"]:program==="RTM"?["RPM"]:[]},
     codes,concurrency:["RPM","RTM","CCM","PCM","BHI"].filter(p=>p!==program).map(withProgram=>({with:withProgram,rule:["RPM","RTM"].includes(program)&&["RPM","RTM"].includes(withProgram)?"exclusive_same_period":"allowed_no_shared_minutes"})),
     careplan_template_key:`${program.toLowerCase()}_default`,required_instruments:program==="BHI"?["phq9"]:[],
   });

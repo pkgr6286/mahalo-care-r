@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "./validation-fetch";
 import {randomUUID} from "node:crypto";
 import {db,pool,users,sessions,records,programPolicies} from "@workspace/db";
 import {eq,inArray} from "drizzle-orm";

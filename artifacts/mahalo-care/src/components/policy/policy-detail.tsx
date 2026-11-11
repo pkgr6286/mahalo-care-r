@@ -56,7 +56,7 @@ export function PolicyDetail({ base, canManage, canReview, onEdit, onSelect }: {
         {result && <ValidationResult v={result} />}
 
         <div>
-          <Tabs className="mb-3" value={view} onChange={setView} tabs={[{ id: "summary" as const, label: "Summary" }, { id: "json" as const, label: "Body JSON" }]} />
+          <Tabs className="mb-3" value={view} onChange={setView} tabs={[{ id: "summary" as const, label: "Summary" }, { id: "json" as const, label: "Advanced: raw body" }]} />
           {view === "json" ? (
             <pre tabIndex={0} aria-label="Policy body JSON" className="max-h-[480px] overflow-auto rounded-xl border border-border bg-[hsl(var(--brand-charcoal))] p-3 font-mono text-[11.5px] leading-relaxed text-[hsl(var(--background))]">{JSON.stringify(p.body, null, 2)}</pre>
           ) : <BodySummary kind={p.kind} body={p.body} />}

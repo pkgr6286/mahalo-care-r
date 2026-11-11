@@ -17,7 +17,7 @@ export default function TodayPage() {
       <PageHeader
         eyebrow={new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
         title={`${greet}${first ? `, ${first}` : ""}`}
-        desc={d.data ? `${d.data.criticalExceptions} critical and ${d.data.openExceptions} open exceptions across ${d.data.patientCount} patients. Everyone else is on track.` : "Pulling together what changed overnight."}
+        desc={d.data ? `${d.data.criticalExceptions} critical and ${d.data.openExceptions} open exceptions across ${d.data.patientCount} patients. ` : "Pulling together what changed overnight."}
         actions={<Link href="/worklists" className="group inline-flex h-10 items-center gap-1.5 rounded-full bg-[hsl(var(--brand-charcoal))] px-5 text-sm font-medium text-[hsl(var(--background))] shadow-[inset_0_-2px_0_hsl(var(--brand-orange))] transition-colors hover:bg-[hsl(220_5%_20%)]" data-testid="link-open-worklist">Open worklist <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" strokeWidth={1.75} /></Link>}
       />
       {d.isLoading ? (
@@ -36,12 +36,12 @@ export default function TodayPage() {
           </div>
 
           <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-            <Panel title="Exceptions needing a decision" sub="Sorted by severity. Resolve with a note; every action is audited." action={<Link href="/worklists" className="text-xs font-medium text-primary underline-offset-4 hover:underline">All exceptions</Link>} bodyClass="py-1">
-              {d.data.exceptions.length ? d.data.exceptions.map((r) => <ExceptionRow key={r.id} r={r} />) : <div className="py-4"><EmptyState title="Inbox zero on exceptions" desc="New out-of-range readings and missed check-ins will appear here." /></div>}
+            <Panel title="Exceptions needing a decision" sub={d.data.exceptions.length > 8 ? `Showing 8 of ${d.data.exceptions.length}, most severe first` : "Most severe first. Every action is audited."} action={<Link href="/worklists" className="text-xs font-medium text-primary underline-offset-4 hover:underline">All exceptions</Link>} bodyClass="py-1">
+              {d.data.exceptions.length ? d.data.exceptions.slice(0, 8).map((r) => <ExceptionRow key={r.id} r={r} />) : <div className="py-4"><EmptyState title="Inbox zero on exceptions" desc="New out-of-range readings and missed check-ins will appear here." /></div>}
             </Panel>
             <div className="space-y-5">
               <Panel title="Tasks" sub="Assigned to the care team" bodyClass="py-1">
-                {d.data.tasks.length ? d.data.tasks.map((r) => <TaskRow key={r.id} r={r} />) : <div className="py-3"><EmptyState title="No tasks due" /></div>}
+                {d.data.tasks.length ? d.data.tasks.slice(0, 6).map((r) => <TaskRow key={r.id} r={r} />) : <div className="py-3"><EmptyState title="No tasks due" /></div>}
               </Panel>
               <Panel title="Program load">
                 <div className="space-y-3">
@@ -83,7 +83,7 @@ export default function TodayPage() {
               </div>
             </Panel>
             <Panel title="Recent activity" bodyClass="py-2 max-h-[280px] overflow-y-auto">
-              {d.data.activity.length ? d.data.activity.map((r) => <ActivityRow key={r.id} r={r} />) : <p className="py-6 text-center text-xs text-muted-foreground">No activity yet.</p>}
+              {d.data.activity.length ? d.data.activity.slice(0, 20).map((r) => <ActivityRow key={r.id} r={r} />) : <p className="py-6 text-center text-xs text-muted-foreground">No activity yet.</p>}
             </Panel>
           </div>
         </div>

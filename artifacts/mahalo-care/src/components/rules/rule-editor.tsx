@@ -11,7 +11,7 @@ import { RulePreview } from "./rule-preview";
 
 export type RuleDraft = { title: string; program: string; severity: string; status: string; description: string; rule: Rule };
 const SEVERITIES = ["low", "medium", "high", "critical"];
-const VIEWS = [{ id: "guided", label: "Guided" }, { id: "json", label: "Full JSON" }, { id: "preview", label: "Preview" }] as const;
+const VIEWS = [{ id: "guided", label: "Guided" }, { id: "json", label: "Advanced JSON" }, { id: "preview", label: "Preview" }] as const;
 type View = (typeof VIEWS)[number]["id"];
 
 export function RuleEditor({ record, preset, readOnly, canPreview, onClose }: { record: CareRecord | null; preset?: RuleDraft; readOnly: boolean; canPreview: boolean; onClose: () => void }) {

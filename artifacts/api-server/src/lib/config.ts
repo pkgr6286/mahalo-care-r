@@ -6,5 +6,6 @@ const schema = z.object({
   DATA_CLASS: z.literal("synthetic").default("synthetic"),
   SESSION_SECRET: z.string().min(16),
   WORKER_INTERVAL_MS: z.coerce.number().int().min(250).default(2000),
+  WORKER_MODE: z.enum(["embedded","external"]).default("embedded"),
 });
 export const config = schema.parse(process.env);

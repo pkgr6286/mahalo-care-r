@@ -2,6 +2,7 @@ import {db,users} from "@workspace/db";
 import {and,eq} from "drizzle-orm";
 import {hashPassword} from "./passwords";
 import {addRecord,writeAudit} from "./store";
+import {refreshClinicalStaffDirectory} from "./staff-directory";
 const staff=[
   ["provider","Nora Patel","billing_provider","MD"],
   ["caremanager","Elena Garcia","care_manager","RN"],
@@ -12,6 +13,7 @@ const staff=[
   ["billing","Alex Rivera","billing","billing"],
   ["readonly","Morgan Lee","read_only","admin"],
   ["clinicaladmin","Camila Ross","clinical_admin","RN"],
+  ["scopednurse","Juliet Warren","care_manager","RN"],
 ] as const;
 /** Synthetic demo only. Existing accounts, changed passwords and deactivations are never reset. */
 export async function ensureStaffDemoAccounts() {
@@ -23,11 +25,14 @@ export async function ensureStaffDemoAccounts() {
     const [existing]=await db.select({id:users.id}).from(users).where(eq(users.email,email));
     if(existing) continue;
     const passwordHash=await hashPassword("MahaloDemo2026!");
+    const siteRoles:Record<string,string>=key==="scopednurse"?{"Garden City":"care_manager",Huntington:"read_only"}:{};
+    const locationScopes=Object.keys(siteRoles);
     await db.transaction(async s=>{
-      const [created]=await s.insert(users).values({id:`demo-${key}`,email,name,role,credential,passwordHash}).onConflictDoNothing().returning({id:users.id});
+      const [created]=await s.insert(users).values({id:`demo-${key}`,email,name,role,credential,passwordHash,siteRoles,locationScopes}).onConflictDoNothing().returning({id:users.id});
       if(!created) return;
-      await addRecord(s,"staff",{title:name,status:"active",metadata:{userId:created.id,email,role,credential,locationScopes:[],synthetic:true}},actor);
+      await addRecord(s,"staff",{title:name,status:"active",metadata:{userId:created.id,email,role,credential,locationScopes,siteRoles,synthetic:true}},actor);
       await writeAudit(s,actor,"create_synthetic_demo_account",created.id,null,{role,synthetic:true});
     });
   }
+  await refreshClinicalStaffDirectory();
 }

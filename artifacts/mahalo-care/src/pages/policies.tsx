@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { FileStack, Plus, ShieldAlert } from "lucide-react";
 import { useListProgramPolicies, getListProgramPoliciesQueryKey } from "@workspace/api-client-react";
 import { Btn, EmptyState, ErrorState, PageHeader, Pill, ProgramTag, SkeletonRows, Tabs, inputCls } from "@/components/kit";
+import { PagedList } from "@/components/list-tools";
 import { PolicyEditor } from "@/components/policy/policy-editor";
 import { PolicyDetail, STATUS_TONE } from "@/components/policy/policy-detail";
 import { PROGRAMS, fmtDate } from "@/lib/api";
@@ -43,7 +44,7 @@ export default function PoliciesPage() {
       <div className="flex gap-3 rounded-xl border border-[hsl(38_80%_80%)] bg-[hsl(38_95%_96.5%)] p-3 text-xs text-[hsl(30_70%_26%)]" data-testid="banner-provisional">
         <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.6} />
         <div className="space-y-0.5">
-          <p className="font-medium">VERIFY: every threshold here is a provisional demo baseline, not clinically or legally approved and not issued by CMS or any payer.</p>
+          <p className="font-medium">Provisional demo baselines. Thresholds here are not clinically or legally approved and are not issued by CMS or any payer; verify before relying on them.</p>
           <p>Published rulepacks apply to new enrollments only. Existing enrollments stay pinned to their immutable version, and retiring a version keeps its history intact.</p>
         </div>
       </div>
@@ -68,7 +69,7 @@ export default function PoliciesPage() {
               <EmptyState icon={<FileStack className="h-4 w-4" strokeWidth={1.6} />} title="No versions here" desc={canManage ? "Start a draft, or clone a bundled baseline from another filter." : "Nothing matches these filters."} action={canManage ? <Btn size="sm" onClick={() => setMode("create")}><Plus className="h-3.5 w-3.5" />New draft</Btn> : undefined} />
             ) : (
               <ul className="overflow-hidden rounded-xl border border-card-border bg-card" aria-label="Policy versions">
-                {filtered.map((p) => (
+                <PagedList items={filtered} pageSize={15} noun="versions" testid="pager-policies" render={(p) => (
                   <li key={p.id} className="border-b border-border last:border-b-0">
                     <button
                       onClick={() => pick(p.id)} aria-current={selected === p.id && mode !== "create" ? "true" : undefined} data-testid={`row-policy-${p.id}`}
@@ -78,7 +79,7 @@ export default function PoliciesPage() {
                       <span className="flex gap-2 text-[11px] text-muted-foreground"><span>{POLICY_KINDS.find((k) => k.id === p.kind)?.short}</span>{p.payer && <span className="truncate">· {p.payer}</span>}<span className="ml-auto tnum">from {fmtDate(p.effectiveFrom)}</span></span>
                     </button>
                   </li>
-                ))}
+                )} />
               </ul>
             )}
           </aside>

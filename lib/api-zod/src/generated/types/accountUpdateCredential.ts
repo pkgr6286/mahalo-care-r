@@ -25,4 +25,5 @@ export const AccountUpdateCredential = {
   admin: 'admin',
   billing: 'billing',
   patient: 'patient',
+  caregiver: 'caregiver',
 } as const;

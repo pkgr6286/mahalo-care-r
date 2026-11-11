@@ -54,6 +54,7 @@ Staff have a today dashboard, worklists, unified patient chart, five program wor
 - Do not use GitHub Actions to test the code. GitHub source control, commits and pushes are part of the requested workflow; this is not a prohibition on GitHub. Ignore the document's Claude Code workflow.
 - Build on Replit, test locally in the Preview server, push the source to GitHub, then publish on Replit servers. Replit is the current publishing target; do not provision GCP unless separately requested. Actual publishing remains a user action.
 - The requested deliverable is the complete single-practice specification, not just a branded demo. Branding is an added requirement, not a stopping point. Track remaining acceptance gaps in `docs/IMPLEMENTATION-COVERAGE.md`.
+- The owner now prioritizes a compelling doctor-relatable end-to-end demonstration with all facts grounded in PostgreSQL and working APIs. Separate historical/test fixtures from clinical presentation without deleting retained history. External connections/credentials and formal WCAG qualification are deferred; provide a final document listing what the owner must supply.
 
 ## Gotchas
 
