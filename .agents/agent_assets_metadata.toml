@@ -71,3 +71,45 @@ mtime_ms = 1794409486664
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:72075d06-8e5a-463c-baf0-94459369e5a7/a8665ee8-540d-4a30-a698-4b66eb4d6021/f1e370b2-73ae-4dc9-98b5-ac40fa64c5db"
 storage_version_token = "1794409745935998"
 content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+[[outputs]]
+id = "NlgxdXgfKi5PHK--ThK9j"
+uri = "file://generated-artifacts/MAHALO-IMPLEMENTATION-GUIDE.pdf"
+type = "pdf"
+title = "Mahalo Care — Practice Implementation Guide"
+description = "27 pages covering practice setup, responsibilities, patient onboarding, workflow acceptance, separate launch gates, training and operational handover."
+logical_id = "f9675e82-4c30-4c82-bb47-a1739b353bb9"
+content_hash = "sha256:80cbac63a3913558ee068009342b6d710f30aa7c63a63bbadc57b8fb64402518"
+size = 535149
+mtime_ms = 1794411714616
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:72075d06-8e5a-463c-baf0-94459369e5a7/f9675e82-4c30-4c82-bb47-a1739b353bb9/d45dc1a0-3ae3-4dce-a5dc-193b4a1c204b"
+storage_version_token = "1794411819631931"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "AehozRYYVcPGE4JW17GxH"
+uri = "file://generated-artifacts/MAHALO-IMPLEMENTATION-GUIDE.html"
+type = "html"
+title = "Implementation Guide — Offline HTML"
+description = "Self-contained edition with clickable chapter navigation, embedded Mahalo branding and print/save-PDF support."
+logical_id = "cded335e-64e9-4aed-b6ca-33d4ca69a742"
+content_hash = "sha256:8ae9466e7c6341b53c8ea8ef23b45b5f908653350bb054726dc2d607e1ca766e"
+size = 570033
+mtime_ms = 1794411705512
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:72075d06-8e5a-463c-baf0-94459369e5a7/cded335e-64e9-4aed-b6ca-33d4ca69a742/5ae697e0-8253-4ed6-9086-60613acd1dc0"
+storage_version_token = "1794411821053510"
+content_type = "text/html"
+
+[[outputs]]
+id = "8mdmSRGHTjy2xqXuWXZEW"
+uri = "file://docs/templates/implementation-readiness.csv"
+type = "table"
+title = "Implementation Readiness Checklist"
+description = "24 checks with blank owner, target-date, evidence and blocker fields. All start as Not started. Opens in Excel or another spreadsheet application."
+logical_id = "2943f01e-843c-4d9c-ba9e-e75899ea8c2e"
+content_hash = "sha256:bfb36de57404ccaea6542916d44ea14f62405eb641879c8a634c842d65e99fa9"
+size = 2958
+mtime_ms = 1794411673479
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:72075d06-8e5a-463c-baf0-94459369e5a7/2943f01e-843c-4d9c-ba9e-e75899ea8c2e/dc054101-b1b1-4d87-b687-bd58458aaffd"
+storage_version_token = "1794411822348387"
+content_type = "text/csv"
