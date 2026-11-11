@@ -2,3 +2,4 @@
 - [PDF brand-font verification](pdf-brand-fonts.md) — browser font support and a minimal PDF test do not prove composite-glyph PDF embedding works.
 - [OpenAPI request-body naming](openapi-body-naming.md) — use named request schemas to avoid duplicate body exports from the generated SDK and validators.
 - [Private clinical files](clinical-file-storage.md) — private development cloud storage was approved; GCP provisioning/publishing remains a separate approval.
+- [GitHub push verification](github-verification.md) — verify with the authenticated branches API when a successful push conflicts with Git read transport.
