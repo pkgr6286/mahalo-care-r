@@ -3,7 +3,7 @@ import { RulesManager } from "@/components/rules/rules-manager";
 import { Link } from "wouter";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Download, FlaskConical, Pencil, Plug, Plus, Upload } from "lucide-react";
+import { Download, FlaskConical, Pencil, Plug, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { ActionResult, CareRecord } from "@workspace/api-client-react";
 import { useGetSettings, useListPatients, useListRecords, getListPatientsQueryKey, useUpdateSettings, getGetSettingsQueryKey, type PracticeSettings } from "@workspace/api-client-react";
@@ -17,6 +17,7 @@ import { InstrumentReviewPanel } from "@/components/admin/instrument-review";
 import { EducationAuthoring } from "@/components/admin/education-authoring";
 import { ConfigTransferPanel } from "@/components/admin/config-transfer";
 import { GovernanceReports } from "@/components/security-reports";
+import { PatientImport } from "@/components/patient-import";
 
 type T = "settings" | "accounts" | "operations" | "locations" | "staff" | "rules" | "templates" | "instruments" | "education" | "integrations" | "audit" | "governance";
 
@@ -31,7 +32,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState<T>("settings");
   return (
     <div>
-      <PageHeader eyebrow="Administration" title="Practice setup" desc="Single-practice configuration. Rule and CMS-derived defaults are provisional and should be reviewed before real use." actions={<Link href="/policies" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-card px-4 text-sm font-medium hover:bg-secondary" data-testid="link-admin-policies"><FileStack className="h-4 w-4" />Policies and templates</Link>} />
+      <PageHeader eyebrow="Administration" title="Practice setup" desc="Set up people, locations and care defaults once. Daily care starts in Today and Worklists." actions={<Link href="/policies" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-card px-4 text-sm font-medium hover:bg-secondary" data-testid="link-admin-policies"><FileStack className="h-4 w-4" />Policies and templates</Link>} />
       <Tabs value={tab} onChange={setTab} tabs={[{ id: "settings", label: "Settings" }, { id: "accounts", label: "Accounts" }, { id: "locations", label: "Locations" }, { id: "staff", label: "Staff directory" }, { id: "rules", label: "Rules" }, { id: "templates", label: "Templates" }, { id: "instruments", label: "Instruments" }, { id: "education", label: "Learning" }, { id: "operations", label: "Operations" }, { id: "integrations", label: "Integrations" }, { id: "audit", label: "Audit" }, { id: "governance", label: "Access governance" }]} />
       <div className="mt-5" key={tab}>
         {tab === "settings" && <SettingsTab />}
@@ -203,59 +204,6 @@ function RulePreview({ ruleId, title }: { ruleId: string; title: string }) {
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-function PatientImport() {
-  const { run, pending } = useAction();
-  const { toast } = useToast();
-  const [csv, setCsv] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
-  const [report, setReport] = useState<{ text: string; result: ActionResult } | null>(null);
-  const meta = (report?.result.record?.metadata ?? {}) as Record<string, unknown>;
-  const n = (k: string) => (typeof meta[k] === "number" ? (meta[k] as number) : 0);
-  const errors = Array.isArray(meta.errors) ? (meta.errors as { row: number; message: string }[]) : [];
-  const validated = !!report && report.text === csv && meta.dryRun !== false && errors.length === 0 && n("newRows") > 0;
-  const onFile = (f?: File) => {
-    if (!f) return;
-    f.text().then((t) => { setCsv(t); setReport(null); }).catch(() => toast({ title: "Could not read file", variant: "destructive" }));
-  };
-  const exec = (dryRun: boolean) =>
-    run({ action: "importPatients", payload: { csv, dryRun, syntheticConfirmed: true } }, (r) => setReport(dryRun ? { text: csv, result: r } : null), { always: dryRun });
-  return (
-    <Panel title="Import synthetic patients (CSV)" sub="Demo data only. Never upload production or real patient data." className="mt-5">
-      <p className="mb-3 text-xs text-muted-foreground">Required headers: <span className="font-mono">firstName, lastName, dob, location</span>. Optional: <span className="font-mono">email, phone, conditions, medications, payer, careManager, mrn</span>. Separate multiple conditions or medications with <span className="font-mono">|</span>.</p>
-      <div className="grid gap-3 lg:grid-cols-[1fr_1fr]">
-        <div className="space-y-3">
-          <input type="file" accept=".csv,text/csv" onChange={(e) => onFile(e.target.files?.[0])} className="block w-full text-xs file:mr-3 file:rounded-md file:border file:border-input file:bg-card file:px-3 file:py-1.5 file:text-xs" data-testid="input-import-file" />
-          <textarea className={`${inputCls} h-40 py-2 font-mono text-xs`} placeholder={"firstName,lastName,dob,location\nKalani,Akana,1958-03-14,Kapiolani Clinic"} value={csv} onChange={(e) => setCsv(e.target.value)} data-testid="input-import-csv" />
-          <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} data-testid="checkbox-synthetic" />I confirm every row is synthetic and contains no real patient information.</label>
-          <div className="flex gap-2">
-            <Btn disabled={!csv.trim() || !confirmed || pending} onClick={() => exec(true)} data-testid="button-validate-import">Validate</Btn>
-            <ConfirmButton size="md" variant="primary" label="Import" icon={<Upload className="h-4 w-4" />} title="Import synthetic patients" desc={`Creates ${n("newRows")} new synthetic patient(s). Duplicates are skipped.`} confirmLabel="Import" pending={pending} disabled={!validated || !confirmed} onConfirm={(_, c) => { exec(false); c(); }} testid="button-run-import" />
-          </div>
-          {report && report.text !== csv && <p className="text-[11px] text-[hsl(30_80%_38%)]">Text changed since validation. Validate again before importing.</p>}
-        </div>
-        <div>
-          {!report ? <EmptyState title="No validation yet" desc="Validate to see row counts, duplicates and errors before anything is written." /> : (
-            <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm" data-testid="panel-import-report">
-              {report.result.record?.description && <p className="mb-2 text-xs">{report.result.record.description}</p>}
-              <div className="grid grid-cols-4 gap-2 text-center">
-                {[["Rows", "rowCount"], ["Valid", "validRows"], ["New", "newRows"], ["Duplicate", "duplicateRows"]].map(([l, k]) => (
-                  <div key={k} className="rounded-md border border-border bg-card p-2"><div className="tnum text-lg font-semibold">{n(k)}</div><div className="text-[10px] text-muted-foreground">{l}</div></div>
-                ))}
-              </div>
-              {errors.length > 0 && (
-                <div className="mt-3 max-h-40 overflow-y-auto">
-                  {errors.map((e, i) => <div key={i} className="text-xs text-destructive">Row {e.row}: {e.message}</div>)}
-                </div>
-              )}
-              {validated && <p className="mt-3 text-xs text-[hsl(162_60%_30%)]">Validation passed. Import is enabled for this exact text.</p>}
-            </div>
-          )}
-        </div>
-      </div>
-    </Panel>
   );
 }
 

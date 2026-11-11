@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, UserRound } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, Upload, UserRound } from "lucide-react";
 import { useCreatePatient, useListPatients, useListRecords, getListRecordsQueryKey, type PatientInput } from "@workspace/api-client-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Btn, EmptyState, ErrorState, Field, PageHeader, Pill, ProgramTag, SkeletonRows, inputCls, toneFor } from "@/components/kit";
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {usePermission} from "@/components/access";
 import { sortPatients, type PatientSortKey, type SortDirection } from "@/lib/patient-sort";
+import { PatientImport } from "@/components/patient-import";
 
 // Zero intrinsic minimums keep long clinical text from moving individual rows' columns.
 const patientGrid = "lg:grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,.75fr)_minmax(0,.75fr)_minmax(0,1.1fr)_minmax(0,1.1fr)]";
@@ -26,6 +27,7 @@ export default function PatientsPage() {
   const [program, setProgram] = useState("");
   const [status, setStatus] = useState("");
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [sort, setSort] = useState<{key:PatientSortKey;direction:SortDirection}>({key:"patient",direction:"asc"});
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q), 250);
@@ -42,7 +44,7 @@ export default function PatientsPage() {
         eyebrow="Patients"
         title="Panel"
         desc="Your accessible patients. Risk, contact and time evidence in one row."
-        actions={allow("patients.write")?<Btn variant="primary" onClick={() => setOpen(true)} data-testid="button-new-patient"><Plus className="h-4 w-4" />Add patient</Btn>:undefined}
+        actions={allow("patients.write")?<div className="flex gap-2">{allow("admin")&&<Btn onClick={()=>setImportOpen(true)} data-testid="button-import-patients"><Upload className="h-4 w-4" />Import patients</Btn>}<Btn variant="primary" onClick={() => setOpen(true)} data-testid="button-new-patient"><Plus className="h-4 w-4" />Add patient</Btn></div>:undefined}
       />
       <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
@@ -103,6 +105,7 @@ export default function PatientsPage() {
         </div>
       )}
       {allow("patients.write")&&<NewPatientDialog open={open} onOpenChange={setOpen} />}
+      {allow("admin")&&<Dialog open={importOpen} onOpenChange={setImportOpen}><DialogContent className="max-h-[90dvh] max-w-5xl overflow-y-auto"><DialogHeader><DialogTitle>Bring in your patient roster</DialogTitle><DialogDescription>Import creates patient records, not program enrollment. Review each chart and capture consent before starting care.</DialogDescription></DialogHeader><PatientImport onClose={()=>setImportOpen(false)} /></DialogContent></Dialog>}
     </div>
   );
 }
@@ -114,7 +117,7 @@ function NewPatientDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
   const create = useCreatePatient();
   const locations = useListRecords("locations", { query: { enabled: open, queryKey: getListRecordsQueryKey("locations") } });
   const staff = useListRecords("staff", { query: { enabled: open, queryKey: getListRecordsQueryKey("staff") } });
-  const empty = { firstName: "", lastName: "", dob: "", sex: "F", email: "", phone: "", location: "", timezone: "Pacific/Honolulu", payer: "", careManager: "", conditions: "", medications: "" };
+  const empty = { firstName: "", lastName: "", dob: "", sex: "", email: "", phone: "", location: "", timezone: "America/New_York", payer: "", careManager: "", conditions: "", medications: "" };
   const [v, setV] = useState(empty);
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV((s) => ({ ...s, [k]: e.target.value }));
 
@@ -122,7 +125,7 @@ function NewPatientDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     e.preventDefault();
     const data: PatientInput = {
       firstName: v.firstName.trim(), lastName: v.lastName.trim(), dob: v.dob, sex: v.sex, email: v.email || undefined, phone: v.phone || undefined,
-      location: v.location, timezone: v.timezone, payer: v.payer || undefined, careManager: v.careManager || undefined, status: "active",
+      location: v.location, timezone: v.timezone, payer: v.payer, careManager: v.careManager || undefined, status: "active",
       conditions: v.conditions.split(",").map((s) => s.trim()).filter(Boolean),
       medications: v.medications.split(",").map((s) => s.trim()).filter(Boolean),
     };
@@ -150,7 +153,7 @@ function NewPatientDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
             <Field label="First name"><input className={inputCls} value={v.firstName} onChange={set("firstName")} required data-testid="input-first-name" /></Field>
             <Field label="Last name"><input className={inputCls} value={v.lastName} onChange={set("lastName")} required data-testid="input-last-name" /></Field>
             <Field label="Date of birth"><input type="date" className={inputCls} value={v.dob} onChange={set("dob")} required data-testid="input-dob" /></Field>
-            <Field label="Sex"><select className={inputCls} value={v.sex} onChange={set("sex")} data-testid="select-sex"><option value="F">Female</option><option value="M">Male</option><option value="X">Other</option></select></Field>
+            <Field label="Sex"><select className={inputCls} value={v.sex} onChange={set("sex")} data-testid="select-sex"><option value="">Not recorded</option><option value="F">Female</option><option value="M">Male</option><option value="X">Other</option></select></Field>
             <Field label="Email"><input type="email" className={inputCls} value={v.email} onChange={set("email")} data-testid="input-patient-email" /></Field>
             <Field label="Phone"><input className={inputCls} value={v.phone} onChange={set("phone")} data-testid="input-phone" /></Field>
             <Field label="Location">

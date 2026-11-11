@@ -9,3 +9,5 @@
 - [Browser mutation proofs](browser-auth-proof.md) — native HTTP success does not prove browser CSRF evidence; background activity and unlock must use the authenticated request path.
 - [Audit checkpoint evidence](audit-evidence.md) — preserve PostgreSQL timestamp precision and describe snapshot chains honestly, not as continuous or externally anchored ledgers.
 - [Synthetic clinical coherence](synthetic-clinical-coherence.md) — diagnosis overrides require whole-narrative review; clinical chronology is not bulk insertion time.
+- [Clinical onboarding guidance](clinical-onboarding-guidance.md) — assume an empty roster in guides; separate one-time setup from daily patient care without clearing existing data.
+- [Spreadsheet library boundaries](spreadsheet-library-boundaries.md) — verify named-sheet return shapes and real Date/text cells; library typings alone can mislead.

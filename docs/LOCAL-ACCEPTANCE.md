@@ -2,6 +2,19 @@
 
 This is a synthetic-data, single-practice build. It is not a production-readiness certificate or a statement that every requirement in the supplied specification is complete. See `IMPLEMENTATION-COVERAGE.md` for the remaining work.
 
+## Workspace cleanup and patient onboarding — November 11, 2026
+
+- Sign-in sample accounts are optional/collapsed; the synthetic-only ribbon remains truthful and concise. Policy baselines open useful details automatically, with stored version/fingerprint metadata behind a disclosure. Reports separate clinical performance from optional integration/AI diagnostics.
+- Operations no longer renders an unbounded event dump: reading and job history is paginated within the API's most recent 100-item window. Manual maintenance/simulation tools are collapsed; failure counts/errors and permitted retries remain available. Completed job history is optional and failed jobs cause its disclosure to open.
+- Added administrator Excel `.xlsx` and CSV import in Patients and Admin Settings: worksheet selection, recognized headers, explicit column matching/defaults, preview, ignored-column disclosure, synthetic-data confirmation, exact-roster validation, transactional import results and duplicate explanations. No accounts, consent, enrollments, signed clinical records or time are manufactured by import.
+- Import API regression: **17 HTTP checks passed**, covering required/duplicate/unknown headers, real calendar dates, active location/staff references, email/timezone checks, identity/MRN conflicts, all-or-nothing rejection, repeat-import duplicate protection, blank payer/default timezone, persistence and administrator-only authorization.
+- Local parser checks passed for BOM/quoted CSV, column matching, leading zeros, Date values, defaults, missing/reused mappings, malformed input, size/row limits and nonmutation. The existing seven-column patient-sort regression also passed.
+- One browser onboarding pass passed: normal sign-in, invalid CSV blocked, two-sheet Excel recognition/mapping, exact birth dates and leading-zero MRNs, validation/confirmation, exactly two creations, reload persistence, no enrollment/consent, repeat-import duplicates and usable 390px controls. Policy selection, collapsed report diagnostics and paginated operations were also observed without mutation. Subsequent minor copy/disclosure and blank-row normalization changes were confirmed by source/type/build checks, not another browser pass.
+- API and browser fixtures were retained outside clinical presentation using validation-run memberships; no existing clinical patients or retained evidence were deleted.
+- Portable build and both application typechecks passed. Added a 24-chapter role-based user guide covering empty-practice provisioning, registration/import, enrollment/consent, daily care, automation boundaries, billing, governance, troubleshooting and owner rollout inputs. PDF text/font checks preserved ligatures/accented names and embedded official Mahalo typefaces.
+
+Reproduce the targeted checks with `node scripts/check-patient-import.mjs` and `pnpm --filter @workspace/api-server exec tsx src/run-validation.ts patient-import` against the running synthetic development services. Rebuild guide assets with `node scripts/create-user-guide.mjs`; print the generated HTML to PDF.
+
 ## Current API/build checks and retained browser evidence
 
 Latest completion pass: **119 unit tests and 823 HTTP checks across all 15 suites passed locally**, with additional PostgreSQL assertions. Browser entries from earlier work are retained below as historical evidence, not represented as a new full browser rerun. The current signed-in walkthrough is recorded separately at the end of this document.

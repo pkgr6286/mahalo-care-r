@@ -8,6 +8,7 @@ import {
 } from "@workspace/api-client-react";
 import { Btn, EmptyState, ErrorState, Field, Panel, Pill, SimLabel, SkeletonRows, inputCls, type Tone } from "@/components/kit";
 import { FormAlert } from "@/components/auth-frame";
+import { AdvancedDetails, PagedList } from "@/components/list-tools";
 import { errMsg, fmtDateTime, fmtRel, mStr } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -41,14 +42,16 @@ export function OperationsTab() {
     <div className="space-y-5">
       <div className="flex items-start gap-3 rounded-xl border border-border bg-secondary/50 px-4 py-3 text-xs text-muted-foreground" data-testid="note-operations">
         <Activity className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--brand-cyan))]" strokeWidth={1.6} />
-        <span>Background work runs asynchronously. Queued means accepted, not finished. Lists refresh every few seconds while this tab is visible.</span>
-      </div>
-      <DemonstrationPrep />
-      <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
-        <Jobs />
-        <DeviceSimulator />
+        <span>The background worker runs rule checks, task creation and notifications automatically. Nothing here is part of daily clinical work; use it to check for failures and retry them.</span>
       </div>
       <IngestInbox />
+      <Jobs />
+      <AdvancedDetails label="Simulator and demonstration tools" testid="details-ops-tools">
+        <div className="space-y-5 py-2">
+          <DeviceSimulator />
+          <DemonstrationPrep />
+        </div>
+      </AdvancedDetails>
     </div>
   );
 }
@@ -77,24 +80,44 @@ function Jobs() {
       onSettled: () => setRetrying(null),
     });
   };
-  const jobs = useMemo(() => [...(q.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 40), [q.data]);
+  const all = useMemo(() => [...(q.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [q.data]);
+  const [onlyFailed, setOnlyFailed] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const failedCount = all.filter((j) => j.status.toLowerCase() === "failed").length;
+  useEffect(() => { if (failedCount > 0) setShowHistory(true); }, [failedCount]);
+  const activeCount = all.filter((j) => !isSettled(j.status)).length;
+  const jobs = onlyFailed ? all.filter((j) => j.status.toLowerCase() === "failed") : all;
   return (
-    <Panel title={<span className="inline-flex items-center gap-2"><Cpu className="h-4 w-4 text-muted-foreground" strokeWidth={1.6} />Maintenance jobs</span>} sub="Queue a run, then watch it settle" action={<LiveDot fetching={q.isFetching} />} bodyClass="p-0">
-      <div className="grid gap-2 border-b border-border p-4 sm:grid-cols-3">
-        {MAINT.map((m) => (
-          <button key={m.kind} onClick={() => run(m.kind)} disabled={!!pendingKind} className="lift group flex flex-col items-start rounded-xl border border-border bg-card p-3 text-left disabled:opacity-50" data-testid={`button-enqueue-${m.kind}`}>
-            <span className="flex w-full items-center gap-1.5 text-sm font-medium">{pendingKind === m.kind ? <Clock3 className="h-3.5 w-3.5 pulse-dot" strokeWidth={1.6} /> : <Play className="h-3.5 w-3.5 text-[hsl(var(--brand-orange))]" strokeWidth={1.6} />}{m.label}</span>
-            <span className="mt-1 text-[11px] leading-snug text-muted-foreground">{m.desc}</span>
-          </button>
-        ))}
+    <Panel title={<span className="inline-flex items-center gap-2"><Cpu className="h-4 w-4 text-muted-foreground" strokeWidth={1.6} />Background jobs</span>} sub="Runs automatically on schedule" action={<LiveDot fetching={q.isFetching} />} bodyClass="p-0">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border px-4 py-3 text-xs" data-testid="summary-jobs">
+        <span><span className="tnum font-semibold">{all.length}</span> <span className="text-muted-foreground">recent jobs</span></span>
+        <span><span className="tnum font-semibold">{activeCount}</span> <span className="text-muted-foreground">queued or running</span></span>
+        <span className={cn(failedCount && "text-destructive")}><span className="tnum font-semibold">{failedCount}</span> failed</span>
+        <label className="ml-auto inline-flex items-center gap-1.5 text-muted-foreground"><input type="checkbox" className="h-4 w-4 accent-[hsl(var(--brand-orange))]" checked={onlyFailed} onChange={(e) => { setOnlyFailed(e.target.checked); setShowHistory(true); }} data-testid="filter-jobs-failed" />Failed only</label>
       </div>
-      {q.isLoading ? <div className="p-4"><SkeletonRows rows={4} /></div> : q.isError ? <div className="p-4"><ErrorState error={q.error} onRetry={() => q.refetch()} /></div> : !jobs.length ? <div className="p-4"><EmptyState title="No jobs yet" desc="Queued and completed maintenance runs appear here." icon={<Cpu className="h-4 w-4" strokeWidth={1.6} />} /></div> : (
-        <ul className="max-h-[420px] overflow-y-auto" aria-live="polite">
-          {jobs.map((j) => {
+      <div className="border-b border-border p-3">
+        <AdvancedDetails label="Run maintenance manually" testid="details-manual-maintenance">
+          <p className="mb-2 text-muted-foreground">Only needed after a failure or for troubleshooting. Queued means accepted, not finished.</p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {MAINT.map((m) => (
+              <button key={m.kind} onClick={() => run(m.kind)} disabled={!!pendingKind} className="flex flex-col items-start rounded-lg border border-border bg-card p-2.5 text-left transition-colors hover:border-[hsl(var(--brand-orange))]/50 disabled:opacity-50" data-testid={`button-enqueue-${m.kind}`}>
+                <span className="flex items-center gap-1.5 text-[13px] font-medium">{pendingKind === m.kind ? <Clock3 className="h-3.5 w-3.5 pulse-dot" strokeWidth={1.6} /> : <Play className="h-3.5 w-3.5 text-[hsl(var(--brand-orange))]" strokeWidth={1.6} />}{m.label}</span>
+                <span className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{m.desc}</span>
+              </button>
+            ))}
+          </div>
+        </AdvancedDetails>
+      </div>
+      {q.isLoading ? <div className="p-4"><SkeletonRows rows={4} /></div> : q.isError ? <div className="p-4"><ErrorState error={q.error} onRetry={() => q.refetch()} /></div> : (
+        <details open={showHistory} onToggle={e=>setShowHistory(e.currentTarget.open)} data-testid="details-job-history">
+          <summary className="cursor-pointer px-4 py-3 text-xs font-medium text-muted-foreground">View recent job history</summary>
+          {!jobs.length ? <div className="p-4"><EmptyState title={onlyFailed ? "No failed jobs" : "No jobs yet"} desc={onlyFailed ? "No failed jobs in the loaded history." : "Scheduled and manual runs appear here."} icon={<Cpu className="h-4 w-4" strokeWidth={1.6} />} /></div> : (
+        <ul aria-live="polite">
+          <PagedList items={jobs} pageSize={10} noun="jobs" testid="pager-jobs" render={(j) => {
             const failed = j.status.toLowerCase() === "failed";
             const summary = typeof j.result?.message === "string" ? j.result.message : Object.entries(j.result ?? {}).filter(([, v]) => typeof v === "number").map(([k, v]) => `${k} ${v}`).join(" · ");
             return (
-              <li key={j.id} className="border-b border-border px-4 py-2.5 last:border-b-0" data-testid={`row-job-${j.id}`}>
+              <li key={j.id} className="border-b border-border px-4 py-2.5" data-testid={`row-job-${j.id}`}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium">{kindLabel(j.kind)}</span>
                   <span data-testid={`status-job-${j.id}`}><Pill tone={statusTone(j.status)} dot>{j.status}</Pill></span>
@@ -106,8 +129,10 @@ function Jobs() {
                 {!j.error && summary && <div className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">{summary}</div>}
               </li>
             );
-          })}
+          }} />
         </ul>
+          )}
+        </details>
       )}
     </Panel>
   );
@@ -133,7 +158,7 @@ function DeviceSimulator() {
   const inbox = useListIngestInbox({ query: { queryKey: getListIngestInboxQueryKey(), ...POLL } });
   const live = last ? inbox.data?.find((i) => i.id === last.id) ?? last : null;
   return (
-    <Panel title={<span className="inline-flex items-center gap-2"><Send className="h-4 w-4 text-muted-foreground" strokeWidth={1.6} />Device webhook simulator</span>} sub="Synthetic signed reading into the ingest inbox" action={<SimLabel />}>
+    <Panel title={<span className="inline-flex items-center gap-2"><Send className="h-4 w-4 text-muted-foreground" strokeWidth={1.6} />Device webhook simulator</span>} sub="Send a test reading into the inbox" action={<SimLabel />}>
       {devices.isLoading ? <SkeletonRows rows={3} /> : devices.isError ? <ErrorState error={devices.error} onRetry={() => devices.refetch()} /> : !eligible.length ? (
         <EmptyState title="No eligible devices" desc="Assign an active RPM device with a serial number to a patient first." icon={<Cpu className="h-4 w-4" strokeWidth={1.6} />} />
       ) : (
@@ -191,29 +216,51 @@ function IngestInbox() {
       qc.invalidateQueries({ queryKey: getListJobsQueryKey() });
     }
   }, [q.data, qc]);
-  const list = useMemo(() => [...(q.data ?? [])].sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)).slice(0, 60), [q.data]);
+  const all = useMemo(() => [...(q.data ?? [])].sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)), [q.data]);
+  const [filter, setFilter] = useState<"all" | "problems" | "waiting" | "processed">("all");
+  const isProblem = (i: InboxInfo) => statusTone(i.status) === "red" || !i.signatureValid || !!i.error;
+  const counts = {
+    all: all.length,
+    problems: all.filter(isProblem).length,
+    waiting: all.filter((i) => !isSettled(i.status)).length,
+    processed: all.filter((i) => statusTone(i.status) === "green" && !isProblem(i)).length,
+  };
+  const list = all.filter((i) => filter === "all" ? true : filter === "problems" ? isProblem(i) : filter === "waiting" ? !isSettled(i.status) : statusTone(i.status) === "green" && !isProblem(i));
+  const FILTERS = [["all", "All"], ["problems", "Needs attention"], ["waiting", "Waiting"], ["processed", "Processed"]] as const;
   return (
-    <Panel title={<span className="inline-flex items-center gap-2"><Inbox className="h-4 w-4 text-muted-foreground" strokeWidth={1.6} />Ingest inbox</span>} sub="Received is not processed: readings reach charts only after normalization" action={<LiveDot fetching={q.isFetching} />} bodyClass="p-0">
-      {q.isLoading ? <div className="p-4"><SkeletonRows rows={4} /></div> : q.isError ? <div className="p-4"><ErrorState error={q.error} onRetry={() => q.refetch()} /></div> : !list.length ? <div className="p-4"><EmptyState title="Inbox empty" desc="Device webhooks land here before they are normalized into readings." icon={<Inbox className="h-4 w-4" strokeWidth={1.6} />} /></div> : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead><tr className="border-b border-border bg-secondary/40 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              <th className="px-4 py-2 font-semibold">Received</th><th className="px-2 py-2 font-semibold">Source / event</th><th className="px-2 py-2 font-semibold">Device</th><th className="px-2 py-2 font-semibold">Signature</th><th className="px-2 py-2 font-semibold">Status</th><th className="px-4 py-2 font-semibold">Processed</th>
-            </tr></thead>
-            <tbody>
-              {list.map((i) => (
-                <tr key={i.id} className="border-b border-border align-top last:border-b-0" data-testid={`row-inbox-${i.id}`}>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground" title={fmtDateTime(i.receivedAt)}>{fmtRel(i.receivedAt)}</td>
-                  <td className="px-2 py-2.5"><div className="text-xs font-medium">{i.source}</div><div className="max-w-[200px] truncate font-mono text-[11px] text-muted-foreground">{i.eventId}</div></td>
-                  <td className="px-2 py-2.5 font-mono text-[11px]">{i.deviceId}</td>
-                  <td className="px-2 py-2.5">{i.signatureValid ? <span className="inline-flex items-center gap-1 text-xs text-[hsl(162_60%_28%)]"><ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.6} />Valid</span> : <span className="inline-flex items-center gap-1 text-xs text-destructive"><ShieldAlert className="h-3.5 w-3.5" strokeWidth={1.6} />Invalid</span>}</td>
-                  <td className="px-2 py-2.5"><span data-testid={`status-inbox-${i.id}`}><Pill tone={statusTone(i.status)} dot>{i.status}</Pill></span>{i.error && <div className="mt-1 max-w-[220px] text-[11px] text-destructive">{i.error}</div>}</td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">{i.processedAt ? fmtRel(i.processedAt) : "Waiting"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+    <Panel title={<span className="inline-flex items-center gap-2"><Inbox className="h-4 w-4 text-muted-foreground" strokeWidth={1.6} />Device reading inbox</span>} sub="Readings reach charts after processing" action={<LiveDot fetching={q.isFetching} />} bodyClass="p-0">
+      {q.isLoading ? <div className="p-4"><SkeletonRows rows={4} /></div> : q.isError ? <div className="p-4"><ErrorState error={q.error} onRetry={() => q.refetch()} /></div> : !all.length ? <div className="p-4"><EmptyState title="Inbox empty" desc="Device readings appear here before they are processed into charts." icon={<Inbox className="h-4 w-4" strokeWidth={1.6} />} /></div> : (
+        <>
+          <div className="flex flex-wrap gap-1.5 border-b border-border px-4 py-3" role="tablist" aria-label="Inbox filter">
+            {FILTERS.map(([id, label]) => (
+              <button key={id} role="tab" aria-selected={filter === id} onClick={() => setFilter(id)} className={cn("rounded-full border px-3 py-1 text-xs transition-colors", filter === id ? "border-[hsl(var(--brand-charcoal))] bg-[hsl(var(--brand-charcoal))] text-[hsl(var(--background))]" : "border-border text-muted-foreground hover:text-foreground", id === "problems" && counts.problems > 0 && filter !== id && "text-destructive")} data-testid={`filter-inbox-${id}`}>
+                {label} <span className="tnum opacity-70">{counts[id]}</span>
+              </button>
+            ))}
+          </div>
+          {!list.length ? <div className="p-4"><EmptyState title="Nothing in this view" desc="Try another filter." icon={<Inbox className="h-4 w-4" strokeWidth={1.6} />} /></div> : (
+            <ul>
+              <PagedList items={list} pageSize={10} noun="readings" testid="pager-inbox" render={(i) => (
+                <li key={i.id} className="border-b border-border px-4 py-2.5" data-testid={`row-inbox-${i.id}`}>
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-medium">{i.source}</span>
+                    <span data-testid={`status-inbox-${i.id}`}><Pill tone={statusTone(i.status)} dot>{i.status}</Pill></span>
+                    {!i.signatureValid && <span className="inline-flex items-center gap-1 text-xs text-destructive"><ShieldAlert className="h-3.5 w-3.5" strokeWidth={1.6} />Signature invalid</span>}
+                    <span className="ml-auto text-[11px] text-muted-foreground" title={fmtDateTime(i.receivedAt)}>received {fmtRel(i.receivedAt)}{i.processedAt ? `, processed ${fmtRel(i.processedAt)}` : ["received","queued","processing"].includes(i.status) ? ", waiting" : ""}</span>
+                  </div>
+                  {i.error && <div className="mt-1 text-xs text-destructive">{i.error}</div>}
+                  <details className="mt-1 text-[11px] text-muted-foreground">
+                    <summary className="cursor-pointer select-none hover:text-foreground">Details</summary>
+                    <div className="mt-1 grid gap-0.5 font-mono">
+                      <span>event {i.eventId}</span><span>device {i.deviceId}</span>
+                      <span className="inline-flex items-center gap-1">{i.signatureValid ? <ShieldCheck className="h-3 w-3" strokeWidth={1.6} /> : <ShieldAlert className="h-3 w-3" strokeWidth={1.6} />}signature {i.signatureValid ? "valid" : "invalid"}</span>
+                    </div>
+                  </details>
+                </li>
+              )} />
+            </ul>
+          )}
+        </>
       )}
     </Panel>
   );
@@ -258,7 +305,7 @@ function DemonstrationPrep() {
   });
   const d = st.data;
   return (
-    <Panel title={<span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-muted-foreground" strokeWidth={1.6} />Practice demonstration</span>} sub="Prepare a coherent synthetic practice for walkthroughs" action={<SimLabel text="Synthetic only" />}>
+    <Panel title={<span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-muted-foreground" strokeWidth={1.6} />Practice demonstration</span>} sub="Load a sample practice for walkthroughs" action={<SimLabel text="Sample data" />}>
       {st.isLoading ? <SkeletonRows rows={2} /> : st.isError ? <ErrorState error={st.error} onRetry={() => st.refetch()} /> : (
         <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-start">
           <div className="grid flex-1 grid-cols-3 gap-3 text-sm" data-testid="status-demonstration">

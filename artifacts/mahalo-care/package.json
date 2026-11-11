@@ -73,5 +73,9 @@
     "vite": "catalog:",
     "wouter": "^3.3.5",
     "zod": "catalog:"
+  },
+  "dependencies": {
+    "csv-parse": "^7.0.3",
+    "read-excel-file": "^9.3.14"
   }
 }

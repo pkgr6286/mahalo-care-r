@@ -5,7 +5,7 @@ import { and,eq,sql } from "drizzle-orm";
 import { config } from "./lib/config";
 
 if(config.NODE_ENV!=="development"||config.DATA_CLASS!=="synthetic")throw new Error("Local validation runs require synthetic development data.");
-const supported=["api","access","policies","rules","worklists","documents","ai","workflow-operations","contact-ehr","attachments","clinical","caregivers","site-access","emergency-access","security-reports"];
+const supported=["api","access","policies","rules","worklists","documents","ai","workflow-operations","contact-ehr","attachments","clinical","caregivers","site-access","emergency-access","security-reports","patient-import"];
 const selected=process.argv.slice(2);
 const tests=selected.length?selected:supported;
 if(tests.some(t=>!supported.includes(t)))throw new Error("Unknown validation suite.");

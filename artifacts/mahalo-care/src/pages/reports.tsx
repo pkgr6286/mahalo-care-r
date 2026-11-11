@@ -3,7 +3,7 @@ import { Download, Eye } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useExportData, useGetReports, getExportDataQueryKey } from "@workspace/api-client-react";
 import { Btn, ErrorState, PageHeader, Panel, SimLabel, SkeletonRows, StatusPill } from "@/components/kit";
-import { PagedList } from "@/components/list-tools";
+import { AdvancedDetails, PagedList } from "@/components/list-tools";
 import { fmtRel, mStr } from "@/lib/api";
 import { PermissionOnly } from "@/components/access";
 import { AiReviewMetricsPanel } from "@/components/ai/ai-review-metrics";
@@ -20,7 +20,7 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Reports" title="Practice performance" desc="Program load, staff time and site activity across the practice." />
+      <PageHeader eyebrow="Reports" title="Practice performance" desc="Enrollment, risk, staff time and site activity across the practice." />
       {r.isLoading ? <SkeletonRows rows={6} /> : r.isError ? <ErrorState error={r.error} onRetry={() => r.refetch()} /> : (
         <div className="grid gap-5 lg:grid-cols-2">
           <Panel title="Enrolled and at risk by program">
@@ -51,14 +51,6 @@ export default function ReportsPage() {
               </div>
             )} />
           </Panel>
-          <Panel title="Integration health" action={<SimLabel text="All drivers simulated" />} bodyClass="p-0">
-            {r.data!.integrationHealth.map((s) => (
-              <div key={s.id} className="flex items-center gap-3 border-b border-border px-4 py-2 text-sm last:border-b-0">
-                <span className="flex-1">{s.title}</span><span className="text-xs text-muted-foreground">{mStr(s, "lastTestedAt") ? `tested ${fmtRel(mStr(s, "lastTestedAt"))}` : ""}</span><StatusPill value={s.status} />
-              </div>
-            ))}
-          </Panel>
-          <PermissionOnly any={["clinical.read"]}><AiReviewMetricsPanel /></PermissionOnly>
           <Panel title="Exports" sub="Spreadsheet downloads; preview shows the first rows">
             <div className="space-y-2">
               {(["patients", "billing", "audit", "configuration"] as ExportKind[]).map((k) => (
@@ -79,6 +71,21 @@ export default function ReportsPage() {
             )}
           </Panel>
         </div>
+      )}
+      {r.data && (
+        <AdvancedDetails label="Integration and AI diagnostics" className="mt-5" testid="details-report-diagnostics">
+          <p className="mb-3 text-muted-foreground">EHR, video and outbound delivery use simulated adapters. Optional live AI drafts still require clinical review.</p>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Panel title="Integration health" action={<SimLabel text="EHR / delivery simulated" />} bodyClass="p-0">
+            {r.data!.integrationHealth.map((s) => (
+                <div key={s.id} className="flex items-center gap-3 border-b border-border px-4 py-2 text-sm last:border-b-0">
+                  <span className="flex-1">{s.title}</span><span className="text-xs text-muted-foreground">{mStr(s, "lastTestedAt") ? `tested ${fmtRel(mStr(s, "lastTestedAt"))}` : ""}</span><StatusPill value={s.status} />
+                </div>
+            ))}
+            </Panel>
+            <PermissionOnly any={["clinical.read"]}><AiReviewMetricsPanel /></PermissionOnly>
+          </div>
+        </AdvancedDetails>
       )}
       {gov.role === "clinical_admin" && <div className="mt-8"><GovernanceReports mode="clinical" /></div>}
     </div>

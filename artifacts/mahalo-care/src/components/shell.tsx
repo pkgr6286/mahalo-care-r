@@ -26,7 +26,7 @@ export function SyntheticRibbon() {
   return (
     <div className="relative z-40 flex h-7 items-center justify-center gap-2 border-b border-border bg-[hsl(var(--brand-charcoal))] px-3 text-[11px] text-[hsl(40_12%_80%)]" data-testid="banner-synthetic">
       <span className="inline-flex items-center gap-1.5 font-semibold uppercase tracking-[0.14em] text-[hsl(var(--background))]"><span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--brand-orange))]" />Synthetic data</span>
-      <span className="truncate">Demo environment. No real patient information. EHR, video and notifications are simulated; optional live AI drafts use synthetic charts only.</span>
+      <span className="truncate">Synthetic patients only. Do not enter real patient information.</span>
     </div>
   );
 }

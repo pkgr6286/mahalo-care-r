@@ -2,6 +2,8 @@
 
 Single-practice platform · React, Node.js, PostgreSQL and Drizzle · November 11, 2026
 
+For a nontechnical, empty-practice setup and day-to-day operating guide, use [USER-GUIDE.md](USER-GUIDE.md). Generate its branded HTML and blank Excel import template with `node scripts/create-user-guide.mjs`, then print the HTML to PDF. The CSV template is in `docs/templates/patient-import.csv`.
+
 ## What you can show now
 
 The platform has working staff, patient and consent-scoped caregiver web experiences. Its clinical views use persisted PostgreSQL data, not screen-only mock responses. The curated practice contains 30 fictional patients and 36 clinical enrollments across RPM, RTM, CCM, PCM and BHI, including concurrent RPM/CCM examples. CoCM has its own registry and qualified review workflow.

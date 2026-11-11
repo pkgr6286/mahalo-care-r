@@ -32,25 +32,32 @@ export function PolicyDetail({ base, canManage, canReview, onEdit, onSelect }: {
 
   return (
     <Panel
-      title={<span className="inline-flex flex-wrap items-center gap-2"><span className="font-mono text-base">{p.version}</span><Pill tone={STATUS_TONE[p.status] ?? "neutral"} dot>{p.status}</Pill>{p.provisional && <Pill tone="amber">Provisional · verify</Pill>}{p.immutable && <Pill tone="neutral"><Lock className="mr-1 inline h-3 w-3" strokeWidth={1.6} />Immutable</Pill>}</span>}
+      title={<span className="inline-flex flex-wrap items-center gap-2"><span className="text-base">{p.status==="bundled"?`${p.program} baseline`:p.version}</span><Pill tone={STATUS_TONE[p.status] ?? "neutral"} dot>{p.status}</Pill>{p.provisional && <Pill tone="amber">Provisional</Pill>}{p.immutable && <Pill tone="neutral"><Lock className="mr-1 inline h-3 w-3" strokeWidth={1.6} />Read-only</Pill>}</span>}
       sub={<span className="inline-flex items-center gap-2"><ProgramTag p={p.program} />{kindLabel(p.kind)}{p.payer ? ` · ${p.payer}` : ""}</span>}
     >
       <div className="space-y-4" data-testid="policy-detail">
         {actions}
-        {p.status === "bundled" && <Note>Bundled demo baseline. It cannot be edited; clone it to a new draft to make changes.</Note>}
+        {p.status === "bundled" && <Note>Included starting point. Clone to draft to adapt it for your practice.</Note>}
         {(p.status === "reviewed" || p.status === "published" || p.status === "retired") && <Note>Body frozen at review. Clone to change it.</Note>}
         {!canManage && !canReview && <Note>Read-only access. You can read every version; changes need a reviewer or administrator.</Note>}
 
         <dl className="grid gap-x-4 gap-y-3 rounded-xl border border-border bg-secondary/30 p-3 text-sm sm:grid-cols-3">
           <Meta l="Effective from" v={fmtDate(p.effectiveFrom)} />
-          <Meta l="Created" v={`${fmtDateTime(p.createdAt)} · ${p.createdBy}`} />
-          <Meta l="Enrollments pinned" v={p.enrollmentCount !== undefined ? String(p.enrollmentCount) : "—"} />
-          <Meta l="Fingerprint" v={p.fingerprint ? p.fingerprint.slice(0, 16) : "—"} mono title={p.fingerprint} />
-          <Meta l="Reviewed" v={p.reviewedAt ? `${fmtDateTime(p.reviewedAt)}${p.reviewedBy ? " · " + p.reviewedBy : ""}` : "Not reviewed"} />
-          <Meta l="Published" v={p.publishedAt ? fmtDateTime(p.publishedAt) : "—"} />
-          <Meta l="Source reference" v={p.sourceRef || "None recorded"} wide />
-          {p.reviewNote && <Meta l="Review note" v={p.reviewNote} wide />}
+          <Meta l="Patients using this version" v={p.enrollmentCount !== undefined ? String(p.enrollmentCount) : "—"} />
+          <Meta l="Practice review" v={p.reviewedAt ? fmtDateTime(p.reviewedAt) : "Not reviewed"} />
         </dl>
+        <details className="rounded-xl border border-border p-3 text-xs" data-testid="details-policy-version">
+          <summary className="cursor-pointer font-medium text-muted-foreground">Review and version details</summary>
+          <dl className="mt-3 grid gap-x-4 gap-y-3 sm:grid-cols-2">
+            <Meta l="Stored version" v={p.version} mono />
+            <Meta l="Created" v={`${fmtDateTime(p.createdAt)} · ${p.createdBy}`} />
+            <Meta l="Fingerprint" v={p.fingerprint ? p.fingerprint.slice(0, 16) : "—"} mono title={p.fingerprint} />
+            <Meta l="Reviewer" v={p.reviewedBy || "Not reviewed"} />
+            <Meta l="Published" v={p.publishedAt ? fmtDateTime(p.publishedAt) : "—"} />
+            <Meta l="Source reference" v={p.sourceRef || "None recorded"} wide />
+            {p.reviewNote && <Meta l="Review note" v={p.reviewNote} wide />}
+          </dl>
+        </details>
 
         <ErrorList errors={errs} />
         {result && <ValidationResult v={result} />}
