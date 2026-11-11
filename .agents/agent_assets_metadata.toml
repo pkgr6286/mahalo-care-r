@@ -29,3 +29,45 @@ mtime_ms = 1794405819566
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:72075d06-8e5a-463c-baf0-94459369e5a7/2e3fb0d4-9c5f-4f53-a853-0c8cb01641a1/5c0d7277-2b06-4595-9940-d7bc83048c10"
 storage_version_token = "1794406106094368"
 content_type = "text/html"
+
+[[outputs]]
+id = "_WAFoXeDvk14GoiqLp3Pi"
+uri = "file://generated-artifacts/MAHALO-USER-GUIDE.pdf"
+type = "pdf"
+title = "Mahalo Care — User Guide"
+description = "37-page branded guide: empty-practice setup, Excel/CSV onboarding, enrollment and consent, daily care, billing, governance and owner launch inputs."
+logical_id = "d6e6355d-db80-4f70-ab28-81b93777ff96"
+content_hash = "sha256:ee87b048f73e5e572afae7695aac599e4950162d855034d6ea744ee54890ab51"
+size = 680776
+mtime_ms = 1794409493244
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:72075d06-8e5a-463c-baf0-94459369e5a7/d6e6355d-db80-4f70-ab28-81b93777ff96/a4f9fb99-12ac-413d-a6ff-0bfbd3043d50"
+storage_version_token = "1794409743278306"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "yctFUNWLrprY_Fbk3XMbL"
+uri = "file://generated-artifacts/MAHALO-USER-GUIDE.html"
+type = "html"
+title = "Mahalo Care — Offline HTML Guide"
+description = "The same complete guide with clickable chapter navigation, embedded brand fonts and a print/save-PDF control."
+logical_id = "fdf497b7-b76d-4725-8eaa-e4107697d9ad"
+content_hash = "sha256:245c67b740330c74e834cc9e31bfae72a3cafbc7934dcf483a28ab681da2eaab"
+size = 586237
+mtime_ms = 1794409484736
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:72075d06-8e5a-463c-baf0-94459369e5a7/fdf497b7-b76d-4725-8eaa-e4107697d9ad/3a4084f1-aa91-46dd-a5a2-95bd7d15c55b"
+storage_version_token = "1794409744613595"
+content_type = "text/html"
+
+[[outputs]]
+id = "XkjDupheRnDzV9Lpa3_NA"
+uri = "file://generated-artifacts/MAHALO-PATIENT-IMPORT-TEMPLATE.xlsx"
+type = "table"
+title = "Patient Import — Excel Template"
+description = "Blank patient roster with instructions and matched columns. CSV templates are also available inside the import panel."
+logical_id = "a8665ee8-540d-4a30-a698-4b66eb4d6021"
+content_hash = "sha256:e9cb4741efea1c05be16de6e677b3c266750c7482c1eb6ca75318c76d961a60d"
+size = 7984
+mtime_ms = 1794409486664
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:72075d06-8e5a-463c-baf0-94459369e5a7/a8665ee8-540d-4a30-a698-4b66eb4d6021/f1e370b2-73ae-4dc9-98b5-ac40fa64c5db"
+storage_version_token = "1794409745935998"
+content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
