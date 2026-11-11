@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, ChevronDown, KeyRound, ShieldCheck, UserRound, Waves } from "lucide-react";
+import { ArrowRight, ChevronDown, ShieldCheck, UserRound } from "lucide-react";
 import { useHealthCheck, useLogin, getGetCurrentUserQueryKey } from "@workspace/api-client-react";
 import { Btn, Field, inputCls } from "@/components/kit";
 import { Logo, SyntheticRibbon } from "@/components/shell";
@@ -16,6 +16,13 @@ const PATIENT_SCENARIOS = [
 ] as const;
 const SCOPED_NURSE_EMAIL = "scopednurse@mahalo.care";
 const CAREGIVER_EMAIL = "family.wilson@example.test";
+const SUPPORTED_PROGRAMS = [
+  { code: "RPM", name: "Remote patient monitoring" },
+  { code: "RTM", name: "Remote therapeutic monitoring" },
+  { code: "CCM", name: "Chronic care management" },
+  { code: "PCM", name: "Principal care management" },
+  { code: "BHI", name: "Behavioral health integration" },
+] as const;
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -59,27 +66,29 @@ export default function LoginPage() {
           <div className="relative"><Logo light height={34} /></div>
           <div className="relative max-w-lg rise">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[hsl(40_12%_80%)]"><span className="h-1.5 w-1.5 rounded-full bg-[#FF7A21]" />Exception-first care workspace</div>
-            <h1 className="text-[48px] leading-[1.04]">See the three patients who need you, not the three hundred who don't.</h1>
-            <p className="mt-6 max-w-md text-[15px] leading-relaxed text-[hsl(40_12%_76%)]">Readings, care plans, contact, time and billing evidence for each patient on one surface, across every site in the practice.</p>
+            <h1 className="text-[48px] leading-[1.04]">One workspace for connected care.</h1>
+            <ul className="mt-7 flex flex-wrap gap-2" aria-label="Supported care programs" data-testid="login-supported-programs">
+              {SUPPORTED_PROGRAMS.map(program => <li key={program.code} title={program.name} className="rounded-full border border-white/20 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold tracking-wide">{program.code}<span className="sr-only"> — {program.name}</span></li>)}
+            </ul>
+            <p className="mt-3 text-xs text-[hsl(40_12%_76%)]">Plus collaborative care management (CoCM)</p>
+            <p className="mt-6 max-w-md text-[15px] leading-relaxed text-[hsl(40_12%_76%)]">Monitoring, care coordination, clinical documentation and billing evidence—in one patient record.</p>
           </div>
-          <div className="relative grid grid-cols-3 gap-6 border-t border-white/10 pt-6 text-sm">
-            {[
-              { i: Waves, t: "Readings to exceptions", d: "Rules triage what changed.", c: "#FF7A21" },
-              { i: ShieldCheck, t: "Audit-ready evidence", d: "Time and consent per line.", c: "#F44762" },
-              { i: KeyRound, t: "One patient record", d: "No program silos.", c: "#20B5D0" },
-            ].map((f) => (
-              <div key={f.t}>
-                <f.i className="mb-3 h-[18px] w-[18px]" style={{ color: f.c }} strokeWidth={1.5} />
-                <div className="font-medium">{f.t}</div>
-                <div className="mt-0.5 text-xs text-[hsl(40_12%_70%)]">{f.d}</div>
-              </div>
-            ))}
+          <div className="relative flex items-start gap-3 border-t border-white/10 pt-6 text-sm" data-testid="login-billing-capability">
+            <ShieldCheck className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#FF7A21]" strokeWidth={1.5} aria-hidden />
+            <div>
+              <div className="font-medium">CPT-aligned billing evidence</div>
+              <p className="mt-1 max-w-sm text-xs leading-relaxed text-[hsl(40_12%_70%)]">Track qualifying activity, review unmet requirements and prepare billing exports.</p>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center justify-center p-6">
           <div className="w-full max-w-sm rise">
-            <div className="mb-10 lg:hidden"><Logo height={30} /></div>
+            <div className="mb-8 lg:hidden">
+              <Logo height={30} />
+              <p className="mt-4 text-[11px] font-medium tracking-wide text-muted-foreground" data-testid="login-mobile-programs">{SUPPORTED_PROGRAMS.map(program => program.code).join(" · ")} · CoCM</p>
+              <p className="mt-1 text-xs text-muted-foreground">Care coordination and CPT-aligned billing evidence.</p>
+            </div>
             <h2 className="text-[34px] leading-tight">Sign in</h2>
             <p className="mt-2 text-sm text-muted-foreground">Care team and patients sign in with email and password.</p>
 
