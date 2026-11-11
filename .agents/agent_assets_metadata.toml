@@ -15,3 +15,17 @@ storage_uri = "gcs://replit-rams-assets-pike/rams/assets/conversation:80b67094-f
 storage_version_token = "1794344552687835"
 content_type = "text/markdown"
 source_uri = "file://.agents/outputs/Mahalo-Care-End-to-End-Execution-Plan.md"
+
+[[outputs]]
+id = "A31PA4CN22tKsC8E_rzxm"
+uri = "file://generated-artifacts/MAHALO-OWNER-HANDOVER.html"
+type = "html"
+title = "Mahalo Care — Owner Handover"
+description = "Walkthrough, verified capabilities, local test results, deployment boundaries and the inputs needed for real-world rollout. Includes Print / Save PDF."
+logical_id = "2e3fb0d4-9c5f-4f53-a853-0c8cb01641a1"
+content_hash = "sha256:00a03f8498e4fc43a9416b1597428f3cc2ef4913d2023a410e12c846b95e8201"
+size = 331399
+mtime_ms = 1794405819566
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:72075d06-8e5a-463c-baf0-94459369e5a7/2e3fb0d4-9c5f-4f53-a853-0c8cb01641a1/5c0d7277-2b06-4595-9940-d7bc83048c10"
+storage_version_token = "1794406106094368"
+content_type = "text/html"
