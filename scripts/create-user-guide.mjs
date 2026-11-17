@@ -1,11 +1,13 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createRequire } from "node:module";
+import { loadGuideIllustrations, illustrationStyles, screenshotViewer } from "./lib/guide-illustrations.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const args = process.argv.slice(2);
 if (args.some(arg => arg !== "--implementation") || args.length > 1) throw new Error("Usage: node scripts/create-user-guide.mjs [--implementation]");
 const implementation = args.includes("--implementation");
+const illustrations = implementation ? null : await loadGuideIllustrations(root);
 const sourceName = implementation ? "IMPLEMENTATION-GUIDE" : "USER-GUIDE";
 const source = await readFile(resolve(root, `docs/${sourceName}.md`), "utf8");
 const document = implementation ? {
@@ -20,16 +22,16 @@ const document = implementation ? {
   notice: "Current workspace: fictional patients only. Synthetic evaluation and real-patient launch are separate tracks. This guide does not grant approval to enter real patient information.",
   footer: "Practice implementation guide",
 } : {
-  title: "Mahalo Care — Practice and care-team user guide",
-  description: "A practical guide to setting up Mahalo Care, importing patients, enrolling them and managing care.",
-  label: "Practice and care-team user guide",
+  title: "Mahalo Care — Customer user guide",
+  description: "An illustrated customer manual for Groth Pain & Spine: practice setup, patient onboarding, daily care and billing review.",
+  label: "Groth Pain & Spine · Customer user guide",
   contents: "User guide",
-  heading: "From an empty practice<br>to coordinated care.",
-  subtitle: "Set up once. Enroll patients correctly. Let routine work happen in the background, so your team can focus on care.",
+  heading: "Your guide to<br>coordinated care.",
+  subtitle: "From your first patient to your daily care routine. Clear steps, real screens and practical guidance for every role.",
   audience: "Administrator to patient workflows",
-  feature: "Excel and CSV onboarding included",
+  feature: "Illustrated workflows · Excel and CSV onboarding",
   notice: "Current workspace: fictional patients only. This is a guide to the implemented product, not clinical, payer, security or regulatory certification.",
-  footer: "Practice and care-team guide",
+  footer: "Customer user guide · Groth Pain & Spine",
 };
 const esc = value => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 const inline = value => esc(value).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
@@ -39,6 +41,12 @@ let body = "", list = "", table = false, code = false, codeLines = [];
 const closeList = () => { if (list) body += `</${list}>`; list = ""; };
 const closeTable = () => { if (table) body += "</tbody></table></div>"; table = false; };
 for (const line of source.split("\n").slice(3)) {
+  const screen = line.match(/^:::screen ([a-z0-9-]+)$/);
+  if (screen) {
+    closeList(); closeTable();
+    if (!illustrations) throw new Error("Screenshots belong to the user-guide mode only.");
+    body += illustrations.figure(screen[1]); continue;
+  }
   if (line.startsWith("```")) {
     closeList(); closeTable();
     if (code) body += `<pre><code>${esc(codeLines.join("\n"))}</code></pre>`;
@@ -58,7 +66,7 @@ for (const line of source.split("\n").slice(3)) {
   const item = line.match(/^(-|\d+\.) (.*)$/);
   if (item) {
     const kind = item[1] === "-" ? "ul" : "ol";
-    if (list !== kind) { closeList(); body += `<${kind}>`; list = kind; }
+    if (list !== kind) { closeList(); body += kind === "ol" ? `<ol start="${parseInt(item[1], 10)}">` : "<ul>"; list = kind; }
     body += `<li>${inline(item[2])}</li>`; continue;
   }
   closeList();
@@ -67,15 +75,24 @@ for (const line of source.split("\n").slice(3)) {
     toc.push({ title, id });
     body += `<h2 id="${id}">${esc(title)}</h2>`;
   } else if (line.startsWith("### ")) body += `<h3>${inline(line.slice(4))}</h3>`;
-  else if (line.trim()) body += `<p>${inline(line)}</p>`;
+  else if (line.trim()) {
+    const before = line.startsWith("**Before you begin:**");
+    const done = line.startsWith("**You are done when:**");
+    body += `<p${before || done ? ` class="guide-callout${before ? " before" : ""}"` : ""}>${inline(line)}</p>`;
+  }
 }
 closeList(); closeTable();
 const data = async (path, mime) => `data:${mime};base64,${(await readFile(resolve(root, path))).toString("base64")}`;
-const [logo, sans, serif] = await Promise.all([
+const [logo, sans, serif, groth] = await Promise.all([
   data("artifacts/mahalo-care/public/brand/mahalo-care-color.svg", "image/svg+xml"),
   data("artifacts/mahalo-care/public/brand/fonts/noto-sans-mahalo-latin.woff2", "font/woff2"),
   data("artifacts/mahalo-care/public/brand/fonts/victor-serif-smooth-400.otf", "font/otf"),
+  implementation ? null : data("artifacts/mahalo-care/public/brand/groth-pain-spine.png", "image/png"),
 ]);
+const coverBranding = `<div class="co-brand"><img src="${logo}" alt="Mahalo Care">${groth ? `<img class="groth" src="${groth}" alt="Groth Pain &amp; Spine">` : ""}</div>`;
+const coverDate = implementation ? "11 November 2026" : "17 November 2026";
+const summary = implementation ? "" : `<div class="guide-summary"><div><b>01 · GET READY</b><strong>Set up and onboard</strong>Practice, people and the first patient</div><div><b>02 · DELIVER CARE</b><strong>Work from priorities</strong>Plans, exceptions and follow-up</div><div><b>03 · REVIEW</b><strong>Check the evidence</strong>Documentation, billing and reports</div></div>`;
+const edition = illustrations ? `<p class="capture-edition">${illustrations.count} actual screen captures · 17 November 2026 · Application source ${esc(illustrations.manifest.sourceRevision || "recorded in capture manifest")}<br>Fictional training records illustrate navigation. They are not a roster to copy or an approval to use real patient information.</p>` : "";
 const contents = toc.map(section => `<a href="#${section.id}">${esc(section.title)}</a>`).join("");
 const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(document.title)}</title><meta name="description" content="${esc(document.description)}"><style>
 @font-face{font-family:MahaloSans;src:url("${sans}") format("woff2");font-weight:100 900;font-display:block}
@@ -86,7 +103,8 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 @page{size:A4;margin:18mm 17mm 20mm;@bottom-left{content:"Mahalo Care · ${document.footer}";font-family:MahaloSans;font-size:8pt;color:#777}@bottom-right{content:counter(page);font-family:MahaloSans;font-size:8pt;color:#777}}
 @media print{body{background:#fff;font-size:10pt;line-height:1.55}.layout{display:block;max-width:none}.sidebar,.actions{display:none}main{padding:0}.cover{min-height:240mm;padding:10mm 0 0;margin:0;border:0;break-after:page}.cover img{width:58mm}.eyebrow{margin-top:34mm}h1{font-size:42pt;max-width:165mm;margin-top:8mm}.subtitle{font-size:13pt}.cover-meta{margin-top:14mm;gap:9mm}.cover-meta strong{font-size:10pt}.notice{font-size:9pt}.print-contents{display:block;break-after:page}.print-contents h2{border:0;padding:0;margin-top:0;break-before:auto}.print-contents a{display:block;font-size:10pt;line-height:1.5;padding:2mm 0;color:var(--ink)}h2{font-size:24pt;border-top:0;padding-top:0;margin:0 0 7mm;break-before:page;break-after:avoid}h3{font-size:12pt;margin:7mm 0 3mm;break-after:avoid}p{margin:3mm 0;orphans:3;widows:3}li{margin:2mm 0;break-inside:avoid}ol,ul{margin-bottom:5mm}table{font-size:8.5pt;min-width:0}th,td{padding:2.5mm 3mm}thead{display:table-header-group}tr{break-inside:avoid}.table-wrap{overflow:visible;border-radius:0;margin:5mm 0}pre{font-size:8pt;break-inside:avoid}footer{font-size:8pt}a{color:inherit}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head><body><div class="layout"><nav class="sidebar" aria-label="Guide chapters"><img src="${logo}" alt="Mahalo Care"><div class="label">${esc(document.contents)} · Contents</div>${contents}</nav><main><header class="cover"><img src="${logo}" alt="Mahalo Care"><div class="eyebrow">${esc(document.label)}</div><h1>${document.heading}</h1><p class="subtitle">${esc(document.subtitle)}</p><div class="cover-meta"><div><strong>Single-practice edition</strong>${esc(document.audience)}</div><div><strong>11 November 2026</strong>${esc(document.feature)}</div></div><div class="notice">${esc(document.notice)}</div><div class="actions"><button onclick="window.print()">Print / Save PDF</button><span>Use Ctrl/Cmd + F to find a topic. No internet connection is needed to read this document.</span></div></header><section class="print-contents" aria-label="Contents"><h2>Contents</h2>${contents}</section><article>${body}</article><footer>Official Mahalo logo and typefaces. This document is self-contained, with no external fonts, images, tracking or network requests. Technical deployment references accompany the source code; the guide does not grant approval to handle real patient data.</footer></main></div></body></html>`;
+${implementation ? "" : illustrationStyles}
+</style></head><body class="${implementation ? "" : "illustrated"}"><div class="layout"><nav class="sidebar" aria-label="Guide chapters"><img src="${logo}" alt="Mahalo Care"><div class="label">${esc(document.contents)} · Contents</div>${contents}</nav><main><header class="cover">${coverBranding}<div class="eyebrow">${esc(document.label)}</div><h1>${document.heading}</h1><p class="subtitle">${esc(document.subtitle)}</p>${summary}<div class="cover-meta"><div><strong>Single-practice edition</strong>${esc(document.audience)}</div><div><strong>${coverDate}</strong>${esc(document.feature)}</div></div><div class="notice">${esc(document.notice)}</div>${edition}<div class="actions"><button onclick="window.print()">Print / Save PDF</button><span>Use Ctrl/Cmd + F to find a topic. No internet connection is needed to read this document.</span></div></header><section class="print-contents" aria-label="Contents"><h2>Contents</h2>${contents}</section><article>${body}</article><footer>Official Mahalo logo and typefaces; Groth artwork supplied by the customer where shown. This document is self-contained, with no external fonts, images, tracking or network requests. Technical deployment references accompany the source code; the guide does not grant approval to handle real patient data.</footer></main></div>${implementation ? "" : screenshotViewer}</body></html>`;
 await mkdir(resolve(root, "generated-artifacts"), { recursive: true });
 await writeFile(resolve(root, `generated-artifacts/MAHALO-${sourceName}.html`), html);
 
@@ -123,5 +141,5 @@ template.getRow(1).eachCell(cell => {
   cell.border = { bottom: { style: "thin", color: { argb: "FFFF7A21" } } };
 });
 await workbook.xlsx.writeFile(resolve(root, "generated-artifacts/MAHALO-PATIENT-IMPORT-TEMPLATE.xlsx"));
-console.log(`Created branded user guide (${toc.length} chapters) and blank Excel roster template.`);
+console.log(`Created illustrated customer guide (${toc.length} chapters, ${illustrations.count} actual screenshots) and blank Excel roster template.`);
 }

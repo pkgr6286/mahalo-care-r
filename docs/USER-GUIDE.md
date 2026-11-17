@@ -1,6 +1,6 @@
-# Mahalo Care — Practice and care-team user guide
+# Mahalo Care — Customer user guide
 
-Single-practice edition · 11 November 2026
+Groth Pain & Spine · Illustrated single-practice edition · 17 November 2026
 
 ## 1. Start here
 
@@ -9,6 +9,14 @@ This guide takes a practice from **no patient records** to a working care-manage
 **The operating principle:** an administrator sets up the workspace once; clinicians spend their day reviewing patients, handling exceptions and documenting care. Routine rule checks, scheduled task creation and notification processing belong to the background worker—not a clinician's daily checklist.
 
 **Current environment:** fictional patients only. Do not enter real patient information. The included clinical and billing baselines require practice review; EHR, video and outbound delivery are simulated. Optional live AI is available only as a reviewed drafting aid. This guide explains the working product without treating those qualifications as completed production approvals.
+
+### How to use this illustrated guide
+
+Choose your role below, then follow the numbered steps in the relevant chapter. **Before you begin** identifies prerequisites; **You are done when** tells you what to check before moving on. Orange figure numbers connect the instructions to real application screens.
+
+All screenshots show fictional training records captured on 17 November 2026. They illustrate where to work, not patient facts to copy. A new practice starts by adding its own authorized roster; it does not need to load the illustrated patients. Counts, names, available controls and dates vary with your data, role and site.
+
+Use the clickable contents or search the PDF/HTML for the screen name. The PDF is designed for printing and training; the offline HTML lets you enlarge a screen image without depending on the application being online.
 
 ### Choose your route
 
@@ -31,11 +39,19 @@ This guide takes a practice from **no patient records** to a working care-manage
 5. Import a roster or add a patient manually.
 6. Verify the patient's clinical profile and assign the care team.
 7. Open **Enrollment & consent**, choose the program and record informed consent.
-8. Create and sign a patient-specific care plan with a qualified signatory.
-9. Link the appropriate device or patient tasks and invite the patient to the web workspace.
+8. For RPM, assign the correct device before signing the plan. Complete and sign the patient-specific care plan with a qualified signatory.
+9. Check the generated patient tasks and invite the patient to the web workspace.
 10. Start using **Today** and **Worklists**. Review billing evidence at the appropriate interval.
 
 **Registration is not enrollment.** Creating a patient record does not create consent, an active program, a signed care plan, a portal account or billable time. Those are separate, deliberate steps.
+
+### Three routines, not one long setup checklist
+
+| When | Who | Focus |
+| --- | --- | --- |
+| Once, before onboarding | Administrator and clinical lead | Sites, named accounts, reviewed care defaults and roster preparation |
+| For every new patient | Care team, with administrator support for access | Identity, clinical facts, eligibility, consent, device/tasks, signed plan and invitation |
+| Each working day | Clinical team | Today → Worklists → patient evidence → actual care → note/time → resolution or handoff |
 
 ## 2. What comes with the workspace
 
@@ -80,15 +96,21 @@ The existing evaluation workspace contains fictional cases. This guide does not 
 
 ### Sign in and secure your account
 
+:::screen login
+
 1. Enter your email and password on **Sign in**.
 2. Use **Forgot password?** if needed. In the current local-delivery configuration, an administrator supplies a new setup/reset link; do not assume an email was sent.
 3. Use your account controls to change your initial password.
 4. For a supervised walkthrough only, **Sample accounts** expands the available fictional personas. **Fill** fills the form; you still press **Sign in**. These are not production staff accounts.
 5. Sign out when handing a device to another person. Staff sessions lock after inactivity; entering your password unlocks your session. Patient and caregiver accounts have a separate access model.
 
+**You are done when:** your own name and expected workspace appear. A patient should see the patient workspace, a caregiver only shared categories, and staff the controls permitted by their role.
+
 ## 4. Set the practice details once
 
 **Responsible person: practice administrator.**
+
+:::screen practice
 
 1. Open **Admin → Settings**.
 2. Set the practice name, support email and support phone.
@@ -99,6 +121,8 @@ The existing evaluation workspace contains fictional cases. This guide does not 
 The practice timezone is a default, not a substitute for each patient's timezone. A patient living elsewhere may need a different setting. Dates, quiet hours and calendar-day evidence depend on the correct timezone.
 
 **What not to do every day:** re-enter these details, manually run maintenance jobs or reload sample data. Once configured, these settings remain saved.
+
+**You are done when:** the practice name, support details and timezone survive a reload and match the practice's agreed settings.
 
 ## 5. Create locations and the care team
 
@@ -111,6 +135,8 @@ The practice timezone is a default, not a substitute for each patient's timezone
 5. Use consistent names. During import, a location must match an active practice location; matching is case-insensitive and the saved practice spelling is retained.
 
 ### Create accounts
+
+:::screen accounts
 
 1. Open **Admin → Accounts**.
 2. Add a named account using the person's email and the least-privileged appropriate role.
@@ -140,9 +166,13 @@ An **account** controls sign-in, permissions and attribution. The **staff direct
 
 A person does not receive the union of all their site roles. The selected site determines the effective role for that session. If an expected control is missing, first check the site context and role instead of creating a second account.
 
+**You are done when:** each staff member can sign in with their own account, use the correct site and see only the work their role permits. Keep setup links private; never paste them into a guide or shared training slide.
+
 ## 6. Review care defaults before enrolling patients
 
 **Responsible people: clinical lead and administrator.** Do this once for the programs and payers you intend to use, then review when requirements change.
+
+:::screen policies
 
 1. Open **Programs** for program configuration and **Policies and templates** for governed versions. The latter is also available from **Admin**.
 2. Choose the relevant program's **Included baseline**. Its detail opens automatically.
@@ -164,6 +194,8 @@ You do not have to fill every configuration tab before caring for a fictional fi
 - **Admin → Instruments** is where authorized staff review questionnaire wording, source, scoring and permitted use. Do not activate licensed content you have not supplied or qualified.
 - **Admin → Learning** is for patient education or original app guidance. Save drafts, review clinical wording and source/use permissions, then activate only appropriate content.
 - **Admin → Rules** is for configuring clinical exception rules. Preview against suitable fictional cases before enabling a changed rule.
+
+**You are done when:** the clinical lead can identify the policy and reviewed content being used for each intended pathway. A populated baseline library is not evidence that the practice has approved it.
 
 ## 7. Import a patient roster from Excel or CSV
 
@@ -205,6 +237,8 @@ Replace the location with a location your practice actually created. These examp
 
 ### Upload, match, validate and import
 
+:::screen import-mapping
+
 1. Open **Patients → Import patients**. The same panel is available in **Admin → Settings**.
 2. Choose the file. For a workbook with several sheets, check **Worksheet** and select the sheet containing patient rows. A likely roster sheet is selected initially; only the selected sheet is imported.
 3. Review the four required field matches. Common headings such as “First Name,” “Date of Birth” and “Clinic” are recognized automatically.
@@ -212,6 +246,9 @@ Replace the location with a location your practice actually created. These examp
 5. Choose a **Default location** and **Default care manager** if needed. A default fills blank or unmatched cells; it does not override a populated matched cell.
 6. Expand **Optional fields** to review automatically matched contact details, identifiers, summaries and timezone. Read **Not imported** carefully: unmatched columns will not be submitted.
 7. Check the preview—especially spelling, birth dates, location and leading-zero MRNs. It shows the first five patients, not the entire roster.
+
+:::screen import-preview
+
 8. Confirm that the file contains only fictional patients in this environment.
 9. Choose **Validate roster**. Review Rows, Valid, New and Duplicates, plus every row error.
 10. Correct errors in the file or matching and validate again. Changes to the roster, mapping or defaults invalidate the previous validation.
@@ -235,9 +272,17 @@ Import creates the roster and summary information. It does **not** create verifi
 
 The original workbook is read in the browser; it is not archived as a patient document. Validation/import sends the matched fields to the server and saves the result/audit evidence, not the original spreadsheet.
 
+**You are done when:** the completion counts reconcile with your file, skipped duplicates have an understood reason, and the expected records remain in Patients after reload. The screenshots show a prepared roster, not a completed import.
+
 ## 8. Add a single patient manually
 
 **Responsible person: front desk or permitted clinical staff.**
+
+:::screen patients
+
+**Before you begin:** search for the patient by name and MRN. Create a new record only after checking the existing panel.
+
+:::screen registration
 
 1. Open **Patients → Add patient**.
 2. Enter first name, last name and birth date.
@@ -257,9 +302,13 @@ Manual registration is not an identity-matching/import tool. Search for the pati
 - Sorting applies to the full filtered panel before pagination, not only the currently visible page.
 - A dash means no recorded value. Do not assume that a new patient's missing adherence/contact value means poor adherence or a completed interaction.
 
+**You are done when:** the correct person has one intended chart, the assigned MRN is recorded, and the location and care owner are correct. Continue to clinical review; do not stop at registration.
+
 ## 9. Verify the clinical profile and ownership
 
 **Responsible person: clinician or care manager with clinical-writing permission.**
+
+:::screen profile
 
 1. Open the patient's chart and verify name, MRN, birth date and location.
 2. Open **Clinical profile**.
@@ -272,9 +321,15 @@ Manual registration is not an identity-matching/import tool. Search for the pati
 
 Use the patient-specific record as the source for care. Do not copy another fictional patient's plan, dates, medication narrative or outcomes simply to make a chart look complete.
 
+**You are done when:** the structured profile reflects reviewed information, uncertainty remains explicit, and a named care owner is responsible for the next step.
+
 ## 10. Enroll the patient and capture consent
 
 **Responsible person: authorized clinician.**
+
+**Before you begin:** confirm identity and clinical facts, choose the intended care pathway, and understand the practice-approved policy. A roster entry or patient login is not consent.
+
+:::screen enrollment
 
 1. Open **Enrollment & consent → Enroll**.
 2. Choose the correct program.
@@ -298,6 +353,8 @@ Use the patient-specific record as the source for care. Do not copy another fict
 
 The server checks program conflicts and required evidence. If enrollment is rejected, read the specific reason and resolve the underlying issue; do not change patient facts to bypass it. Program descriptions here are not payer eligibility advice.
 
+**You are done when:** the intended enrollment is Active, the relevant consent is Captured, and you can identify the policy version attached to that enrollment.
+
 ### Stopping or changing care
 
 - **Pause** stops the active enrollment from accruing further qualifying activity.
@@ -311,7 +368,11 @@ The server checks program conflicts and required evidence. If enrollment is reje
 
 **Responsible people: care team drafts; a role allowed to sign the plan reviews and signs.**
 
-1. Open **Care plans** and create a new care plan.
+**Before you begin:** enrollment and required consent must be in place. **RPM plan signing requires an assigned RPM device**; complete device assignment in Chapter 12 before choosing Sign. Do not invent a serial number or device assignment in a real clinical environment.
+
+:::screen care-plan
+
+1. Open **Care plans** and use the enrollment-created draft if one exists, or create a new care plan.
 2. Choose the enrolled program and enter a clear title and assessment/summary.
 3. Review the prefilled problems and medications against the clinical profile.
 4. Enter measurable goals, interventions, medication reconciliation date, expected outcome, named care team and review interval.
@@ -326,17 +387,28 @@ The server checks program conflicts and required evidence. If enrollment is reje
 
 **What remains clinical:** choosing appropriate goals, schedules and escalation instructions; reconciling medicines; discussing the plan; and signing the reviewed content.
 
+**You are done when:** the plan shows its signature and version, the PDF contains the reviewed content, and the intended activities appear after background processing.
+
 ## 12. Connect monitoring and the first follow-up
+
+:::screen devices
 
 1. In **Devices**, find or add the relevant inventory item and assign it to the correct patient/program using the available assignment controls.
 2. Confirm the device identity, status and monitoring stream.
 3. Review the patient's **Readings** tab for measurements, validity, timing and trends.
+
+:::screen readings
+
 4. Confirm the care plan's schedule and escalation contact are appropriate.
 5. Check that expected patient tasks appear after the signed plan is processed.
 6. Arrange the first follow-up and ensure a named staff member owns it.
 7. For RTM or behavioral care, ensure the intended exercise/check-in/questionnaire content has been reviewed and is available.
 
 The current environment can accept synthetic reading events and display their processing, but it is not connected to a live vendor. A simulated successful event does not prove a physical device is communicating.
+
+Review the measurement type and units before interpreting a row. A separate systolic or diastolic component is not, by itself, a complete blood-pressure pair. The patient BP view shows complete valid pairs in mmHg; never supply a guessed missing component.
+
+**You are done when:** the correct device is assigned, available measurements are understood in their recorded time context, and a named person owns follow-up. “No data” is a gap to investigate, not a normal result to assume.
 
 ## 13. Invite the patient and, if authorized, a caregiver
 
@@ -350,6 +422,8 @@ The current environment can accept synthetic reading events and display their pr
 
 ### Patient quick start
 
+:::screen patient-today
+
 1. Open the patient workspace in a browser on a phone, tablet or computer.
 2. Review the current plan and upcoming/assigned tasks.
 3. Enter the permitted readings or check-ins and record actual medication/exercise task completion.
@@ -361,7 +435,23 @@ The current environment can accept synthetic reading events and display their pr
 
 The responsive web workspace is included. A native app-store mobile application is not part of this release. This is not an emergency messaging service.
 
+### Find and download your signed plan
+
+:::screen patient-plan
+
+1. Choose **Plan** in the bottom navigation.
+2. Read **My care plan**, **My goals** and **What we'll do**.
+3. Scroll to **Signed plan PDFs**. Find the intended plan and choose **Download PDF**.
+4. Choose **History** to see the retained PDF copies and earlier plan revisions available to you. Use the Download PDF control next to the required copy.
+5. If the file is still downloading, wait rather than repeatedly selecting it. If an error appears, use the offered retry or ask the care team for help.
+
+Only signed/released plan states are offered. If the screen says **Your plan is being prepared**, ask the care team to complete and share it. A labelled **Legacy capture** is a copy saved later; it does not claim to be the original signing-time PDF.
+
+Downloaded files are sensitive even after they leave the app. Use a private device and the practice's approved storage/sharing process.
+
 ### Give a caregiver limited access
+
+:::screen caregiver
 
 1. In **Clinical profile → Contacts**, record the caregiver's actual contact details.
 2. Record the patient's permission to share and select only the permitted categories. Save the contact.
@@ -375,9 +465,13 @@ Caregiver access is not automatic from an emergency-contact entry. It does not g
 
 Changing/removing the contact's sharing, consent or email revokes existing caregiver access. Turning sharing back on does not restore the old grant; record a new grant when appropriate.
 
+**You are done when:** the patient signs in to their own workspace, the caregiver sees only authorized categories, and both understand how to contact the team and what to do for urgent concerns.
+
 ## 14. A clinician's daily routine
 
 **Start in Today, not Admin.**
+
+:::screen today
 
 1. Confirm your active site/role.
 2. Review **Today** for the patients and exceptions needing attention.
@@ -400,6 +494,8 @@ Changing/removing the contact's sharing, consent or email revokes existing careg
 An empty worklist may mean no item matches your current scope/filter—not that no patient needs care. Check site context, filters and patient status if the expected work is missing.
 
 ## 15. Worklists and exceptions
+
+:::screen worklists
 
 | Worklist | Use it for |
 | --- | --- |
@@ -428,6 +524,8 @@ In the CoCM registry, consultant reviews are professional assessments with crede
 
 ## 16. Document care, notes and time
 
+:::screen notes
+
 ### Notes
 
 1. Open **Notes** in the patient's chart and create a clinical note.
@@ -438,6 +536,8 @@ In the CoCM registry, consultant reviews are professional assessments with crede
 6. Add an addendum/revision rather than overwriting a signed note.
 
 ### Timed work
+
+:::screen time
 
 1. Open **Time** and select the correct patient, program and activity.
 2. Start the timer when actual eligible work begins.
@@ -457,6 +557,8 @@ The system prevents overlapping staff intervals and locks relevant evidence in c
 5. Sign a note only after normal professional review. Suggested time is not automatically committed as care time.
 
 ## 17. Messages, outreach, EHR context and appointments
+
+:::screen messages
 
 ### Secure messages and contact records
 
@@ -481,6 +583,8 @@ Appointment records and patient-facing schedule context are supported, but they 
 
 ## 18. Questionnaires, learning and adherence
 
+:::screen questionnaire
+
 ### Questionnaires
 
 1. Confirm the intended instrument/content is active and reviewed for use.
@@ -504,6 +608,10 @@ Acknowledgment proves that a user performed the acknowledgment action, not that 
 
 **Responsible people: billing team and designated provider.**
 
+:::screen billing
+
+**Before you begin:** select the correct period and scope. Candidates are a calculated snapshot; saving a new plan, note or time entry does **not** automatically refresh that snapshot.
+
 1. Open **Billing** and choose the relevant period/scope.
 2. Run the provisional calculation when evidence should be refreshed.
 3. Review each candidate's status, source evidence and blockers: enrollment, consent, signed plan, time, interaction, device days and program-specific requirements.
@@ -520,7 +628,11 @@ Practice-wide closing/reopening requires the appropriate billing permission and 
 
 **This is evidence review, not payer submission.** Included thresholds/code families remain provisional until qualified for the actual practice, payer and service period. The workspace does not send claims or guarantee reimbursement.
 
+**You are done when:** the selected period has been reviewed against actual source evidence, unresolved blockers have an owner, and any authorized close/decision/export follows practice policy. A green requirement indicator alone is not a claim approval.
+
 ## 20. Reports and exports
+
+:::screen reports
 
 1. Open **Reports** for program enrollment/risk, trend, staff-time and site information.
 2. Use **Exports** to preview and download the allowed patient, billing, audit or configuration data.
@@ -535,6 +647,8 @@ Configuration transfer is different from patient import. Configuration exports e
 ## 21. Documents, supporting files and governance
 
 ### Signed documents and supporting PDFs
+
+:::screen files
 
 - Signed plans, notes and consent records have private generated document copies with retained source/version evidence.
 - Open a document using its document/PDF control. A later clinical revision does not rewrite the original signed document.
@@ -569,6 +683,8 @@ Emergency access is a justified, audited, **one-patient read-only** exception fo
 **Responsible person: administrator/operator.** Clinicians should not start their day here.
 
 Open **Admin → Operations** when checking service health or investigating a failure.
+
+:::screen operations
 
 ### Device reading inbox
 
@@ -616,8 +732,11 @@ The operator—not every clinician—monitors worker availability, recurring fai
 | A field/action is missing | Check role, active site, patient scope and document/period state |
 | New task or reading is waiting | Allow background processing; administrator checks Operations if it remains stuck |
 | Signed record cannot be edited | Create a revision/addendum and obtain a new signature |
+| RPM plan will not sign | Assign the patient's correct RPM device, then review the remaining required plan fields |
 | Time rejected | Check actual overlap, program/activity eligibility and whether the period is closed |
 | Billing candidate is blocked | Open its evidence and correct the underlying factual gap; do not invent time or consent |
+| A new patient's billing evidence is missing | Select the correct period and ask the authorized billing owner to Recalculate after reviewing the underlying evidence |
+| Patient cannot find a plan PDF | Open Plan and scroll to Signed plan PDFs; only signed/released plans are offered. Check role/access or ask the care team if it is still being prepared |
 | Patient is absent from the panel | Check name/MRN search, site context, program/status filters and access |
 | Supporting PDF cannot download | It may still be quarantined, revoked or outside your access |
 | Session locked | Unlock with your password; do not create another shared login |
