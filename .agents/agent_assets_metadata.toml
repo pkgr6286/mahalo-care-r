@@ -113,3 +113,17 @@ mtime_ms = 1794411673479
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:72075d06-8e5a-463c-baf0-94459369e5a7/2943f01e-843c-4d9c-ba9e-e75899ea8c2e/dc054101-b1b1-4d87-b687-bd58458aaffd"
 storage_version_token = "1794411822348387"
 content_type = "text/csv"
+
+[[outputs]]
+id = "pihBaJ99vpFm2vBGOqI2O"
+uri = "file://generated-artifacts/MAHALO-DEMO-READINESS-2026-11-17.html"
+type = "html"
+title = "Mahalo Care — Customer Demo Readiness"
+description = "Verified Preview and published-site paths, patient-portal defects, simulation boundaries, untested workflows and a safe presentation checklist."
+logical_id = "b734118c-2d9d-46c9-857e-8ac5846c0e45"
+content_hash = "sha256:641bc503cd1b274fa452511cdfa8a32dd952966fd0615eef6a61a6aa537ffcb6"
+size = 19131
+mtime_ms = 1794949348750
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:72075d06-8e5a-463c-baf0-94459369e5a7/b734118c-2d9d-46c9-857e-8ac5846c0e45/406ec83e-4db3-4a4b-93e6-b1091f91b82f"
+storage_version_token = "1794949393279787"
+content_type = "text/html"
