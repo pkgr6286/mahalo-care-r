@@ -8,6 +8,7 @@ import { fmtDate, fmtDateTime, mArr, mStr, useAction, useSaveRecord } from "@/li
 import { cn } from "@/lib/utils";
 import { PatientPreferences } from "@/components/patient-preferences";
 import { PatientAttachments } from "@/components/attachments/patient-attachments";
+import { PatientPlanDocuments, patientSignedPlans } from "@/components/patient/plan-documents";
 import { EducationCard, isExerciseMaterial } from "@/components/patient/education-card";
 import { instrumentGate } from "@/components/admin/instrument-review";
 import { readRange } from "@/components/admin/questionnaire-builder";
@@ -329,7 +330,8 @@ function VideoRequest({ p }: { p: Patient }) {
 }
 
 function PlanScreen({ p, records }: { p:Patient; records: CareRecord[] }) {
-  const plan = records.filter((r) => r.kind === "careplans" && (r.status === "signed" || r.status === "active")).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+  const signedPlans = patientSignedPlans(records, p.id);
+  const plan = signedPlans.find((r) => r.status === "active");
   const consents = records.filter((r) => r.kind === "consents");
   return (
     <div className="space-y-4">
@@ -343,6 +345,7 @@ function PlanScreen({ p, records }: { p:Patient; records: CareRecord[] }) {
       ))}
       <p className="text-[11px] text-muted-foreground">Signed {fmtDate(mStr(plan, "signedAt"))} by {mStr(plan, "signedBy")}</p>
       </>}
+      {signedPlans.length > 0 && <PatientPlanDocuments key={p.id} plans={signedPlans} />}
       {consents.length > 0 && <Consents consents={consents} />}
       <PatientAttachments patientId={p.id} audience="patient" />
       <PatientPreferences patient={p} records={records}/>
