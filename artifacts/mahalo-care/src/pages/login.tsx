@@ -24,6 +24,24 @@ const SUPPORTED_PROGRAMS = [
   { code: "BHI", name: "Behavioral health integration" },
 ] as const;
 
+/** Login-only co-branding; use the supplied artwork without changing either mark. */
+function LoginBranding({ light = false }: { light?: boolean }) {
+  return (
+    <div className="relative flex items-center gap-3 sm:gap-6" data-testid={light ? "login-branding-desktop" : "login-branding-mobile"}>
+      <div className="shrink-0"><Logo light={light} height={light ? 34 : 28} /></div>
+      <img
+        src={`${import.meta.env.BASE_URL}brand/groth-pain-spine.png`}
+        alt="Groth Pain & Spine"
+        width={352}
+        height={154}
+        className="block h-auto w-[112px] shrink-0 select-none rounded min-[380px]:w-[144px] lg:w-[180px]"
+        draggable={false}
+        data-testid="img-groth-logo"
+      />
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
@@ -63,7 +81,7 @@ export default function LoginPage() {
             <circle cx="300" cy="300" r="220" stroke="#F44762" strokeOpacity=".3" />
             <circle cx="300" cy="300" r="150" stroke="#20B5D0" strokeOpacity=".3" />
           </svg>
-          <div className="relative"><Logo light height={34} /></div>
+          <LoginBranding light />
           <div className="relative max-w-lg rise">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[hsl(40_12%_80%)]"><span className="h-1.5 w-1.5 rounded-full bg-[#FF7A21]" />Exception-first care workspace</div>
             <h1 className="text-[48px] leading-[1.04]">One workspace for connected care.</h1>
@@ -85,7 +103,7 @@ export default function LoginPage() {
         <div className="flex items-center justify-center p-6">
           <div className="w-full max-w-sm rise">
             <div className="mb-8 lg:hidden">
-              <Logo height={30} />
+              <LoginBranding />
               <p className="mt-4 text-[11px] font-medium tracking-wide text-muted-foreground" data-testid="login-mobile-programs">{SUPPORTED_PROGRAMS.map(program => program.code).join(" · ")} · CoCM</p>
               <p className="mt-1 text-xs text-muted-foreground">Care coordination and CPT-aligned billing evidence.</p>
             </div>

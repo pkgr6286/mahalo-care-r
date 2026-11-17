@@ -25,3 +25,11 @@ The supplied **Mahalo Care** product lockup is the appropriate identity for this
 Mahalo Health retains ownership of the brand assets. The implementation does not expand the permissions stated in its brand guide. Do not publish font binaries as a separately licensed font product or imply unrelated endorsements.
 
 The brand refresh changes presentation only. Clinical severity colors must remain legible and distinguishable; patient permissions, signatures, billing rules and synthetic-data notices must retain their existing behavior.
+
+## Groth Pain & Spine login co-branding
+
+- Source: the customer-supplied `attached_assets/groth_1794950553120.jpeg` (447 × 447 pixels).
+- Web artwork: `artifacts/mahalo-care/public/brand/groth-pain-spine.png` (352 × 154 pixels), cropped from the source at x=48, y=148. Only surrounding navy space was removed; the full symbol, divider, wordmark and original navy/white colors are preserved.
+- The supplied artwork is displayed alongside Mahalo Care on the desktop and mobile login page only. The shared Mahalo logo component and all other application screens remain unchanged.
+- Preserve the image's aspect ratio and its built-in clear space. Do not redraw the artwork, remove its navy background, stretch it or substitute typeset text for the wordmark.
+- This co-branding does not imply any additional clinical, payer or regulatory approval.
