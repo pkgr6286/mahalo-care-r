@@ -13,6 +13,7 @@ import { EducationCard, isExerciseMaterial } from "@/components/patient/educatio
 import { instrumentGate } from "@/components/admin/instrument-review";
 import { readRange } from "@/components/admin/questionnaire-builder";
 import { UrgentSupportNotice, isCanonicalPhq9, readAnswerLabels, readInstructions } from "@/components/questionnaire-content";
+import { selectPatientBloodPressure } from "@/lib/patient-blood-pressure";
 
 type Screen = "today" | "checkin" | "exercises" | "meds" | "messages" | "plan";
 type Mode = "staff" | "patient";
@@ -91,24 +92,22 @@ export function PatientApp({ id, mode, onSignOut, signingOut }: { id: string; mo
 function TodayScreen({ p, records, go }: { p: Patient; records: CareRecord[]; go: (s: Screen) => void }) {
   const { run, pending } = useAction();
   const tasks = records.filter((r) => r.kind === "tasks" && !mStr(r, "adherenceKind") && r.status === "pending" && mStr(r,"audience") !== "staff" && (!mStr(r,"dueAt") || Date.parse(mStr(r,"dueAt")) <= Date.now()));
-  const cellular = records
-    .filter((r) => r.kind === "observations" && (mStr(r, "source").toLowerCase() === "cellular" || (mStr(r, "source").toLowerCase() === "device" && r.metadata?.deviceCleared === true)))
-    .sort((a, b) => (b.date ?? b.createdAt).localeCompare(a.date ?? a.createdAt));
-  const last = cellular[0];
+  const bloodPressure = selectPatientBloodPressure(records);
+  const last = bloodPressure[0];
   return (
     <div className="space-y-4">
       <div><div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Aloha</div><div className="font-serif text-[28px] leading-tight" data-testid="text-patient-greeting">{p.firstName}</div></div>
       <div className="relative overflow-hidden rounded-3xl bg-[hsl(var(--brand-charcoal))] p-5 text-[hsl(var(--background))]">
         <div className="absolute inset-x-0 top-0 h-1 brand-rule" />
         <div className="flex items-center justify-between text-xs text-[hsl(40_12%_76%)]"><span>Last blood pressure</span><span>From your connected cuff</span></div>
-        <div className="tnum mt-2 text-[40px] font-medium leading-none tracking-tight" data-testid="text-last-reading">{last ? `${last.value}/${mStr(last, "diastolic")}` : "—"}</div>
-        <div className="mt-2 text-xs text-[hsl(40_12%_76%)]">{last ? fmtDateTime(last.date ?? last.createdAt) : "No device readings yet"}</div>
+        <div className="tnum mt-2 text-[40px] font-medium leading-none tracking-tight" data-testid="text-last-reading">{last ? <>{last.systolic}/{last.diastolic}<span className="ml-2 text-sm font-normal">{last.unit}</span></> : "—"}</div>
+        <div className="mt-2 text-xs text-[hsl(40_12%_76%)]">{last ? `${last.timeKind === "recorded" ? "Recorded " : ""}${fmtDateTime(last.timestamp)}` : "No valid blood-pressure readings yet"}</div>
       </div>
-      {cellular.length > 1 && (
+      {bloodPressure.length > 1 && (
         <div className="rounded-2xl border border-border bg-card p-3">
           <div className="mb-1 text-xs font-semibold text-muted-foreground">Recent readings</div>
-          {cellular.slice(1, 6).map((r) => (
-            <div key={r.id} className="flex justify-between py-1 text-sm"><span className="tnum font-mono">{r.value}/{mStr(r, "diastolic")}</span><span className="text-xs text-muted-foreground">{fmtDateTime(r.date ?? r.createdAt)}</span></div>
+          {bloodPressure.slice(1, 6).map((r) => (
+            <div key={r.id} className="flex flex-wrap items-baseline justify-between gap-x-2 py-1 text-sm" data-testid="patient-recent-bp"><span className="tnum whitespace-nowrap font-mono">{r.systolic}/{r.diastolic} <span className="text-xs">{r.unit}</span></span><span className="text-xs text-muted-foreground">{r.timeKind === "recorded" ? "Recorded " : ""}{fmtDateTime(r.timestamp)}</span></div>
           ))}
         </div>
       )}

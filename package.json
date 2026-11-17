@@ -10,6 +10,7 @@
     "test:portable": "pnpm --filter @workspace/api-server exec tsx src/check-portable.ts",
     "test:csrf-headers": "node scripts/check-csrf-headers.mjs",
     "test:private-storage": "pnpm --filter @workspace/api-server exec tsx src/check-storage-access.ts",
+    "test:patient-blood-pressure": "node --test scripts/check-patient-blood-pressure.mjs",
     "start": "NODE_ENV=production SERVE_WEB=true node --enable-source-maps artifacts/api-server/dist/index.mjs",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
